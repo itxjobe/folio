@@ -28,7 +28,7 @@
 
 | Version | Price | Android | Root | Tested on |
 | :---: | :---: | :---: | :---: | :---: |
-| 0.5.0 | Free | 12+ | Not needed | Galaxy Z Fold8 |
+| 0.6.0 | Free | 12+ | Not needed | Galaxy Z Fold8 |
 
 </div>
 
@@ -100,6 +100,15 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
   <tr>
     <td align="center" colspan="3"><img src="docs/images/folio-inner-settings.webp" width="640" alt="Settings in split view on the unfolded screen: the sidebar on the left and the Icons &amp; Side Bar page with a live Home preview on the right"><br><sub>Settings in split view, like iPad</sub></td>
   </tr>
+  <tr>
+    <th colspan="3">New in 0.6.0</th>
+  </tr>
+  <tr>
+    <td align="center" colspan="3"><img src="docs/images/folio-inner-tweak-library.webp" width="640" alt="The Tweak Library on the unfolded screen: App Panels, Dock Magnification, Notification App Row, Tinted Notifications and Album Art Colors, each with its inspiration and a Get or Open button"><br><sub>The Tweak Library: get only the tweaks you want</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="3"><img src="docs/images/folio-inner-roadmap.webp" width="640" alt="The Roadmap in Settings: Tweak Library, Software Update, Badge styles and Folder options marked In this update, then The Folio app and Home grid columns marked Planned"><br><sub>The Roadmap in Settings</sub></td>
+  </tr>
 </table>
 
 <sub>Screenshots use the Minimal O icon pack, and the wallpaper is my own. Song details and album art are hidden.</sub>
@@ -124,8 +133,9 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 - Download rings on updating apps, blue dots on new ones, and Add to Home Screen for shortcuts and websites.
 - Settings built like iOS: menus with checkmarks, segmented controls, switches, sheets and alerts. What's New shows up after updates.
 
-**Tweaks (all off until you turn them on)**
+**Tweaks (you pick which ones you get)**
 - Ideas from jailbreak tweaks I liked (Velox, Activator, Velvet, Axon, ColorFlow, Harbor), rebuilt from scratch.
+- Get the ones you want from the Tweak Library, Sileo-style. Only those show up in Settings, and you can remove them any time.
 - Turn a tweak on for just the cover or just the inner screen, and Safe Mode if something crashes.
 
 **Themes**
@@ -169,7 +179,7 @@ Download the APK from [Releases](https://github.com/McCal-Codes/folio/releases),
 install. Then press Home and pick Folio, or open Folio and tap **Set as home app**.
 
 <p align="center">
-  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/badge/Download-Folio%200.5.0%20APK-2E5E66?style=for-the-badge&logo=android&logoColor=white" alt="Download the Folio 0.5.0 APK"></a>
+  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/badge/Download-Folio%20APK-2E5E66?style=for-the-badge&logo=android&logoColor=white" alt="Download the latest Folio APK"></a>
 </p>
 
 To get updates automatically, add this repo to [Obtainium](https://github.com/ImranR98/Obtainium), which installs and

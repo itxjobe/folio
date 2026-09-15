@@ -554,7 +554,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         val sidebarWidth = if (tiled) (fullWidth * .4f).coerceIn(280.dp, 380.dp) else minOf(360.dp, fullWidth * .6f)
         var sidebarOpen by rememberSaveable { mutableStateOf(true) }
         var shownPage by remember { mutableStateOf(page) }
-        SideEffect { if (page != shownPage) { shownPage = page; if (!tiled) sidebarOpen = false } }
+        // Opening a page slides the list away; coming back to the top brings it back, since the list is all that page has.
+        SideEffect { if (page != shownPage) { shownPage = page; if (!tiled) sidebarOpen = page == CustomizationPage.OVERVIEW } }
         val sidebar: @Composable () -> Unit = {
             val sidebarScroll = rememberScrollState()
             Column(Modifier.width(sidebarWidth).fillMaxHeight().edgeFade(sidebarScroll).verticalScroll(sidebarScroll)

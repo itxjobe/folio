@@ -54,4 +54,4 @@ Pure placement, gesture-decision, sizing, profile, status and setup rules have J
 
 Start with a focused regression that reproduces the behavior, then run the relevant build/unit/lint checks described in [Contributing](../CONTRIBUTING.md). Integration fixtures need a disposable emulator with their expected apps/providers. Record real binding tuples before testing and preserve them during cleanup; preferences alone are not a complete widget backup. Cover/inner dimension overrides test layout behavior, not physical hinge timing or real-device performance.
 
-Debug probes and instrumentation fixtures are separate source sets. The release build uses R8/resource shrinking and excludes debug activities. See [release instructions](public-release.md) for signing and the [tested beta scope](releases/0.15.0-beta01.md) before expanding compatibility claims.
+Debug probes and instrumentation fixtures are separate source sets. The release build uses R8/resource shrinking and excludes debug activities. Signed releases are built with `scripts/release-signed.sh`; see the README's tested devices before expanding compatibility claims.

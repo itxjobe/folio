@@ -51,10 +51,10 @@ bar at the top if you can't find something.
 - **Home Screen & Dock**, **Icons & Side Bar**: grid, dock, icon style, badges and the status bar.
 - **Notifications & Control Center**, **Dynamic Island**, **Search & App Library**, **Today View**.
 - **Gestures & Actions**, **Side Key**, **Fold & Displays**, **Lock Cover**.
-- **Tweaks**: extras inspired by jailbreak tweaks, all off until you turn them on. Most can be on for just one screen.
+- **Tweaks**: extras inspired by jailbreak tweaks. Get the ones you want from the **Tweak Library**; only those show up here. Most can be on for just one screen.
 - **Privacy & Permissions**: every permission Folio can use, what it's for, and a switch to turn it off.
-- **Backup**: **Save Backup…** and **Restore from Backup…** for your layout. Photos aren't included.
-- **Help**: What's New, the setup checklist, and Safe Mode & crash reports.
+- **Backup**: **Save Backup…** saves your layout to Download/Folio (you can name it), **Save Backup to Files…** lets you pick where, and **Restore from Backup…** brings one back. Photos aren't included.
+- **Help**: What's New, Software Update, the Roadmap, Report a Bug, the setup checklist, and Safe Mode & crash reports.
 
 ## If something breaks
 
