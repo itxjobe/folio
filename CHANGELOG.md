@@ -8,7 +8,7 @@ Folio shows the newest section on the phone after an update, and every version u
 ## [0.5.0] - 2026-09-15
 
 ### Added
-- Alternate app icons: choose Olive or Soft in Settings › Wallpaper & Appearance › App Icon.
+- Alternate app icons: Teal (the default), Soft or Olive in Settings › Wallpaper & Appearance › App Icon.
 - Folio shows up as an app: its icon (in the App Library or another launcher) opens Settings, like iOS Settings.
 - Clear Badge in an app's long-press menu hides its badge until a new notification arrives.
 - Clock & Calendar setting: the apps' own icons, or live icons that are Automatic, Light or Dark.
@@ -20,7 +20,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Email the Developer and Buy Me a Coffee (Ko-fi) in Settings › Help.
 
 ### Changed
-- New olive green app icon.
+- New muted teal app icon.
 - Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
 - Side key: choose what holding it does, Folio's picker or talking straight to Google, Claude or Perplexity (Side Key page).
 - Glass settings in Wallpaper & Appearance: a Clear, Light, Frosted or Solid style, plus sliders for widget frost, Side Bar frost and the outline.

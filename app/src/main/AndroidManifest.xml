@@ -129,6 +129,13 @@
             android:permission="android.permission.BIND_VOICE_INTERACTION">
             <intent-filter><action android:name="android.speech.RecognitionService" /></intent-filter>
         </service>
+        <activity-alias android:name=".FolioSettingsAppOlive" android:targetActivity=".MainActivity" android:exported="true"
+            android:label="${appLabel}" android:icon="@mipmap/ic_launcher_olive" android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <receiver android:name=".FocusScheduleReceiver" android:exported="false" />
         <!-- Share a theme file to Folio: it's validated here, then Home asks before applying it. SEND only, so Folio
              doesn't show up under "Open with" for every JSON file. -->

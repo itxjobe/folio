@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/folio-icon.png" width="96" alt="Folio app icon: two olive green panels unfolding">
+  <img src="docs/images/folio-icon.png" width="96" alt="Folio app icon: two white panels unfolding on muted teal">
 </p>
 
 <h1 align="center">Folio</h1>
@@ -14,7 +14,7 @@
   <a href="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml"><img src="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="#what-you-need"><img src="https://img.shields.io/badge/Android-12%2B-3DDC84" alt="Android 12+"></a>
-  <img src="https://img.shields.io/badge/root-not%20needed-8C8A5E" alt="Root not needed">
+  <img src="https://img.shields.io/badge/root-not%20needed-2E5E66" alt="Root not needed">
   <img src="https://img.shields.io/badge/made%20for-foldables-6DB7B4" alt="Made for foldables">
   <img src="https://img.shields.io/badge/inspired%20by-jailbreak%20tweaks-BF5AF2" alt="Inspired by jailbreak tweaks">
   <a href="https://ko-fi.com/mccal"><img src="https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B" alt="Buy me a coffee on Ko-fi"></a>
@@ -128,7 +128,7 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 **Themes**
 - Save your look as a theme file, import one, or share a `.json` theme straight to Folio from Files or Chrome.
 - Grab community themes (or add yours) in [`themes/`](themes/).
-- Pick an alternate app icon (Olive or Soft), and live Clock and Calendar icons that match your other icons.
+- Pick an app icon (Teal, Soft or Olive), and live Clock and Calendar icons that match your other icons.
 
 **Betas (off until you turn them on)**
 - Layout History: saves Home before big changes so you can go back.
@@ -165,7 +165,7 @@ Download the APK from [Releases](https://github.com/McCal-Codes/folio/releases),
 install. Then press Home and pick Folio, or open Folio and tap **Set as home app**.
 
 <p align="center">
-  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/badge/Download-Folio%200.5.0%20APK-56603F?style=for-the-badge&logo=android&logoColor=white" alt="Download the Folio 0.5.0 APK"></a>
+  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/badge/Download-Folio%200.5.0%20APK-2E5E66?style=for-the-badge&logo=android&logoColor=white" alt="Download the Folio 0.5.0 APK"></a>
 </p>
 
 To get updates automatically, add this repo to [Obtainium](https://github.com/ImranR98/Obtainium), which installs and

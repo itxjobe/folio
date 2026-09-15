@@ -12,8 +12,9 @@ import android.content.pm.PackageManager
 internal const val FOLIO_CLASSES = "com.mccal.folio"
 
 internal enum class AppIconChoice(val label: String, val alias: String, val mipmap: Int) {
-    OLIVE("Olive", "FolioSettingsApp", R.mipmap.ic_launcher),
-    SOFT("Soft", "FolioSettingsAppSoft", R.mipmap.ic_launcher_soft);
+    TEAL("Teal", "FolioSettingsApp", R.mipmap.ic_launcher),
+    SOFT("Soft", "FolioSettingsAppSoft", R.mipmap.ic_launcher_soft),
+    OLIVE("Olive", "FolioSettingsAppOlive", R.mipmap.ic_launcher_olive);
 
     companion object {
         /** Every alias class name starts with this, so Folio can recognize its own app entry. */
@@ -22,8 +23,8 @@ internal enum class AppIconChoice(val label: String, val alias: String, val mipm
         fun current(context: Context): AppIconChoice = entries.firstOrNull { choice ->
             val state = context.packageManager.getComponentEnabledSetting(ComponentName(context, "$FOLIO_CLASSES.${choice.alias}"))
             state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
-                (state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && choice == OLIVE)
-        } ?: OLIVE
+                (state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && choice == TEAL)
+        } ?: TEAL
 
         fun set(context: Context, choice: AppIconChoice) {
             val pm = context.packageManager

@@ -327,7 +327,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                             // Every alternate icon is its own component; they share one id so switching icons keeps
                             // Folio's place on Home, in the dock and in folders.
                             val idComponent = if (component.packageName == application.packageName)
-                                ComponentName(application.packageName, "$FOLIO_CLASSES.${AppIconChoice.OLIVE.alias}") else component
+                                ComponentName(application.packageName, "$FOLIO_CLASSES.${AppIconChoice.TEAL.alias}") else component
                             val id = profileAppId(idComponent.flattenToString(), serial, personalSerial)
                             val label = info.label.toString()
                             iconCache[id]?.takeIf { it.label == label && it.available && it.component == component } ?: run {
