@@ -29,6 +29,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Scrolling lists and grids fade softly at their edges instead of being cut off.
 - The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
+- Setting Folio up no longer leaves the screen blurred and unresponsive. A sheet opened while Folio was behind a system permission screen could stay invisible and still take every tap, so Home sat blurred with no way out but a restart. Sheets now always appear, and the Home button closes anything that's open.
 - Back in Settings returns to the page you came from, such as Tweaks or Focus, instead of the top of Settings.
 - Unfolded in portrait, going back to the top of Settings opens the settings list again instead of a mostly empty page.
 
@@ -74,6 +75,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Spotlight's Cancel hides the keyboard and has a bigger touch target.
 
 ### Known issues
+- During setup, the screen can go blurry and stop responding, and only a restart clears it: a sheet opened while Folio was behind a system permission screen stays invisible while still taking every tap. If it happens, restart the phone; setup works afterwards. Fixed in 0.6.0.
 - Lists and grids are cut off hard at their edges instead of fading out (App Library, Settings, Notification Center, Spotlight and folders). Fixed in 0.6.0.
 - On the unfolded screen in portrait, the App Library shows two oversized columns and can cover the Side Bar's status. Fixed in 0.6.0.
 

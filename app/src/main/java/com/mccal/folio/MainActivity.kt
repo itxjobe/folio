@@ -343,6 +343,12 @@ class MainActivity : ComponentActivity() {
     internal fun openSpotlight() { topPanel.value = null; spotlightVisible.value = true }
     private fun closeOverlays() { topPanel.value = null; spotlightVisible.value = false }
 
+    /**
+     * The Home button is the way out of anything. Setup is shown again next time (or from Settings › Show Welcome
+     * Again), so an overlay can never leave Home stuck behind it with no way back.
+     */
+    private fun closeEverything() { closeOverlays(); showFirstRun.value = false; lockCoverVisible.value = false }
+
     internal fun openSystemShade(panel: ShadePanel) {
         if (model.state.value.folioPanels) topPanel.value = panel else openAndroidShade(panel)
     }
@@ -429,7 +435,7 @@ class MainActivity : ComponentActivity() {
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
         if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
         else if (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getStringExtra("duo_destination") == "home") {
-            closeOverlays(); homeRequests.intValue++
+            closeEverything(); homeRequests.intValue++
         }
         intent.removeExtra("duo_destination")
     }
