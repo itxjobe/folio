@@ -2,6 +2,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Only for Software Update (checking and downloading Folio from GitHub Releases, when you ask). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
@@ -137,6 +140,7 @@
             </intent-filter>
         </activity-alias>
         <receiver android:name=".FocusScheduleReceiver" android:exported="false" />
+        <receiver android:name=".SoftwareUpdateReceiver" android:exported="false" />
         <!-- Share a theme file to Folio: it's validated here, then Home asks before applying it. SEND only, so Folio
              doesn't show up under "Open with" for every JSON file. -->
         <activity android:name=".ThemeImportActivity" android:exported="true" android:excludeFromRecents="true"

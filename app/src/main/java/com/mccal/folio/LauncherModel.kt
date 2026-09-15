@@ -141,6 +141,8 @@ data class LauncherState(
     /** Frost behind Home's widgets (0 = clear, 1 = solid). The Side Bar's is statusStyle.railGlass. */
     val widgetGlass: Float = .26f,
     val folderColumns: Int = 0,
+    /** Tweaks the user has added from the Tweak Library; only these show in Settings › Tweaks. */
+    val installedTweaks: Set<String> = emptySet(),
     val folderBackground: FolderBackground = FolderBackground.GLASS,
     val labelSize: LabelSize = LabelSize.STANDARD,
     val motionSpeed: MotionSpeed = MotionSpeed.STANDARD,
@@ -721,6 +723,18 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setLockCover(value: Boolean) = updateSettings(soon = false) { it.copy(lockCover = value) }
     fun setFeatureScope(id: String, screen: FolioScreen, value: ScopeValue) =
         updateSettings(soon = false) { it.copy(featureScopes = FeatureScopes.set(it.featureScopes, id, screen, value)) }
+    /** Tweak Library "Get": adds the tweak to Settings and turns it on. */
+    internal fun installTweak(feature: TweakFeature) {
+        updateSettings(soon = false) { it.copy(installedTweaks = it.installedTweaks + feature.id) }
+        feature.set(this, true)
+    }
+
+    /** "Remove": turns the tweak off, clears its per-screen settings and takes it out of Settings. */
+    internal fun removeTweak(feature: TweakFeature) {
+        feature.set(this, false)
+        updateSettings(soon = false) { it.copy(installedTweaks = it.installedTweaks - feature.id, featureScopes = it.featureScopes - feature.id) }
+    }
+
     internal fun resetTweak(feature: TweakFeature) {
         feature.set(this, feature.default)
         updateSettings(soon = false) { it.copy(featureScopes = it.featureScopes - feature.id) }
@@ -928,6 +942,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("widgetStacks", JSONObject().apply { s.widgetStacks.forEach { (slot, ids) -> put(slot.toString(), JSONArray(ids)) } })
             .put("stackRotate", s.stackRotate).put("railActivitiesUnderStatus", s.railActivities).put("addNewAppsToHome", s.addNewAppsToHome)
             .put("layoutHistory", s.layoutHistory).put("dockRecentDots", s.dockRecentDots)
+            .put("installedTweaks", JSONArray(s.installedTweaks.toList()))
             .put("folderColumns", s.folderColumns).put("folderBackground", s.folderBackground.name)
             .put("labelSize", s.labelSize.name).put("motionSpeed", s.motionSpeed.name)
             .put("widgetGlass", s.widgetGlass.toDouble()).put("glassOutline", s.glassOutline.toDouble())
@@ -1155,6 +1170,17 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 o.optJSONArray(key)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } }.orEmpty()
             }.filterValues { it.isNotEmpty() } } ?: emptyMap(),
             dockEverywhere = j.optBoolean("dockEverywhere", false), islandEverywhere = j.optBoolean("islandEverywhere", false))
+            .let { st ->
+                val saved = j.optJSONArray("installedTweaks")
+                when {
+                    saved != null -> st.copy(installedTweaks = (0 until saved.length()).mapNotNull { saved.optString(it).takeIf(String::isNotBlank) }.toSet())
+                    // Updating from before the Tweak Library: every tweak that's on counts as installed, so nothing changes.
+                    legacyRaw != null -> st.copy(installedTweaks = TweakFeatures.filter { it.get(st) }.mapTo(mutableSetOf()) { it.id })
+                    // A new install starts clean: tweaks are added from the Tweak Library when wanted.
+                    else -> st.copy(installedTweaks = emptySet(), appPanels = false, dockMagnify = false, notificationAppRow = false,
+                        tintNotifications = false, tintMedia = false)
+                }
+            }
     }.getOrElse {
         statePayloadInvalid = legacyRaw != null
         LauncherState(loading = false, error = "Saved Home layout could not be read; it was left unchanged.")

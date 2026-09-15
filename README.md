@@ -138,7 +138,8 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 - Recent App Dots: a dot beside dock apps you used in the last hour.
 
 **Private**
-- No accounts, no ads, no analytics. Folio itself doesn't send anything anywhere unless you share a crash report.
+- No accounts, no ads, no analytics. Folio itself doesn't send anything anywhere unless you share a crash report or check
+  for updates (which only asks GitHub for the latest release).
   Google search, Discover and widgets from other apps use those apps' own services. Every permission is optional and
   explained where it's used. More in [PRIVACY.md](PRIVACY.md).
 
@@ -202,7 +203,10 @@ service for pull-down panels. Every permission is listed with what it's for in S
 [PRIVACY.md](PRIVACY.md).
 
 **Does Folio send my data anywhere?** No. No accounts, no ads, no analytics. Crash reports stay on your phone unless you
-share one.
+share one. Software Update only asks GitHub for the latest release when you check (or once a day if you turn that on).
+
+**How do I update?** Settings › Software Update checks GitHub, verifies the download and installs it. You can also
+turn on daily checks and automatic installs there, or use Obtainium.
 
 **How do I go back to my old launcher?** Settings › Apps › Default apps › Home app on your phone (the exact path can
 vary by phone). Your Folio layout stays saved if you switch back later.

@@ -1,5 +1,7 @@
 package com.mccal.folio
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.repeatOnLifecycle
 import android.app.role.RoleManager
 import androidx.compose.foundation.layout.WindowInsets
@@ -295,6 +297,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch { SoftwareUpdate.checkIfDue(this@MainActivity) }
         FolioForeground.visible.value = true
         FolioActions.home = java.lang.ref.WeakReference(this)
         model.syncFocus()

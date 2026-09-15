@@ -36,7 +36,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON }
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE }
 
 @Composable
 internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, model: LauncherModel,
@@ -81,12 +81,14 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.ISLAND -> "Dynamic Island"
         CustomizationPage.PERMISSIONS -> "Privacy & Permissions"
         CustomizationPage.COMING_SOON -> "Coming Soon"
+        CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"
+        CustomizationPage.SOFTWARE_UPDATE -> "Software Update"
     }
     val bodyScroll = rememberScrollState()
     LaunchedEffect(page) { bodyScroll.scrollTo(0) }
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
-    val onBack = { onPage(when (page) { CustomizationPage.TWEAK -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> CustomizationPage.OVERVIEW }) }
+    val onBack = { onPage(when (page) { CustomizationPage.TWEAK, CustomizationPage.TWEAK_LIBRARY -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> CustomizationPage.OVERVIEW }) }
 
     // The settings list. On the phone it's the first page; in the split view it's the sidebar, with the open page highlighted.
     val overviewRows: @Composable ColumnScope.(selected: CustomizationPage?, sidebar: Boolean) -> Unit = { selected, sidebar ->
@@ -125,7 +127,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.AutoAwesome, 0xFFBF5AF2, "Tweaks", "customization-tweaks",
-                            "${TweakFeatures.count { it.get(state) }} on", selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
+                            "${state.installedTweaks.size} installed", selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.Save, 0xFF8E8E93, "Backup", "customization-backup", selected = selected == CustomizationPage.BACKUP, chevron = !sidebar) { onPage(CustomizationPage.BACKUP) }
@@ -138,6 +140,10 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.HelpOutline, 0xFF0A84FF, "Help", "customization-help", selected = selected == CustomizationPage.HELP, chevron = !sidebar) { onPage(CustomizationPage.HELP) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.NewReleases, 0xFF30D158, "What's New", "customization-whats-new", "v" + WhatsNew.currentVersion(androidx.compose.ui.platform.LocalContext.current), chevron = !sidebar) { onClose(); onShowWhatsNew() }
+                        MenuDivider()
+                        val updateStatus by SoftwareUpdate.status.collectAsState()
+                        TweakRow(Icons.Rounded.SystemUpdate, 0xFF8E8E93, "Software Update", "customization-software-update",
+                            if (updateStatus is SoftwareUpdate.Status.Available) "1" else null, selected = selected == CustomizationPage.SOFTWARE_UPDATE, chevron = !sidebar) { onPage(CustomizationPage.SOFTWARE_UPDATE) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.Upcoming, 0xFF5E5CE6, "Coming Soon", "customization-coming-soon", selected = selected == CustomizationPage.COMING_SOON, chevron = !sidebar) { onPage(CustomizationPage.COMING_SOON) }
                         MenuDivider()
@@ -498,17 +504,24 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     CrashReportsCard()
                 }
                 CustomizationPage.TWEAKS -> {
-                    Text("Features inspired by iOS jailbreak tweaks, re-created for Folio. Each can be turned on or off, or set per screen.",
+                    Text("Features inspired by iOS jailbreak tweaks, re-created for Folio. Get the ones you want from the Tweak Library; they show up here.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-                    SheetGroup {
-                        TweakFeatures.forEachIndexed { index, tweak ->
+                    val installed = TweakFeatures.filter { it.id in state.installedTweaks }
+                    if (installed.isNotEmpty()) SheetGroup {
+                        installed.forEachIndexed { index, tweak ->
                             if (index > 0) MenuDivider()
                             TweakRow(tweak.icon, tweak.color, tweak.name, "tweak-${tweak.id}", if (tweak.get(state)) "On" else "Off") {
                                 tweakId = tweak.id; onPage(CustomizationPage.TWEAK)
                             }
                         }
                     }
+                    SheetGroup {
+                        TweakRow(Icons.Rounded.Extension, 0xFFBF5AF2, "Tweak Library", "tweak-library",
+                            "${TweakFeatures.size - installed.size} available") { onPage(CustomizationPage.TWEAK_LIBRARY) }
+                    }
                 }
+                CustomizationPage.TWEAK_LIBRARY -> TweakLibraryPage(state, model) { tweakId = it.id; onPage(CustomizationPage.TWEAK) }
+                CustomizationPage.SOFTWARE_UPDATE -> SoftwareUpdatePage()
                 CustomizationPage.PERMISSIONS -> PermissionsPage(isDefaultHome, onMakeDefault, onShadeSetup)
                 CustomizationPage.THEMES -> ThemesPage(state, model, backgrounds.previewBitmap)
                 CustomizationPage.FOCUS -> FocusListPage(state, model) { focusId = it; onPage(CustomizationPage.FOCUS_MODE) }
@@ -542,7 +555,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 else {
                     // Like the account card at the top of iPad Settings: Folio's own page.
                     SheetGroup { SidebarAppRow(selected = page == CustomizationPage.OVERVIEW, setupLeft) { onPage(CustomizationPage.OVERVIEW) } }
-                    overviewRows(when (page) { CustomizationPage.TWEAK -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> page }, true)
+                    overviewRows(when (page) { CustomizationPage.TWEAK, CustomizationPage.TWEAK_LIBRARY -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> page }, true)
                 }
             }
         }
@@ -764,6 +777,8 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
     Triple("Folders", "folder columns grid background glass solid clear", CustomizationPage.HOME),
+    Triple("Software Update", "software update upgrade new version download install github automatic", CustomizationPage.SOFTWARE_UPDATE),
+    Triple("Tweak Library", "tweak library get install remove packages sileo cydia", CustomizationPage.TWEAK_LIBRARY),
     Triple("Animation speed", "animation motion speed fast slow snappy relaxed", CustomizationPage.GESTURES),
     Triple("App name size", "label name text size small large", CustomizationPage.STATUS),
     Triple("Tint glass with wallpaper color", "glass tint frost blur", CustomizationPage.WALLPAPER),
@@ -849,7 +864,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         Perm("Nearby devices (Bluetooth)", "Device names in the Dynamic Island", context.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED) { open(appSettings) },
         Perm("Digital assistant", "Side key picker", AssistPickerActivity.isDefaultAssistant(context)) { open(AssistPickerActivity.settingsIntent()) },
     ) }
-    Text("Everything stays on your phone. Folio has no ads or analytics, and nothing is sent anywhere unless you share a crash report.",
+    Text("Everything stays on your phone. Folio has no ads or analytics, and nothing is sent anywhere unless you share a crash report. Checking for updates only asks GitHub which version is newest.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
     SheetGroup {
         perms.forEachIndexed { index, perm ->
@@ -888,6 +903,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         Text("Inspired by ${tweak.inspiredBy}. Re-created from scratch; no tweak code is included.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextButton(onClick = { model.resetTweak(tweak) }) { Text("Reset ${tweak.name}") }
+    }
+    SheetGroup {
+        if (tweak.id in state.installedTweaks) IosActionRow("Remove ${tweak.name}", "tweak-remove-${tweak.id}", destructive = true) { model.removeTweak(tweak) }
+        else IosActionRow("Get ${tweak.name}", "tweak-get-${tweak.id}") { model.installTweak(tweak) }
     }
 }
 
@@ -1512,4 +1531,78 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
         },
         confirmButton = { TextButton(onClick = { onSave(name) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } })
+}
+
+/** Tweak Library: every built-in tweak as a package, Sileo-style. Get adds it to Settings › Tweaks and turns it on. */
+@Composable private fun TweakLibraryPage(state: LauncherState, model: LauncherModel, onOpen: (TweakFeature) -> Unit) {
+    Text("Built into Folio and off until you get them. Remove a tweak any time from its page.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+    SheetGroup {
+        TweakFeatures.forEachIndexed { index, tweak ->
+            if (index > 0) MenuDivider()
+            val installed = tweak.id in state.installedTweaks
+            Row(Modifier.fillMaxWidth().clickable { onOpen(tweak) }.padding(horizontal = 14.dp, vertical = 10.dp).testTag("library-tweak-${tweak.id}"),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(androidx.compose.ui.graphics.Color(tweak.color)), contentAlignment = Alignment.Center) {
+                    Icon(tweak.icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(tweak.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Inspired by ${tweak.inspiredBy.substringBefore(" by ")}", fontSize = 13.sp, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .6f), maxLines = 1)
+                }
+                // Sileo's pill: Get in blue; once installed it reads Open and goes to the tweak's settings.
+                Text(if (installed) "Open" else "Get", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    color = if (installed) IosBlue else androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (installed) androidx.compose.ui.graphics.Color.White.copy(alpha = .12f) else IosBlue)
+                        .clickable { if (installed) onOpen(tweak) else model.installTweak(tweak) }.padding(horizontal = 16.dp, vertical = 6.dp)
+                        .semantics { contentDescription = if (installed) "Open ${tweak.name}" else "Get ${tweak.name}" })
+            }
+        }
+    }
+}
+
+/** Settings › Software Update, laid out like iOS: the version, one clear action, and automatic updates. */
+@Composable private fun SoftwareUpdatePage() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val status by SoftwareUpdate.status.collectAsState()
+    var auto by remember { mutableStateOf(SoftwareUpdate.autoCheck(context)) }
+    val installed = SoftwareUpdate.installedVersion(context)
+    SettingsCard("Folio $installed") {
+        if (!SoftwareUpdate.supported(context)) {
+            Text("This is Folio Dev, a test build. Updates for it come from new builds, not GitHub.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            return@SettingsCard
+        }
+        when (val s = status) {
+            SoftwareUpdate.Status.Idle -> Text("Check GitHub for a newer version of Folio.", style = MaterialTheme.typography.bodySmall)
+            SoftwareUpdate.Status.Checking -> Text("Checking for updates…", style = MaterialTheme.typography.bodySmall)
+            SoftwareUpdate.Status.UpToDate -> Text("Folio is up to date.", style = MaterialTheme.typography.bodySmall)
+            is SoftwareUpdate.Status.Available -> Text("Folio ${s.release.version} is available.", fontWeight = FontWeight.SemiBold)
+            is SoftwareUpdate.Status.Downloading -> Text("Downloading Folio ${s.release.version}…", style = MaterialTheme.typography.bodySmall)
+            SoftwareUpdate.Status.Installing -> Text("Installing… Android may ask you to confirm.", style = MaterialTheme.typography.bodySmall)
+            is SoftwareUpdate.Status.Failed -> Text(s.message, style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFF453A))
+        }
+    }
+    if (SoftwareUpdate.supported(context)) {
+        SheetGroup {
+            val available = status as? SoftwareUpdate.Status.Available
+            if (available != null) {
+                IosActionRow("Download and Install", "update-install") { scope.launch { SoftwareUpdate.downloadAndInstall(context, available.release) } }
+                MenuDivider()
+                IosActionRow("Release Notes", "update-notes") {
+                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(available.release.notesUrl))) }
+                }
+            } else IosActionRow("Check for Updates", "update-check",
+                enabled = status !is SoftwareUpdate.Status.Checking && status !is SoftwareUpdate.Status.Downloading) { scope.launch { SoftwareUpdate.check(context) } }
+        }
+        SettingsCard("Automatic Updates") {
+            SettingsSwitch("Check for Updates Daily", auto, { auto = it; SoftwareUpdate.setAutoCheck(context, it) }, "update-auto")
+            var autoInstall by remember { mutableStateOf(SoftwareUpdate.autoInstall(context)) }
+            if (auto) SettingsSwitch("Install Updates Automatically", autoInstall, { autoInstall = it; SoftwareUpdate.setAutoInstall(context, it) }, "update-auto-install")
+            Text("Folio checks GitHub Releases at most once a day and shows the update here. Installing always verifies the download and that it's signed with Folio's key.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
