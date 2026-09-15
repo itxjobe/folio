@@ -56,6 +56,14 @@ something, go off the page, or is bigger or smaller than the widget allows.
 Open the App Library and switch to **Work**. If the work profile is paused, tap **Turn on work apps**. If your IT admin
 keeps it off, Folio can't open those apps or add their widgets.
 
+## Holding the side key does nothing
+
+1. Make Folio your digital assistant: Settings › Apps › Default apps › Digital assistant app › Folio. If it was already
+   Folio, pick a different app and then Folio again, so Android picks up Folio's assistant service.
+2. On Samsung, set Side button › Press and hold › Digital assistant.
+3. Using Good Lock's **RegiStar**? Its side key action runs before Android's. Set RegiStar's press-and-hold action to
+   Digital assistant, or turn it off.
+
 ## Wallpaper didn't change
 
 Picking a photo shows a preview first. Tap **Apply** to use it; **Cancel** keeps the old one. Backups don't include

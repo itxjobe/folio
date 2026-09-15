@@ -37,6 +37,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Spotlight no longer closes when the keyboard drops for a moment while folding, rotating or switching to voice typing.
 - Clear Badge stays cleared while an app updates the same notification, and is hidden when badges are off.
 - Setup resumes on the right screen after an update.
+- Holding the side key opens Folio's assistant picker on phones that start the assistant through a voice interaction service (like One UI 9). The Side Key page also warns when Good Lock's RegiStar can override the key.
 - The live Clock icon no longer occasionally stays a normal icon.
 - An app's long-press menu no longer cuts off its last row when Clear Badge is showing.
 - Spotlight's Cancel hides the keyboard and has a bigger touch target.

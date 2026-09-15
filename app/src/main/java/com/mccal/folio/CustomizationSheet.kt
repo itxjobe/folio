@@ -715,6 +715,12 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
         SideKeyStep("2. Hold the side key: Digital assistant", "Side button › Press and hold › Digital assistant", hold) { open(sideKeySettings(context)) }
         Text(stringResource(R.string.then_holding_the_side_key_opens_folio_s),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Still nothing? Choose a different digital assistant, then Folio again, so Android picks up Folio's assistant service.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Good Lock's RegiStar can take over the side key before Android's assistant setting is used.
+        val registar = remember { runCatching { context.packageManager.getPackageInfo("com.samsung.android.app.galaxyregistry", 0) }.isSuccess }
+        if (registar) Text("RegiStar (Good Lock) is installed. If it has its own side key action, it runs instead: set RegiStar's Press and hold to Digital assistant, or turn that action off.",
+            style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFF9F0A))
     }
     SettingsCard(stringResource(R.string.double_press)) {
         SideKeyStep("Double press: Google Wallet", "Side button › Double press › Open app › Wallet", wallet) { open(sideKeyDoublePressSettings(context) ?: sideKeySettings(context)) }
