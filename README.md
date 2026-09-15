@@ -182,7 +182,7 @@ adb install -r app/build/outputs/apk/fast/app-fast.apk
 `app/build/outputs/apk/debug/`). After installing, press Home and pick Folio, or open Folio Settings and tap
 **Set as home app**.
 
-Tests: `./gradlew :app:testFastUnitTest`
+Tests: `./gradlew :app:testDebugUnitTest`
 
 ## FAQ
 
