@@ -264,7 +264,8 @@ internal fun VisualWidgetPicker(
                         modifier = Modifier.padding(top = 12.dp)) { Text(stringResource(R.string.turn_on)) }
                 }
             }
-            LazyVerticalGrid(GridCells.Adaptive(168.dp), Modifier.fillMaxSize().testTag("widget-catalog-list"),
+            val catalogState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+            LazyVerticalGrid(GridCells.Adaptive(168.dp), Modifier.fillMaxSize().edgeFade(catalogState).testTag("widget-catalog-list"), state = catalogState,
                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)) {
                 fun header(key: String, title: String) = item(key, span = { GridItemSpan(maxLineSpan) }) {

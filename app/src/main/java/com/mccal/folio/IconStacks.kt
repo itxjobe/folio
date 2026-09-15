@@ -160,7 +160,8 @@ internal fun IconStackEditor(anchor: AppEntry, apps: List<AppEntry>, chosen: Lis
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onDone).padding(8.dp))
         }
         IosSearchField(query, { query = it }, "Search apps", Modifier.padding(vertical = 12.dp))
-        LazyColumn(Modifier.weight(1f)) {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyColumn(Modifier.weight(1f).edgeFade(listState), state = listState) {
             items(shown, key = { it.id }) { app ->
                 val on = app.id in chosen
                 val full = !on && chosen.size >= IconStacks.MAX

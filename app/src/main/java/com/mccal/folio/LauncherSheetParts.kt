@@ -105,7 +105,8 @@ internal fun AppPicker(apps: List<AppEntry>, dockSlot: Int?, onSelect: (AppEntry
         if (dockSlot != null) SheetGroup(Modifier.padding(bottom = 8.dp)) { IosActionRow(stringResource(R.string.leave_this_position_empty), destructive = true, onClick = onClear) }
         if (blockedHint != null) Text(blockedHint, color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp).testTag("dock-full-guidance"))
-        LazyColumn(Modifier.weight(1f)) {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyColumn(Modifier.weight(1f).edgeFade(listState), state = listState) {
             if (filtered.isEmpty()) item { Text(stringResource(R.string.no_apps_found), Modifier.padding(vertical = 24.dp)) }
             items(filtered, key = { it.id }) { app ->
                 val enabled = canSelect(app)

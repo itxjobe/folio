@@ -12,6 +12,9 @@ touches your apps, pages, widgets or permissions.
 
 To make your own, set things up how you like and use Settings › Themes › **Save Current Look as Theme…**.
 
+> Folio themes pair well with icon packs. Those are made by independent designers, so if you use one, please buy it
+> from them on Google Play. Much love.
+
 ## Share a theme here
 
 1. Save your look from Folio and give it a name (up to 40 characters).

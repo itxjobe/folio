@@ -83,7 +83,8 @@ internal fun WhatsNewSheet(onDismiss: () -> Unit) {
     var expanded by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(setOf<String>()) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 24.dp).testTag("whats-new")) {
-            androidx.compose.foundation.lazy.LazyColumn(androidx.compose.ui.Modifier.weight(1f), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            androidx.compose.foundation.lazy.LazyColumn(androidx.compose.ui.Modifier.weight(1f).edgeFade(listState), state = listState, verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
                 item {
                     androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {

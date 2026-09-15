@@ -158,7 +158,7 @@ internal fun AppContextMenu(
                 .clip(RoundedCornerShape(18.dp)).background(Color(0xFF2A2A2E).copy(alpha = .96f))
                 .border(FolioGlass.edge, RoundedCornerShape(18.dp))
                 .clickable(remember { MutableInteractionSource() }, null) {}
-                .verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                .fadingVerticalScroll()) {
                 shownActions.forEachIndexed { i, action ->
                     MenuRow(action.label, bitmap = action.icon) {
                         onDismiss()

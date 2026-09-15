@@ -104,6 +104,9 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 
 <sub>Screenshots use the Minimal O icon pack, and the wallpaper is my own. Song details and album art are hidden.</sub>
 
+> Icon packs and themes (like the iOS-style ones I use) are made by independent designers. If you use one, please buy it
+> from its designer on Google Play and support their work. Much love.
+
 ## What it does
 
 **Adapts to the screen, doesn't just stretch**

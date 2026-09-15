@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * One glass language for every Folio overlay (Control Center, Notification Center, Spotlight,
@@ -85,4 +89,36 @@ enum class MotionSpeed(val label: String, val factor: Float) {
         fun <T> spring(dampingRatio: Float, stiffness: Float) =
             androidx.compose.animation.core.spring<T>(dampingRatio = dampingRatio, stiffness = stiffness * current.factor)
     }
+}
+
+/**
+ * Soft edges on scrolling content, like iOS: instead of rows being chopped off at the edge of a list, they fade out
+ * over [size] — but only on a side where there's more to scroll, so the first and last rows stay crisp.
+ */
+internal fun androidx.compose.ui.Modifier.edgeFade(canScrollUp: () -> Boolean, canScrollDown: () -> Boolean,
+    size: androidx.compose.ui.unit.Dp = 20.dp): androidx.compose.ui.Modifier =
+    graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val px = size.toPx().coerceAtMost(this.size.height / 3f)
+            if (canScrollUp()) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(Color.Transparent, Color.Black), startY = 0f, endY = px),
+                size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+            if (canScrollDown()) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(Color.Black, Color.Transparent), startY = this.size.height - px, endY = this.size.height),
+                topLeft = androidx.compose.ui.geometry.Offset(0f, this.size.height - px),
+                size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+        }
+
+internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.ScrollState) =
+    edgeFade({ state.value > 0 }, { state.value < state.maxValue })
+internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.lazy.LazyListState) =
+    edgeFade({ state.canScrollBackward }, { state.canScrollForward })
+internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.lazy.grid.LazyGridState) =
+    edgeFade({ state.canScrollBackward }, { state.canScrollForward })
+
+/** verticalScroll with soft edges (see edgeFade). */
+internal fun androidx.compose.ui.Modifier.fadingVerticalScroll() = composed {
+    val state = androidx.compose.foundation.rememberScrollState()
+    edgeFade(state).verticalScroll(state)
 }

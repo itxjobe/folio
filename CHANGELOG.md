@@ -5,10 +5,27 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
+## [0.6.0] - 2026-09-15
+
+### Added
+- Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
+- Folder options (columns and a glass, solid or clear background), app name size, and Animation Speed (Relaxed, Standard or Snappy).
+- Side key: choose what holding it does: Folio's picker, a Google search without AI Overviews, or talking straight to Google, Claude or Perplexity (Side Key page).
+- Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
+
+### Changed
+- New muted teal app icon. Olive and Soft are alternate icons in Wallpaper & Appearance › App Icon.
+- Development builds install as a separate "Folio Dev" app with an amber icon, next to the release.
+
+### Fixed
+- Scrolling lists and grids fade softly at their edges instead of being cut off.
+- The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
+- Beta labels no longer wrap in narrow Settings layouts.
+
 ## [0.5.0] - 2026-09-15
 
 ### Added
-- Alternate app icons: Teal (the default), Soft or Olive in Settings › Wallpaper & Appearance › App Icon.
+- Alternate app icons: choose Olive or Soft in Settings › Wallpaper & Appearance › App Icon.
 - Folio shows up as an app: its icon (in the App Library or another launcher) opens Settings, like iOS Settings.
 - Clear Badge in an app's long-press menu hides its badge until a new notification arrives.
 - Clock & Calendar setting: the apps' own icons, or live icons that are Automatic, Light or Dark.
@@ -20,10 +37,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Email the Developer and Buy Me a Coffee (Ko-fi) in Settings › Help.
 
 ### Changed
-- New muted teal app icon.
-- Folder options (columns and a glass, solid or clear background), app name size, and Animation Speed (Relaxed, Standard or Snappy).
-- Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
-- Side key: choose what holding it does: Folio's picker, a Google search without AI Overviews, or talking straight to Google, Claude or Perplexity (Side Key page).
+- New olive green app icon.
 - Glass settings in Wallpaper & Appearance: a Clear, Light, Frosted or Solid style, plus sliders for widget frost, Side Bar frost and the outline.
 - Shorter, iPhone-style setup: Home app, notifications, pull-down gestures and a look. Optional permissions are asked where they're used.
 - Settings has one list of permissions (Privacy & Permissions) instead of a separate Setup Checklist, and no repeated Home app rows.
@@ -46,11 +60,12 @@ Folio shows the newest section on the phone after an update, and every version u
 - Discover's Side Bar follows the Glass outline setting.
 - Holding the side key opens Folio's assistant picker on phones that start the assistant through a voice interaction service (like One UI 9). Folio asks Android not to share the current app's screen with it, and the Side Key page warns when Good Lock's RegiStar can override the key.
 - The live Clock icon no longer occasionally stays a normal icon.
-- The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
-- Save Backup asks for a name; the default is dated.
-- Beta labels no longer wrap in narrow Settings layouts.
 - An app's long-press menu no longer cuts off its last row when Clear Badge is showing.
 - Spotlight's Cancel hides the keyboard and has a bigger touch target.
+
+### Known issues
+- Lists and grids are cut off hard at their edges instead of fading out (App Library, Settings, Notification Center, Spotlight and folders). Fixed in 0.6.0.
+- On the unfolded screen in portrait, the App Library shows two oversized columns and can cover the Side Bar's status. Fixed in 0.6.0.
 
 ## [0.4.0] - 2026-09-14
 

@@ -333,6 +333,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         val packs = remember { IconPacks.installed(iconContext) }
                         IosMenuRow(stringResource(R.string.icon_pack), listOf<Pair<String?, String>>(null to stringResource(R.string.app_icons)) + packs.map { it.packageName to it.label },
                             state.iconPack, { IconPacks.clear(); model.setIconPack(it) }, tag = "icon-pack")
+                        Text("Icon packs and themes are made by independent designers. If you use one, please support them by buying it from them on Google Play. Much love.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (packs.isEmpty()) Text(stringResource(R.string.install_any_icon_pack_made_for_nova_styl),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         // Live Clock and Calendar: the app's own icon, or live icons that match the others, or always light/dark.
@@ -519,7 +521,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     if (!split) Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         SettingsNavBar(if (page == CustomizationPage.OVERVIEW) null else if (page == CustomizationPage.TWEAK) "Tweaks" else if (page == CustomizationPage.FOCUS_MODE) "Focus" else stringResource(R.string.folio), onBack, onClose)
         if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
-        Column(Modifier.weight(1f).verticalScroll(bodyScroll).padding(bottom = 20.dp),
+        Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp), content = pageContent)
     } else {
         // Split arrangement by shape, not device: wider than tall, sidebar and page are tiled; taller than wide,
@@ -532,7 +534,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         SideEffect { if (page != shownPage) { shownPage = page; if (!tiled) sidebarOpen = false } }
         val sidebar: @Composable () -> Unit = {
             val sidebarScroll = rememberScrollState()
-            Column(Modifier.width(sidebarWidth).fillMaxHeight().verticalScroll(sidebarScroll)
+            Column(Modifier.width(sidebarWidth).fillMaxHeight().edgeFade(sidebarScroll).verticalScroll(sidebarScroll)
                 .padding(horizontal = 16.dp).padding(top = 44.dp, bottom = 20.dp).testTag("settings-sidebar"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsLargeTitle(stringResource(R.string.folio))
                 SettingsSearchField(settingsQuery) { settingsQuery = it }
@@ -553,7 +555,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 SettingsNavBar(if (page == CustomizationPage.TWEAK) "Tweaks" else if (page == CustomizationPage.FOCUS_MODE) "Focus" else null, onBack, onClose,
                     leading = if (tiled) null else ({ SidebarButton { sidebarOpen = !sidebarOpen } }))
                 if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
-                Column(Modifier.weight(1f).verticalScroll(bodyScroll).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         // The space beside the list shows what the page changes, drawn from your real Home.
                         if (page == CustomizationPage.HOME || page == CustomizationPage.STATUS)

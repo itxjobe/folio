@@ -135,7 +135,7 @@ internal fun AppLibrary(
                 })
             var libraryWidth by remember { mutableStateOf(360.dp) }
             val density = androidx.compose.ui.platform.LocalDensity.current
-            LazyColumn(Modifier.weight(1f).onSizeChanged { libraryWidth = with(density) { it.width.toDp() } }.testTag("all-apps-list"), state = listState,
+            LazyColumn(Modifier.weight(1f).edgeFade(listState).onSizeChanged { libraryWidth = with(density) { it.width.toDp() } }.testTag("all-apps-list"), state = listState,
                 contentPadding = PaddingValues(bottom = 12.dp)) {
                 if (showWork && selectedProfile?.available == false) item("work-paused") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {

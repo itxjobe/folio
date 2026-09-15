@@ -213,7 +213,8 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                     }
                 }
             }
-            LazyColumn(Modifier.fillMaxWidth().then(if (tall) Modifier.weight(1f, fill = false) else Modifier.heightIn(max = 620.dp)),
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.fillMaxWidth().then(if (tall) Modifier.weight(1f, fill = false) else Modifier.heightIn(max = 620.dp)).edgeFade(listState), state = listState,
                 verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
                 groups.forEach { group ->
                     val pkg = group.first().packageName
@@ -551,7 +552,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
         fun span(n: Int): Dp = cell * n + gap * (n - 1)
         val gridWidth = span(4)
         ProvideJiggle(edit) {
-        Column(Modifier.width(gridWidth).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(gap)) {
+        Column(Modifier.width(gridWidth).fadingVerticalScroll(), verticalArrangement = Arrangement.spacedBy(gap)) {
             // iOS 18 header: edit on the left, power on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (edit.active) PanelPill(stringResource(R.string.done)) { edit.stop() }

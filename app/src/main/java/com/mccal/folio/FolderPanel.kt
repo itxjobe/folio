@@ -112,7 +112,8 @@ internal fun FolderPanel(
             }, contentColor = Color.White, shape = RoundedCornerShape(38.dp),
             border = if (folderLook.background == FolderBackground.CLEAR) null else FolioGlass.edge) {
             Column(Modifier.padding(20.dp)) {
-                LazyVerticalGrid(if (folderLook.columns > 0) GridCells.Fixed(folderLook.columns) else GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f),
+                val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+                LazyVerticalGrid(if (folderLook.columns > 0) GridCells.Fixed(folderLook.columns) else GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f).edgeFade(gridState), state = gridState,
                     contentPadding = PaddingValues(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(folder.appIds, key = { it }) { appId ->

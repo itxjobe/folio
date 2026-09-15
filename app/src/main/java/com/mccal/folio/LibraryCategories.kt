@@ -152,7 +152,7 @@ internal fun CategoryFolder(title: String, apps: List<AppEntry>, onDismiss: () -
                     Box(Modifier.fillMaxWidth().heightIn(max = availableHeight - 64.dp).clip(RoundedCornerShape(36.dp))
                         .background(Color(0xFF2C2C2E).copy(alpha = .96f)).border(FolioGlass.edge, RoundedCornerShape(36.dp))
                         .pointerInput(Unit) { detectTapGestures() }
-                        .verticalScroll(rememberScrollState()).padding(20.dp).testTag("category-folder")) {
+                        .fadingVerticalScroll().padding(20.dp).testTag("category-folder")) {
                         CategoryGrid(apps, columns, Color.White, onLaunch, onActions)
                     }
                 }

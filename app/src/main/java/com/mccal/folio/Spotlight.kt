@@ -275,7 +275,8 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                     .padding(horizontal = 12.dp, vertical = 14.dp).testTag("spotlight-cancel"))
             }
 
-            LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(14.dp),
+            val resultsState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).edgeFade(resultsState), state = resultsState, verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (q.isEmpty()) {
                     if (shows(SpotlightSection.SUGGESTIONS) && recent.isNotEmpty()) item("suggestions") {
