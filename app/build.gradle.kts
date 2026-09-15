@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -82,15 +81,14 @@ android {
     }
     // "fast" uses release's no-op tracing/diagnostic sources.
     sourceSets {
-        getByName("fast") { java.srcDir("src/release/java") }
-        getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/changelog")) }
+        getByName("fast") { kotlin.directories.add("src/release/java") }
+        getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/changelog").get().asFile) }
     }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
     implementation("androidx.window:window:1.5.1")
@@ -114,4 +112,8 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+kotlin {
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
