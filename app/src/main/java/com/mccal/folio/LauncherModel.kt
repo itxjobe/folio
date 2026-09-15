@@ -140,6 +140,10 @@ data class LauncherState(
     val tintedGlass: Boolean = true,
     /** Frost behind Home's widgets (0 = clear, 1 = solid). The Side Bar's is statusStyle.railGlass. */
     val widgetGlass: Float = .26f,
+    val folderColumns: Int = 0,
+    val folderBackground: FolderBackground = FolderBackground.GLASS,
+    val labelSize: LabelSize = LabelSize.STANDARD,
+    val motionSpeed: MotionSpeed = MotionSpeed.STANDARD,
     /** Strength of the thin light outline around widgets and Side Bar capsules (0 = none). */
     val glassOutline: Float = .16f,
     /** Darken the wallpaper while Folio's dark appearance is on. */
@@ -699,6 +703,10 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setHomeInk(value: String) = updateSettings(soon = false) { it.copy(homeInk = value) }
     fun setTintedGlass(value: Boolean) = updateSettings(soon = false) { it.copy(tintedGlass = value) }
     fun setWidgetGlass(value: Float) = updateSettings(soon = true) { it.copy(widgetGlass = value.coerceIn(0f, 1f)) }
+    fun setFolderColumns(value: Int) = updateSettings(soon = false) { it.copy(folderColumns = value.takeIf { v -> v in setOf(0, 3, 4) } ?: 0) }
+    fun setFolderBackground(value: FolderBackground) = updateSettings(soon = false) { it.copy(folderBackground = value) }
+    fun setLabelSize(value: LabelSize) = updateSettings(soon = false) { it.copy(labelSize = value) }
+    fun setMotionSpeed(value: MotionSpeed) = updateSettings(soon = false) { it.copy(motionSpeed = value) }
     fun setGlassOutline(value: Float) = updateSettings(soon = true) { it.copy(glassOutline = value.coerceIn(0f, 1f)) }
     /** One tap for the whole glass look: widgets and Side Bar together. */
     fun setGlassPreset(frost: Float) = updateSettings(soon = false) {
@@ -920,6 +928,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("widgetStacks", JSONObject().apply { s.widgetStacks.forEach { (slot, ids) -> put(slot.toString(), JSONArray(ids)) } })
             .put("stackRotate", s.stackRotate).put("railActivitiesUnderStatus", s.railActivities).put("addNewAppsToHome", s.addNewAppsToHome)
             .put("layoutHistory", s.layoutHistory).put("dockRecentDots", s.dockRecentDots)
+            .put("folderColumns", s.folderColumns).put("folderBackground", s.folderBackground.name)
+            .put("labelSize", s.labelSize.name).put("motionSpeed", s.motionSpeed.name)
             .put("widgetGlass", s.widgetGlass.toDouble()).put("glassOutline", s.glassOutline.toDouble())
             .put("focusModes", focusModesToJson(s.focusModes))
             .put("activeFocus", s.activeFocus ?: "").put("leftPage", s.leftPage).put("todayUnfolded", s.todayUnfolded).put("systemWallpaper", s.systemWallpaper).put("homeInk", s.homeInk).put("tintedGlass", s.tintedGlass)
@@ -1110,6 +1120,10 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             railActivities = j.optBoolean("railActivitiesUnderStatus", false),
             addNewAppsToHome = j.optBoolean("addNewAppsToHome", false),
             layoutHistory = j.optBoolean("layoutHistory", false), dockRecentDots = j.optBoolean("dockRecentDots", false),
+            folderColumns = j.optInt("folderColumns", 0).takeIf { it in setOf(0, 3, 4) } ?: 0,
+            folderBackground = runCatching { FolderBackground.valueOf(j.optString("folderBackground")) }.getOrDefault(FolderBackground.GLASS),
+            labelSize = runCatching { LabelSize.valueOf(j.optString("labelSize")) }.getOrDefault(LabelSize.STANDARD),
+            motionSpeed = runCatching { MotionSpeed.valueOf(j.optString("motionSpeed")) }.getOrDefault(MotionSpeed.STANDARD),
             widgetGlass = j.optDouble("widgetGlass", .26).toFloat().coerceIn(0f, 1f), glassOutline = j.optDouble("glassOutline", .16).toFloat().coerceIn(0f, 1f),
             focusModes = focusModesFromJson(j.optJSONArray("focusModes")),
             activeFocus = j.optString("activeFocus").takeIf { it.isNotEmpty() },

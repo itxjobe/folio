@@ -231,7 +231,8 @@ fun LauncherScreen(
     }
     val pageGestures = remember(nativePager) { PageGestureLimits(nativePager) }
     SideEffect { pageGestures.editing = drag.active || widgetSession != null || resizeSlot != null; LiveDiscover.allowNativeOpen = pager.currentPage == 0 && !drag.active && widgetSession == null && resizeSlot == null }
-    val pageFling = androidx.compose.foundation.pager.PagerDefaults.flingBehavior(nativePager, pagerSnapDistance = pageGestures)
+    val pageFling = androidx.compose.foundation.pager.PagerDefaults.flingBehavior(nativePager, pagerSnapDistance = pageGestures,
+        snapAnimationSpec = MotionSpeed.spring(1f, androidx.compose.animation.core.Spring.StiffnessMediumLow * 1.2f))
     var nativeMotion by remember { mutableStateOf(false) }
     DisposableEffect(nativePager) {
         val callback: (Float) -> Unit = { progress ->
@@ -525,7 +526,7 @@ fun LauncherScreen(
             var statusHeight by remember { mutableFloatStateOf(0f) }
             val geometry = homeGeometry(maxWidth.value, maxHeight.value, preset, state.labels,
                 statusHeight = if (state.verticalStatus) statusHeight + 22f else 0f,
-                labelHeight = with(density) { 14.sp.toDp().value } + 6f, inLibrary = inLibrary,
+                labelHeight = with(density) { LocalLabelSize.current.lineSp.sp.toDp().value } + 6f, inLibrary = inLibrary,
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
                 // The rail's round search/back controls only show without the search pill or on Discover.
                 railControls = !state.searchPill || pager.currentPage < 0)

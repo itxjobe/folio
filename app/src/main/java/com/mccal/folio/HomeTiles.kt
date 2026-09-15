@@ -249,7 +249,7 @@ internal fun FolderTile(folder: FolderEntry, apps: Map<String, AppEntry>, size: 
                 }
             }
         }
-        if (labels) Text(folder.title, color = LocalHomeInk.current.primary, fontSize = 11.sp, maxLines = 1,
+        if (labels) Text(folder.title, color = LocalHomeInk.current.primary, fontSize = LocalLabelSize.current.sp.sp, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
     }
 }
@@ -282,7 +282,7 @@ internal fun AppTile(app: AppEntry, size: Float, labels: Boolean, modifier: Modi
         val ink = LocalHomeInk.current
         if (labels) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             NewAppDot(app.packageName)
-            Text(app.label, color = ink.primary, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1,
+            Text(app.label, color = ink.primary, fontSize = LocalLabelSize.current.sp.sp, lineHeight = LocalLabelSize.current.lineSp.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, style = TextStyle(shadow = ink.labelShadow))
         }
     }

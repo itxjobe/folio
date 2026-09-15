@@ -138,7 +138,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val overlayOpen = topPanel.value != null || spotlightVisible.value || LauncherSheetsOpen.intValue > 0 || lockCoverVisible.value
-            val overlayProgress by androidx.compose.animation.core.animateFloatAsState(if (overlayOpen) 1f else 0f, OverlaySpring, label = "overlay")
+            MotionSpeed.current = state.motionSpeed
+            val overlayProgress by androidx.compose.animation.core.animateFloatAsState(if (overlayOpen) 1f else 0f,
+                MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "overlay")
             val backdropBlurPx = with(androidx.compose.ui.platform.LocalDensity.current) { (state.panelBlur * 32).dp.toPx() }
             val backdropBlur = androidx.compose.runtime.remember(backdropBlurPx) {
                 androidx.compose.ui.graphics.BlurEffect(backdropBlurPx, backdropBlurPx, androidx.compose.ui.graphics.TileMode.Clamp)
@@ -184,6 +186,8 @@ class MainActivity : ComponentActivity() {
             androidx.compose.runtime.CompositionLocalProvider(
                 LocalWallpaperTone provides wallpaperTone,
                 LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline),
+                LocalFolderLook provides FolderLook(state.folderColumns, state.folderBackground),
+                LocalLabelSize provides state.labelSize,
                 LocalReduceMotion provides reduceMotion,
                 LocalHinge provides rememberHinge(this@MainActivity),
                 // Tablets and desktop windows draw Folio proportionally larger instead of a phone-sized layout lost in a

@@ -47,7 +47,7 @@ internal fun FolderPanel(
     var closing by remember(folder.id) { mutableStateOf(false) }
     val close: () -> Unit = {
         if (!closing) { closing = true; scope.launch {
-            appear.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 700f)); onDismiss()
+            appear.animateTo(0f, MotionSpeed.spring(1f, 700f)); onDismiss()
         } }
     }
     val tile = remember(folder.id) { IconBounds.of(folder.id) }
@@ -58,7 +58,8 @@ internal fun FolderPanel(
         drag.activeSourceScope = folder.id
         onDispose { if (drag.activeSourceScope == folder.id) drag.activeSourceScope = null }
     }
-    LaunchedEffect(folder.id) { appear.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = .78f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) }
+    LaunchedEffect(folder.id) { appear.animateTo(1f, MotionSpeed.spring(.78f, androidx.compose.animation.core.Spring.StiffnessMediumLow)) }
+    val folderLook = LocalFolderLook.current
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = appear.value.coerceIn(0f, 1f) }.background(FolioGlass.scrim)
         .clickable(
             interactionSource = remember { MutableInteractionSource() },
@@ -104,10 +105,14 @@ internal fun FolderPanel(
                 onClick = {},
             )
             .testTag("folder-panel-content"),
-            color = FolioGlass.card, contentColor = Color.White, shape = RoundedCornerShape(38.dp),
-            border = FolioGlass.edge) {
+            color = when (folderLook.background) {
+                FolderBackground.GLASS -> FolioGlass.card
+                FolderBackground.SOLID -> Color(0xFF1C1C1E)
+                FolderBackground.CLEAR -> Color.Transparent
+            }, contentColor = Color.White, shape = RoundedCornerShape(38.dp),
+            border = if (folderLook.background == FolderBackground.CLEAR) null else FolioGlass.edge) {
             Column(Modifier.padding(20.dp)) {
-                LazyVerticalGrid(GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f),
+                LazyVerticalGrid(if (folderLook.columns > 0) GridCells.Fixed(folderLook.columns) else GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f),
                     contentPadding = PaddingValues(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(folder.appIds, key = { it }) { appId ->

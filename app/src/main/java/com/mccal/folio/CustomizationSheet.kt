@@ -240,12 +240,17 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 }
                 CustomizationPage.HOME -> {
                     HomeLayoutSettings(state, wide, { wide = it }, model, homePage, onEditPins, onWidget, onAddWidget, onRemoveWidget)
+                    SettingsCard("Folders") {
+                        IosMenuRow("Columns", listOf(0 to "Automatic", 3 to "3", 4 to "4"), state.folderColumns, model::setFolderColumns, tag = "folder-columns")
+                        IosMenuRow("Background", FolderBackground.entries.map { it to it.label }, state.folderBackground, model::setFolderBackground, tag = "folder-background")
+                    }
                     RecentDotsCard(state, model)
                 }
                 CustomizationPage.GESTURES, CustomizationPage.NOTIFICATIONS, CustomizationPage.SEARCH, CustomizationPage.TODAY -> {
                     if (page == CustomizationPage.GESTURES) SettingsCard(stringResource(R.string.gestures)) {
                         Text(stringResource(R.string.pull_down_from_the_top_left_for_notifica),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IosMenuRow("Animation Speed", MotionSpeed.entries.map { it to it.label }, state.motionSpeed, model::setMotionSpeed, tag = "motion-speed")
                         SettingsSwitch(stringResource(R.string.drag_page_dots_to_flip_pages), state.pageScrub, model::setPageScrub, "page-scrub-switch")
                         SettingsSwitch(stringResource(R.string.haptic_feedback), state.haptics, model::setHaptics, "haptics-switch")
                     }
@@ -365,6 +370,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.side_rail)) {
                         SettingsSwitch(stringResource(R.string.left_handed_layout_rail_on_the_left), state.leftHanded, model::setLeftHanded, "left-handed-switch")
                         SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
+                        if (state.labels) IosMenuRow("Name Size", LabelSize.entries.map { it to it.label }, state.labelSize, model::setLabelSize, tag = "label-size")
                         Text("Frost and outline are in Wallpaper & Appearance › Glass.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -752,6 +758,9 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
+    Triple("Folders", "folder columns grid background glass solid clear", CustomizationPage.HOME),
+    Triple("Animation speed", "animation motion speed fast slow snappy relaxed", CustomizationPage.GESTURES),
+    Triple("App name size", "label name text size small large", CustomizationPage.STATUS),
     Triple("Tint glass with wallpaper color", "glass tint frost blur", CustomizationPage.WALLPAPER),
     Triple("Dark appearance dims wallpaper", "dim dark mode night", CustomizationPage.WALLPAPER),
     Triple("Appearance (light, dark, sunset)", "theme dark light sunrise", CustomizationPage.WALLPAPER),

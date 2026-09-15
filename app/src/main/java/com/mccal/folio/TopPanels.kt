@@ -72,8 +72,6 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-/** One spring for every Folio overlay so backdrop, scrim and panel always move together. */
-internal val OverlaySpring = spring<Float>(dampingRatio = .86f, stiffness = Spring.StiffnessMediumLow)
 
 /**
  * Folio's Notification Center (top-left pull) and Control Center (top-right pull). [progress] is the
@@ -262,7 +260,7 @@ private fun NotificationCard(item: NotificationItem, modifier: Modifier, extraCo
     val density = LocalDensity.current
     val reveal = with(density) { (if (item.clearable) 176.dp else 92.dp).toPx() }
     var options by remember(item.key) { mutableStateOf(false) }
-    fun settle(to: Float) = scope.launch { swipe.animateTo(to, spring(dampingRatio = .85f, stiffness = Spring.StiffnessMediumLow)) }
+    fun settle(to: Float) = scope.launch { swipe.animateTo(to, MotionSpeed.spring(.85f, Spring.StiffnessMediumLow)) }
     BoxWithConstraints(modifier.clip(RoundedCornerShape(22.dp))) {
         val widthPx = constraints.maxWidth.toFloat()
         if (swipe.value < -1f) Row(Modifier.matchParentSize().padding(start = 12.dp).graphicsLayer {

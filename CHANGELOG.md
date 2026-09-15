@@ -21,6 +21,7 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Changed
 - New muted teal app icon.
+- Folder options (columns and a glass, solid or clear background), app name size, and Animation Speed (Relaxed, Standard or Snappy).
 - Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
 - Side key: choose what holding it does, Folio's picker or talking straight to Google, Claude or Perplexity (Side Key page).
 - Glass settings in Wallpaper & Appearance: a Clear, Light, Frosted or Solid style, plus sliders for widget frost, Side Bar frost and the outline.
