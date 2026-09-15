@@ -115,7 +115,8 @@ sealed interface IslandEvent {
     data class Charging(val level: Int?) : IslandEvent
     data class Silent(val on: Boolean) : IslandEvent
     data class Focus(val on: Boolean) : IslandEvent
-    data class Bluetooth(val name: String?) : IslandEvent
+    /** Bluetooth headphones or a speaker connected; [name] is the device's own name. */
+    data class Bluetooth(val name: String?, val speaker: Boolean = false) : IslandEvent
     /** A new message from any messaging app (OpenBubbles, WhatsApp, Signal, Messages...). */
     data class Message(val key: String, val packageName: String, val appLabel: String, val sender: String, val text: String?,
         val avatar: Bitmap?, val appIcon: Bitmap?, val canReply: Boolean) : IslandEvent

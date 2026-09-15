@@ -91,14 +91,15 @@ internal object SoftwareUpdate {
         prefs.edit().putString(NOTIFIED_VERSION, release.version).apply()
     }
 
-    /** "Tap to finish updating": used when the install needs a confirmation and Folio isn't on screen. */
-    fun postConfirm(context: Context, confirm: Intent) {
-        if (!canPostNotifications(context)) return
+    /** "Tap to finish updating": used when the install needs a confirmation and Folio isn't on screen. False if it can't be posted. */
+    fun postConfirm(context: Context, confirm: Intent): Boolean {
+        if (!canPostNotifications(context)) return false
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
         manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT))
         val tap = PendingIntent.getActivity(context, 1, confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle("Finish updating Folio").setContentText("Tap to install the update.").setContentIntent(tap).setAutoCancel(true).build()) }
+        return true
     }
 
     const val EXTRA_OPEN_UPDATE = "folio_open_software_update"
@@ -236,7 +237,8 @@ class SoftwareUpdateReceiver : BroadcastReceiver() {
                 @Suppress("DEPRECATION") val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 // Android may block starting a screen while Folio isn't in front, so then ask with a notification.
                 if (FolioForeground.visible.value) runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                else SoftwareUpdate.postConfirm(context, confirm)
+                else if (!SoftwareUpdate.postConfirm(context, confirm))
+                    SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed("The update is downloaded. Open Software Update and tap Install to finish.")
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed(

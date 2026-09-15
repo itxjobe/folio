@@ -1,15 +1,16 @@
 package com.mccal.folio
 
-import android.Manifest
 import android.app.NotificationManager
-import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -54,12 +55,6 @@ class IslandEvents private constructor(private val context: Context) {
                     if (lastFocus != null && on != lastFocus) emit(IslandEvent.Focus(on))
                     lastFocus = on
                 }
-                BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                    val name = if (ContextCompat.checkSelfPermission(c, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED)
-                        runCatching { androidx.core.content.IntentCompat.getParcelableExtra(intent, BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)?.name }.getOrNull() else null
-                    emit(IslandEvent.Bluetooth(name))
-                    FolioActions.onTrigger(c, FolioTrigger.BLUETOOTH)
-                }
                 AudioManager.ACTION_HEADSET_PLUG -> {
                     // The sticky state delivered on registration isn't a new plug-in.
                     if (!isInitialStickyBroadcast && intent.getIntExtra("state", 0) == 1) FolioActions.onTrigger(c, FolioTrigger.HEADPHONES)
@@ -68,21 +63,45 @@ class IslandEvents private constructor(private val context: Context) {
         }
     }
 
+    // Bluetooth headphones and speakers come from the audio device list, which carries the device's name and needs no
+    // Bluetooth permission. One device can appear as several outputs (media and calls), so each name counts once.
+    private val audio = context.getSystemService(AudioManager::class.java)
+    private val knownOutputs = mutableSetOf<Int>()
+    private var lastAudioName: String? = null
+    private var lastAudioAt = 0L
+    private val audioCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) {
+            added.filter { it.isSink && knownOutputs.add(it.id) }.firstOrNull { it.type in BLUETOOTH_OUTPUTS }?.let { device ->
+                val name = device.productName?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                val now = System.currentTimeMillis()
+                if (name != null && name == lastAudioName && now - lastAudioAt < 5_000) return
+                lastAudioName = name; lastAudioAt = now
+                emit(IslandEvent.Bluetooth(name, speaker = device.type == AudioDeviceInfo.TYPE_BLE_SPEAKER))
+                FolioActions.onTrigger(context, FolioTrigger.BLUETOOTH)
+            }
+        }
+        override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) { removed.forEach { knownOutputs.remove(it.id) } }
+    }
+
     private fun register() {
         if (registered) return
+        // Outputs already connected aren't news; only ones added after this count.
+        audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).mapTo(knownOutputs) { it.id }
+        audio.registerAudioDeviceCallback(audioCallback, Handler(Looper.getMainLooper()))
         lastRinger = context.getSystemService(AudioManager::class.java).ringerMode
         lastFocus = context.getSystemService(NotificationManager::class.java).currentInterruptionFilter > NotificationManager.INTERRUPTION_FILTER_ALL
         ContextCompat.registerReceiver(context, receiver, IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED); addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
-            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED); addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
             addAction(AudioManager.ACTION_HEADSET_PLUG)
-        }, ContextCompat.RECEIVER_NOT_EXPORTED) // all four are protected system broadcasts
+        }, ContextCompat.RECEIVER_NOT_EXPORTED) // all protected system broadcasts
         registered = true
     }
 
     private fun unregister() {
-        if (registered) runCatching { context.unregisterReceiver(receiver) }
+        if (registered) { runCatching { context.unregisterReceiver(receiver) }; audio.unregisterAudioDeviceCallback(audioCallback) }
         registered = false
+        knownOutputs.clear()
         lastCharging = null
     }
 
@@ -91,6 +110,7 @@ class IslandEvents private constructor(private val context: Context) {
     companion object {
         private val mutable = MutableStateFlow<Pair<IslandEvent, Long>?>(null)
         val latest: StateFlow<Pair<IslandEvent, Long>?> = mutable.asStateFlow()
+        private val BLUETOOTH_OUTPUTS = setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER)
         const val SHOW_MS = 2_600L
         const val MESSAGE_SHOW_MS = 6_000L
         fun showMs(event: IslandEvent) = if (event is IslandEvent.Message) MESSAGE_SHOW_MS else SHOW_MS

@@ -683,8 +683,8 @@ fun LauncherScreen(
                         AppLibrary(state, libraryQuery, { libraryQuery = it }, onLaunch, model::setPinned,
                             // Unfolded portrait: the Side Bar's status capsule sits in the top corner, so the library keeps
                             // the same side margin Home does instead of running underneath it.
-                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(start = 16.dp, top = 16.dp, bottom = bottomSpace,
-                                end = if (geometry.horizontalDock) (preset.dockWidth + 28f).dp else 0.dp).testTag("library-page"),
+                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(top = 16.dp, bottom = bottomSpace)
+                                .padding(libraryEdges(geometry.horizontalDock && state.verticalStatus, preset.dockWidth, state.leftHanded)).testTag("library-page"),
                             drag = drag, page = visibleHomePages, onLaunchFrom = onLaunchFrom, onTurnOnWork = { model.turnOnWork(it) })
                     } else {
                         // Centered beside the rail when the grid is narrower than the space (short, wide windows).
@@ -1443,3 +1443,10 @@ fun LauncherScreen(
 // register into an 8-bit slot, so optimized builds failed ART verification at launch.
 @Composable
 private fun BoxScope.OwnMethod(content: @Composable BoxScope.() -> Unit) = content()
+
+/** App Library side margins: Home's 16dp, plus room for the Side Bar's status capsule on whichever side it sits. */
+private fun libraryEdges(statusInCorner: Boolean, dockWidth: Float, leftHanded: Boolean): PaddingValues {
+    val rail = if (statusInCorner) (dockWidth + 28f).dp else 0.dp
+    return if (leftHanded) PaddingValues(start = rail.coerceAtLeast(16.dp), end = if (statusInCorner) 16.dp else 0.dp)
+    else PaddingValues(start = 16.dp, end = rail)
+}

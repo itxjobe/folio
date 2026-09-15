@@ -37,14 +37,18 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE;
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK;
 
     /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
-    val parent get() = when (this) {
+    val parent: CustomizationPage get() = when (this) {
         TWEAK, TWEAK_LIBRARY -> TWEAKS
+        LIBRARY_TWEAK -> TWEAK_LIBRARY // a tweak opened from the Tweak Library goes back there
         FOCUS_MODE -> FOCUS
         else -> OVERVIEW
     }
+
+    /** The top-level page this one lives under, highlighted in the split view's sidebar. */
+    val root: CustomizationPage get() = if (parent == OVERVIEW) this else parent.root
 }
 
 @Composable
@@ -82,7 +86,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.FOCUS -> "Focus"
         CustomizationPage.THEMES -> "Themes"
         CustomizationPage.FOCUS_MODE -> state.focusModes.firstOrNull { it.id == focusId }?.name ?: "Focus"
-        CustomizationPage.TWEAK -> TweakFeatures.firstOrNull { it.id == tweakId }?.name ?: "Tweak"
+        CustomizationPage.TWEAK, CustomizationPage.LIBRARY_TWEAK -> TweakFeatures.firstOrNull { it.id == tweakId }?.name ?: "Tweak"
         CustomizationPage.ADVANCED -> "Advanced"
         CustomizationPage.NOTIFICATIONS -> "Notifications & Control Center"
         CustomizationPage.SEARCH -> "Search & App Library"
@@ -98,7 +102,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
     val onBack = { onPage(page.parent) }
-    val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.FOCUS -> "Focus"; else -> null }
+    val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"; CustomizationPage.FOCUS -> "Focus"; else -> null }
 
     // The settings list. On the phone it's the first page; in the split view it's the sidebar, with the open page highlighted.
     val overviewRows: @Composable ColumnScope.(selected: CustomizationPage?, sidebar: Boolean) -> Unit = { selected, sidebar ->
@@ -430,11 +434,11 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { IslandPosition.reset(islandContext) }) { Text(stringResource(R.string.put_the_island_back_at_the_camera)) }
                             Text(stringResource(R.string.brief_pop_ups), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
-                            listOf("CHARGING" to "Charging", "SILENT" to "Silent mode", "FOCUS" to "Do Not Disturb", "BLUETOOTH" to "Bluetooth devices", "MESSAGE" to "New messages (with quick reply)", "CALL" to "Calls (answer, decline, end)").forEach { (kind, label) ->
+                            listOf("CHARGING" to "Charging", "SILENT" to "Silent mode", "FOCUS" to "Do Not Disturb", "BLUETOOTH" to "Headphones & speakers", "MESSAGE" to "New messages (with quick reply)", "CALL" to "Calls (answer, decline, end)").forEach { (kind, label) ->
                                 SettingsSwitch(label, kind !in state.islandEventsOff, { model.setIslandEvent(kind, it) }, "island-event-${kind.lowercase()}")
                             }
                             if ("MESSAGE" !in state.islandEventsOff) MessageBannerSettings(state.messagesAvoidDouble, model::setMessagesAvoidDouble)
-                        }
+                        } else SettingsSwitch("Headphones & speakers", "BLUETOOTH" !in state.islandEventsOff, { model.setIslandEvent("BLUETOOTH", it) }, "island-event-bluetooth")
                         Text(stringResource(R.string.reads_only_music_calls_timers_navigation),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -530,14 +534,14 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             "${TweakFeatures.size - installed.size} available") { onPage(CustomizationPage.TWEAK_LIBRARY) }
                     }
                 }
-                CustomizationPage.TWEAK_LIBRARY -> TweakLibraryPage(state, model) { tweakId = it.id; onPage(CustomizationPage.TWEAK) }
+                CustomizationPage.TWEAK_LIBRARY -> TweakLibraryPage(state, model) { tweakId = it.id; onPage(CustomizationPage.LIBRARY_TWEAK) }
                 CustomizationPage.SOFTWARE_UPDATE -> SoftwareUpdatePage()
                 CustomizationPage.PERMISSIONS -> PermissionsPage(isDefaultHome, onMakeDefault, onShadeSetup)
                 CustomizationPage.THEMES -> ThemesPage(state, model, backgrounds.previewBitmap)
                 CustomizationPage.FOCUS -> FocusListPage(state, model) { focusId = it; onPage(CustomizationPage.FOCUS_MODE) }
                 CustomizationPage.FOCUS_MODE -> state.focusModes.firstOrNull { it.id == focusId }?.let { FocusModePage(it, state, model) }
                     ?: LaunchedEffect(Unit) { onPage(CustomizationPage.FOCUS) }
-                CustomizationPage.TWEAK -> TweakFeatures.firstOrNull { it.id == tweakId }?.let { tweak -> TweakPage(tweak, state, model) }
+                CustomizationPage.TWEAK, CustomizationPage.LIBRARY_TWEAK -> TweakFeatures.firstOrNull { it.id == tweakId }?.let { tweak -> TweakPage(tweak, state, model) }
                     ?: LaunchedEffect(Unit) { onPage(CustomizationPage.TWEAKS) }
             }
     }
@@ -566,7 +570,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 else {
                     // Like the account card at the top of iPad Settings: Folio's own page.
                     SheetGroup { SidebarAppRow(selected = page == CustomizationPage.OVERVIEW, setupLeft) { onPage(CustomizationPage.OVERVIEW) } }
-                    overviewRows(if (page.parent == CustomizationPage.OVERVIEW) page else page.parent, true)
+                    overviewRows(page.root, true)
                 }
             }
         }
@@ -583,7 +587,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         // The space beside the list shows what the page changes, drawn from your real Home.
                         if (page == CustomizationPage.HOME || page == CustomizationPage.STATUS)
-                            MiniHomePreview(backgrounds.previewBitmap, state, 240.dp, iconScale = (if (wide) state.expanded else state.compact).iconSize / 66f)
+                            MiniHomePreview(backgrounds.previewBitmap, state, 240.dp)
                         pageContent()
                     }
                 }
@@ -872,7 +876,6 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             open(Suggestions.usageAccessIntent(context)) },
         Perm("Calendar (optional)", "Up Next widget", UpNext.hasCalendar(context)) { open(appSettings) },
         Perm("Contacts", "Spotlight contact search", context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) { open(appSettings) },
-        Perm("Nearby devices (Bluetooth)", "Device names in the Dynamic Island", context.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED) { open(appSettings) },
         Perm("Digital assistant", "Side key picker", AssistPickerActivity.isDefaultAssistant(context)) { open(AssistPickerActivity.settingsIntent()) },
     ) }
     Text("Everything stays on your phone. Folio has no ads or analytics, and nothing is sent anywhere unless you share a crash report. Checking for updates only asks GitHub which version is newest.",
@@ -964,7 +967,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                 val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     FolioFiles.save(context, name, "application/json", FolioTheme.of(state, "My Folio Theme").toJson().toString(2).toByteArray())
                 }
-                message = if (saved != null) "Saved to ${FolioFiles.displayPath} as $name." else "The theme couldn't be saved."
+                message = if (saved != null) "Saved to ${FolioFiles.displayPath} as ${FolioFiles.displayName(context, saved) ?: name}." else "The theme couldn't be saved."
             }
         }
         MenuDivider()
@@ -1156,7 +1159,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
  * image can't be read by apps, so in that mode the preview uses the wallpaper's own reported colors and says so.
  */
 @Composable private fun MiniHomePreview(stagedBitmap: android.graphics.Bitmap?, state: LauncherState,
-    previewHeight: androidx.compose.ui.unit.Dp, @Suppress("UNUSED_PARAMETER") iconScale: Float = 1f) {
+    previewHeight: androidx.compose.ui.unit.Dp) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val backgroundRevision = LauncherBackgroundCache.revision.intValue
     val committedBitmap = remember(backgroundRevision) { cachedLauncherBackground(context) }
@@ -1174,10 +1177,17 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     val cells = HomeCellLayout.forPage(geometry, placements.map { it.row to it.spanY })
     val (iconSize, labels) = (state.pageStyles[0] ?: PageStyle()).apply(geometry, state.labels)
     val scale = previewHeight.value / refH
+    val left = state.leftHanded
+    val railAlign = if (left) Alignment.TopStart else Alignment.TopEnd
+    val railEdge = if (left) Modifier.padding(start = 12.dp) else Modifier.padding(end = 12.dp)
+    // A thin black bezel with the screen's own corners inside it, so the preview reads as the phone, not a card.
+    val corner = 26.dp * (previewHeight.value / 260f)
+    val bezel = previewHeight * .022f
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.clip(RoundedCornerShape(corner + bezel)).background(androidx.compose.ui.graphics.Color(0xFF0B0B0C))
+            .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .2f), RoundedCornerShape(corner + bezel)).padding(bezel)) {
         Box(Modifier.height(previewHeight).width(previewHeight * (refW / refH))
-            .clip(RoundedCornerShape(26.dp * (previewHeight.value / 260f)))
-            .border(1.5.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .18f), RoundedCornerShape(26.dp * (previewHeight.value / 260f)))
+            .clip(RoundedCornerShape(corner))
             .testTag("customization-home-preview"), contentAlignment = Alignment.Center) {
             Box(Modifier.requiredSize(refW.dp, refH.dp).graphicsLayer { scaleX = scale; scaleY = scale }) {
                 if (state.systemWallpaper) Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
@@ -1188,7 +1198,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                 }
                 if (state.dimWallpaperDark && basePalette.dark) Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = .3f)))
                 CompositionLocalProvider(LocalHomeInk provides ink, LocalDuoPalette provides basePalette.copy(glass = glass)) {
-                    Box(Modifier.offset(x = 16.dp, y = geometry.contentTop.dp).width(geometry.gridWidth.dp).height((cells.height(GRID_ROWS)).dp)) {
+                    Box(Modifier.offset(x = (if (left) refW - 16f - geometry.gridWidth else 16f).dp, y = geometry.contentTop.dp).width(geometry.gridWidth.dp).height((cells.height(GRID_ROWS)).dp)) {
                         placements.forEach { w ->
                             Box(Modifier.offset(x = (cells.x(w.column, w.row) + 5f).dp, y = cells.y(w.row).dp)
                                 .size((geometry.cellWidth * w.spanX - 10f).dp, (cells.spanHeight(w.row, w.spanY) - 18f).coerceAtLeast(48f).dp)) {
@@ -1199,21 +1209,24 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             }
                         }
                         repeat(HOME_CELLS) { local ->
-                            val app = state.homeSlots.getOrNull(local)?.let(apps::get) ?: return@repeat
+                            val id = state.homeSlots.getOrNull(local) ?: return@repeat
+                            val app = apps[id]
+                            val folder = if (app == null) state.folders.firstOrNull { it.id == id } ?: return@repeat else null
                             val row = local / GRID_COLUMNS
                             Column(Modifier.offset(x = cells.x(local % GRID_COLUMNS, row).dp, y = cells.y(row).dp).width(geometry.cellWidth.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally) {
-                                AppIcon(app, null, Modifier.size(iconSize.dp), shape = RoundedCornerShape((iconSize * .24f).dp))
-                                if (labels) Text(app.label, color = ink.primary, fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                if (app != null) AppIcon(app, null, Modifier.size(iconSize.dp), shape = RoundedCornerShape((iconSize * .24f).dp))
+                                else if (folder != null) PreviewFolder(folder, apps, iconSize)
+                                if (labels) Text(app?.label ?: folder?.title.orEmpty(), color = ink.primary, fontSize = LocalLabelSize.current.sp.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
                                     style = androidx.compose.ui.text.TextStyle(shadow = ink.labelShadow))
                             }
                         }
                     }
                     if (state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
-                        Modifier.align(Alignment.TopEnd).padding(end = 12.dp).offset(y = geometry.contentTop.dp).width(state.compact.dockWidth.dp),
+                        Modifier.align(railAlign).then(railEdge).offset(y = geometry.contentTop.dp).width(state.compact.dockWidth.dp),
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
-                    Column(Modifier.align(Alignment.TopEnd).padding(end = 12.dp).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
+                    Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
                         .height(geometry.dockHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         state.dock.forEach { id ->
@@ -1222,14 +1235,32 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             }
                         }
                     }
-                    if (state.searchPill) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp, end = (state.compact.dockWidth + 24f).dp)) {
+                    if (state.searchPill) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
+                        .then(if (left) Modifier.padding(start = (state.compact.dockWidth + 24f).dp) else Modifier.padding(end = (state.compact.dockWidth + 24f).dp))) {
                         HomeSearchPill {}
                     }
                 }
             }
         }
+        }
         if (state.systemWallpaper) Text(stringResource(R.string.colors_from_your_android_wallpaper_apps),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** A folder as Home draws it (first four apps on glass or the folder's color), without Home's drag and launch hooks. */
+@Composable private fun PreviewFolder(folder: FolderEntry, apps: Map<String, AppEntry>, size: Float) {
+    val shape = RoundedCornerShape((size * .24f).dp)
+    val tint = LocalFolderColors.current[folder.id]?.let { androidx.compose.ui.graphics.Color(it) }
+    Box(Modifier.size(size.dp).clip(shape).background(tint?.copy(alpha = .78f) ?: Glass.copy(alpha = .72f))
+        .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .55f), shape)) {
+        folder.appIds.take(4).forEachIndexed { index, id ->
+            apps[id]?.let { app ->
+                AppIcon(app, null, Modifier.align(when (index) {
+                    0 -> Alignment.TopStart; 1 -> Alignment.TopEnd; 2 -> Alignment.BottomStart; else -> Alignment.BottomEnd
+                }).padding(5.dp).size((size * .38f).dp).clip(RoundedCornerShape(6.dp)))
+            }
+        }
     }
 }
 
@@ -1369,6 +1400,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.SystemUpdate, 0xFF8E8E93, "Software Update", "Update Folio from GitHub, with optional notifications.", RoadmapStatus.DONE),
             RoadmapItem(Icons.Rounded.Notifications, 0xFFFF3B30, "Badge styles", "iOS, Classic or Glass badges in three sizes.", RoadmapStatus.DONE),
             RoadmapItem(Icons.Rounded.Folder, 0xFF0A84FF, "Folder options", "Columns and glass, solid or clear folders.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.Headphones, 0xFF0A84FF, "Headphones card", "An iPhone-style card when headphones or a speaker connects.", RoadmapStatus.DONE),
         ),
         "Next" to listOf(
             RoadmapItem(Icons.Rounded.Storefront, 0xFF0A84FF, "The Folio app", "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.", RoadmapStatus.PLANNED),
@@ -1659,7 +1691,13 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
                 else { notify = on; SoftwareUpdate.setNotify(context, on) }
             }, "update-notify")
             var autoInstall by remember { mutableStateOf(SoftwareUpdate.autoInstall(context)) }
-            if (auto) SettingsSwitch("Install Updates Automatically", autoInstall, { autoInstall = it; SoftwareUpdate.setAutoInstall(context, it) }, "update-auto-install")
+            // Android may still ask to confirm an install, and when Folio isn't open that request arrives as a notification.
+            val autoInstallPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { autoInstall = true; SoftwareUpdate.setAutoInstall(context, true) }
+            if (auto) SettingsSwitch("Install Updates Automatically", autoInstall, { on ->
+                if (on && !SoftwareUpdate.canPostNotifications(context)) autoInstallPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                else { autoInstall = on; SoftwareUpdate.setAutoInstall(context, on) }
+            }, "update-auto-install")
             Text("Folio checks GitHub Releases at most once a day and shows the update here. Installing always verifies the download and that it's signed with Folio's key.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

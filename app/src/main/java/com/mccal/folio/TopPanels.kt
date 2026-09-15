@@ -552,7 +552,8 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
         fun span(n: Int): Dp = cell * n + gap * (n - 1)
         val gridWidth = span(4)
         ProvideJiggle(edit) {
-        Column(Modifier.width(gridWidth).fadingVerticalScroll(), verticalArrangement = Arrangement.spacedBy(gap)) {
+        // The fade draws in its own layer, which clips: pad it so edit mode's remove and add badges past the grid's edges stay whole.
+        Column(Modifier.width(gridWidth + 32.dp).fadingVerticalScroll().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
             // iOS 18 header: edit on the left, power on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (edit.active) PanelPill(stringResource(R.string.done)) { edit.stop() }

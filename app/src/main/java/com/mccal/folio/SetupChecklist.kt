@@ -47,7 +47,6 @@ internal fun rememberSetupSteps(isDefaultHome: Boolean, onMakeDefault: () -> Uni
     var tick by remember { mutableIntStateOf(0) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { tick++ } }
-    val bluetooth = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
     val contacts = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
     fun open(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 
@@ -83,8 +82,6 @@ internal fun rememberSetupSteps(isDefaultHome: Boolean, onMakeDefault: () -> Uni
                 sideKeyHoldIsAssistant(context), false, "Open") { sideKeySettings(context)?.let(::open) } else null,
             SetupStep(Icons.Rounded.Contacts, "Contacts in Spotlight", "Search your contacts from Spotlight.",
                 granted(context, Manifest.permission.READ_CONTACTS), false, "Allow") { contacts.launch(Manifest.permission.READ_CONTACTS) },
-            SetupStep(Icons.Rounded.Headphones, "Bluetooth device names", "Shows “Connected to Galaxy Buds” in the island.",
-                granted(context, Manifest.permission.BLUETOOTH_CONNECT), false, "Allow") { bluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT) },
             // Only for people who already use OpenBubbles (iMessage on Android); Folio just opens it.
             if (Messaging.installed(context, Messaging.OPENBUBBLES)) SetupStep(Icons.Rounded.Forum, "iMessage with OpenBubbles",
                 "Message contacts from Spotlight in OpenBubbles. New messages also pop out of the island with quick reply.",

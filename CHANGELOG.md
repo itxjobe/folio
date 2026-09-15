@@ -15,10 +15,12 @@ Folio shows the newest section on the phone after an update, and every version u
 - Roadmap in Settings (replaces Coming Soon): what's in this update, what's next, later and being explored.
 - Tweak Library: tweaks are packages you Get (Sileo-style) and only the ones you get show in Settings › Tweaks. New installs start with none; updating keeps the tweaks you already use.
 - Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
+- Headphones & speakers: when Bluetooth headphones or a speaker connects, an iPhone-style card shows its name on Home, and the Dynamic Island shows it over other apps.
 
 ### Changed
 - New muted teal app icon. Olive and Soft are alternate icons in Wallpaper & Appearance › App Icon.
 - Development builds install as a separate "Folio Dev" app with an amber icon, next to the release.
+- Folio no longer asks for the Nearby devices (Bluetooth) permission: headphone and speaker names now come from Android's audio device list.
 
 ### Fixed
 - Scrolling lists and grids fade softly at their edges instead of being cut off.

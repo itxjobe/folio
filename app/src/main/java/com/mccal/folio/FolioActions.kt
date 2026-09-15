@@ -20,7 +20,7 @@ enum class FolioTrigger(val label: String, val gesture: Boolean) {
     DOUBLE_TAP("Double-tap Home", true),
     TWO_FINGER_DOWN("Two-finger swipe down on Home", true),
     CHARGING("Charger connected", false),
-    BLUETOOTH("Bluetooth device connects", false),
+    BLUETOOTH("Bluetooth headphones or speaker connects", false),
     HEADPHONES("Headphones plugged in", false),
 }
 

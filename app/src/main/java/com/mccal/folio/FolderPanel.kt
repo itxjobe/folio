@@ -113,7 +113,7 @@ internal fun FolderPanel(
             border = if (folderLook.background == FolderBackground.CLEAR) null else FolioGlass.edge) {
             Column(Modifier.padding(20.dp)) {
                 val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
-                LazyVerticalGrid(if (folderLook.columns > 0) GridCells.Fixed(folderLook.columns) else GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f).edgeFade(gridState), state = gridState,
+                LazyVerticalGrid(if (folderLook.columns > 0) FolderColumns(folderLook.columns) else GridCells.Adaptive(84.dp), Modifier.fillMaxWidth().weight(1f).edgeFade(gridState), state = gridState,
                     contentPadding = PaddingValues(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(folder.appIds, key = { it }) { appId ->
@@ -124,6 +124,15 @@ internal fun FolderPanel(
             }
         }
         }
+    }
+}
+
+/** The chosen number of columns, but never cells too narrow for an icon and its name (small cover screens). */
+private data class FolderColumns(val columns: Int) : GridCells {
+    override fun androidx.compose.ui.unit.Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
+        val count = columns.coerceAtMost(((availableSize + spacing) / (76.dp.roundToPx() + spacing)).coerceAtLeast(1))
+        val cells = availableSize - spacing * (count - 1)
+        return List(count) { cells / count + if (it < cells % count) 1 else 0 }
     }
 }
 

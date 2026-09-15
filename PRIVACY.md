@@ -16,7 +16,7 @@ The “Folio gestures & overlays” accessibility service opens notifications or
 
 Notification access (optional) lets the Dynamic Island and Notification Center show music, calls, timers, navigation, progress and your notifications. Notification content is kept only in memory while shown and is cleared when access is turned off; it is never stored or sent anywhere. When you use quick reply or Mark as Read, Folio passes your text to that notification’s own reply action inside the messaging app (the same thing the system notification shade does); Folio itself sends nothing over the network. Spotlight’s Message button opens your texting app, or OpenBubbles/BlueBubbles if you choose one, with the contact’s number or email.
 
-Contacts (optional) are searched on the device from Spotlight only. Bluetooth device names (optional) are shown in the island when a device connects. Folio remembers the last apps you launched on the device to suggest them in Spotlight, and learns how fast you open and close the phone to pace the fold animation; both stay in Folio’s private storage.
+Contacts (optional) are searched on the device from Spotlight only. When Bluetooth headphones or a speaker connects, its name is shown on Home or in the island; the name comes from Android's list of audio devices, needs no permission and isn't stored. Folio remembers the last apps you launched on the device to suggest them in Spotlight, and learns how fast you open and close the phone to pace the fold animation; both stay in Folio’s private storage.
 
 Android controls widget-binding approval and Home-app selection. Providers can require separate setup or permissions.
 

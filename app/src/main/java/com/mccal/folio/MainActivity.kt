@@ -235,6 +235,7 @@ class MainActivity : ComponentActivity() {
                 }
                 StandByOverlay(rememberHalfOpenPose(this@MainActivity), state.standBy, blocked = overlayOpen, status = deviceStatus)
                 LockCover(lockCoverVisible.value && state.lockCover) { lockCoverVisible.value = false }
+                AudioDeviceCard("BLUETOOTH" !in state.islandEventsOff, blocked = overlayOpen)
                 sharedTheme.value?.let { theme ->
                     AlertDialog(onDismissRequest = { sharedTheme.value = null },
                         title = { androidx.compose.material3.Text("Apply \u201c${theme.name}\u201d?") },
@@ -248,7 +249,7 @@ class MainActivity : ComponentActivity() {
                 // With live activities in the side rail, the camera island on Home keeps only its brief events.
                 if (state.island) CutoutIsland(IslandListenerService.activity.collectAsStateWithLifecycle().value
                     ?.takeUnless { it is IslandActivity.Call && "CALL" in state.islandEventsOff }
-                    ?.takeUnless { state.railActivities && state.verticalStatus && !overlayOpen }, state.islandEventsOff) {
+                    ?.takeUnless { state.railActivities && state.verticalStatus && !overlayOpen }, state.islandEventsOff + "BLUETOOTH") {
                     IslandListenerService.open(this@MainActivity, it)
                 }
                 TopPanels(topPanel.value, { overlayProgress }, deviceStatus, onClose = { topPanel.value = null },

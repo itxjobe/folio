@@ -302,7 +302,7 @@ internal fun LeadingGlyph(content: IslandContent, size: Dp) {
                 Spacer(Modifier.width(4.dp))
                 Text(stringResource(R.string.focus), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
-            is IslandEvent.Bluetooth -> Icon(Icons.Rounded.Headphones, null, tint = IslandBlue, modifier = Modifier.size(size * .8f))
+            is IslandEvent.Bluetooth -> Icon(if (e.speaker) Icons.Rounded.Speaker else Icons.Rounded.Headphones, null, tint = IslandBlue, modifier = Modifier.size(size * .8f))
             is IslandEvent.Message -> MessageAvatar(e, size)
         }
         is IslandContent.Live -> when (val a = content.activity) {
