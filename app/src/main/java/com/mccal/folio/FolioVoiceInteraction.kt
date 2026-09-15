@@ -29,8 +29,11 @@ class FolioVoiceSessionService : VoiceInteractionSessionService() {
 private class FolioVoiceSession(service: VoiceInteractionSessionService) : VoiceInteractionSession(service) {
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
-        runCatching { startAssistantActivity(Intent(context, AssistPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { runCatching { context.startActivity(Intent(context, AssistPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+        // The chosen assistant's voice screen, or Folio's picker (also the fallback if that app was uninstalled).
+        val target = SideKeyHold.current(context).intent(context)
+            ?: Intent(context, AssistPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { startAssistantActivity(target) }
+            .onFailure { runCatching { context.startActivity(target) } }
         hide()
     }
 }
@@ -42,4 +45,32 @@ class FolioRecognitionService : RecognitionService() {
     }
     override fun onCancel(listener: Callback?) = Unit
     override fun onStopListening(listener: Callback?) = Unit
+}
+
+/**
+ * What holding the side key does: Folio's picker, or talking straight to an assistant that accepts a voice request
+ * (Google/Gemini, Claude, Perplexity). Only assistants installed on this phone are offered. Stored on its own so the
+ * assistant session can read it without loading Folio's whole state.
+ */
+internal enum class SideKeyHold(val label: String, val action: String?, val packageName: String?) {
+    PICKER("Folio Picker", null, null),
+    GOOGLE("Talk to Google", "android.intent.action.VOICE_ASSIST", "com.google.android.googlequicksearchbox"),
+    CLAUDE("Talk to Claude", "android.intent.action.VOICE_ASSIST", "com.anthropic.claude"),
+    PERPLEXITY("Talk to Perplexity", Intent.ACTION_VOICE_COMMAND, "ai.perplexity.app.android");
+
+    fun intent(context: android.content.Context): Intent? {
+        if (action == null || packageName == null) return null
+        val intent = Intent(action).setPackage(packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return intent.takeIf { it.resolveActivity(context.packageManager) != null }
+    }
+
+    companion object {
+        private const val PREFS = "side_key"
+        private const val KEY = "hold"
+        fun available(context: android.content.Context) = entries.filter { it == PICKER || it.intent(context) != null }
+        fun current(context: android.content.Context): SideKeyHold =
+            runCatching { valueOf(context.getSharedPreferences(PREFS, 0).getString(KEY, null) ?: PICKER.name) }.getOrDefault(PICKER)
+        fun set(context: android.content.Context, value: SideKeyHold) =
+            context.getSharedPreferences(PREFS, 0).edit().putString(KEY, value.name).apply()
+    }
 }

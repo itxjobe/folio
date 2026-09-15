@@ -40,7 +40,7 @@
             <category android:name="com.fede.launcher.THEME_ICONPACK" />
         </intent>
     </queries>
-    <application android:label="Folio" android:icon="@mipmap/ic_launcher"
+    <application android:label="${appLabel}" android:icon="@mipmap/ic_launcher"
         android:name=".DuoApplication"
         android:theme="@style/Theme.Duo" android:allowBackup="false" android:supportsRtl="true">
         <property android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED" android:value="true" />
@@ -103,7 +103,7 @@
         </activity>
         <!-- Folio as an app, like iOS Settings: its icon (in the App Library or another launcher) opens Folio's Settings. -->
         <activity-alias android:name=".FolioSettingsApp" android:targetActivity=".MainActivity" android:exported="true"
-            android:label="Folio" android:icon="@mipmap/ic_launcher">
+            android:label="${appLabel}" android:icon="@mipmap/ic_launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -111,7 +111,7 @@
         </activity-alias>
         <!-- The Soft alternate icon (Settings › Wallpaper & Appearance › App Icon); off until chosen. -->
         <activity-alias android:name=".FolioSettingsAppSoft" android:targetActivity=".MainActivity" android:exported="true"
-            android:label="Folio" android:icon="@mipmap/ic_launcher_soft" android:enabled="false">
+            android:label="${appLabel}" android:icon="@mipmap/ic_launcher_soft" android:enabled="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

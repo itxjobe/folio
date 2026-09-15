@@ -42,7 +42,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     isDefaultHome: Boolean, page: CustomizationPage, onPage: (CustomizationPage) -> Unit,
     onMakeDefault: () -> Unit, onClose: () -> Unit, onEditPins: () -> Unit, onWidget: (Int) -> Unit,
     onAddWidget: (Int) -> Unit, onRemoveWidget: (Int) -> Unit, onWallpaperPreview: () -> Unit,
-    onExportLayout: () -> Unit, onImportLayout: () -> Unit,
+    onExportLayout: () -> Unit, onImportLayout: () -> Unit, onSaveLayoutToFolder: () -> Unit = {},
     appearance: AppearanceState, onAppearanceMode: (AppearanceMode) -> Unit,
     onAppearanceManual: (String, Double, Double) -> Unit, onAppearanceDeviceLocation: () -> Unit,
     onAppearanceClear: () -> Unit, backgrounds: LauncherBackgroundController, homePage: Int = 0,
@@ -334,7 +334,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             { if (it == "OFF") model.setLiveIcons(false) else model.setLiveIconLook(it) }, tag = "live-icons-menu")
                         IosMenuRow(stringResource(R.string.shape), IconShape.entries.map { it to it.label }, state.iconShape, model::setIconShape, tag = "icon-shape")
                         IosMenuRow(stringResource(R.string.notification_badges), BadgeStyle.entries.map { it to it.label }, state.badgeStyle, model::setBadgeStyle, tag = "badge-style")
-                        if (state.badgeStyle != BadgeStyle.OFF) IosMenuRow(stringResource(R.string.badge_color), BadgeColor.entries.map { it to it.label }, state.badgeColor, model::setBadgeColor, tag = "badge-color")
+                        if (state.badgeStyle != BadgeStyle.OFF) {
+                            IosMenuRow(stringResource(R.string.badge_color), BadgeColor.entries.map { it to it.label }, state.badgeColor, model::setBadgeColor, tag = "badge-color")
+                            IosMenuRow("Badge Look", BadgeLook.entries.map { it to it.label }, state.badgeLook, model::setBadgeLook, tag = "badge-look")
+                            IosMenuRow("Badge Size", BadgeSize.entries.map { it to it.label }, state.badgeSize, model::setBadgeSize, tag = "badge-size")
+                            BadgePreviewRow(state)
+                        }
                         // iOS Home Screen customization: Default, Dark and Tinted side by side.
                         Text(stringResource(R.string.style), color = androidx.compose.ui.graphics.Color.White.copy(alpha = .6f), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
                         IosSegmented(IconStyle.entries.map { it to it.label }, state.iconStyle, { model.setIconStyle(it, state.iconTint) }, Modifier.padding(vertical = 4.dp), tag = "icon-style")
@@ -446,7 +451,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 }
                 CustomizationPage.BACKUP -> {
                     SheetGroup {
-                        IosActionRow("Save Backup…", "layout-export", onClick = onExportLayout)
+                        IosActionRow("Save Backup", "layout-save-folder", onClick = onSaveLayoutToFolder)
+                        MenuDivider()
+                        IosActionRow("Save Backup to Files…", "layout-export", onClick = onExportLayout)
                         MenuDivider()
                         IosActionRow("Restore from Backup…", "layout-import", onClick = onImportLayout)
                     }
@@ -705,6 +712,10 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
     SettingsCard(stringResource(R.string.press_and_hold)) {
         SideKeyStep("1. Folio is your digital assistant", "Settings › Apps › Default apps › Digital assistant app › Folio", assistant) { open(AssistPickerActivity.settingsIntent()) }
         SideKeyStep("2. Hold the side key: Digital assistant", "Side button › Press and hold › Digital assistant", hold) { open(sideKeySettings(context)) }
+        var holdTarget by remember { mutableStateOf(SideKeyHold.current(context)) }
+        val holdOptions = remember(tick) { SideKeyHold.available(context) }
+        IosMenuRow("When You Hold It", holdOptions.map { it to it.label }, holdTarget,
+            { holdTarget = it; SideKeyHold.set(context, it) }, tag = "side-key-hold")
         Text(stringResource(R.string.then_holding_the_side_key_opens_folio_s),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Still nothing? Choose a different digital assistant, then Folio again, so Android picks up Folio's assistant service.",
@@ -872,14 +883,6 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
     var undo by remember { mutableStateOf(model.themeUndo != null) }
-    val save = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) scope.launch {
-            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching {
-                context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(FolioTheme.of(state, "My Folio Theme").toJson().toString(2).toByteArray()) }
-            }.isSuccess }
-            message = if (ok) "Theme saved." else "The theme couldn't be saved."
-        }
-    }
     val open = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             val theme = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -904,7 +907,15 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     Text("A theme changes icons, badges, glass, text on Home and the status bar. Your apps, pages and widgets stay as they are.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
     SheetGroup {
-        IosActionRow("Save Current Look as Theme…", "theme-save") { save.launch("folio-theme.json") }
+        IosActionRow("Save Current Look as Theme", "theme-save") {
+            scope.launch {
+                val name = FolioFiles.datedName("folio-theme")
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    FolioFiles.save(context, name, "application/json", FolioTheme.of(state, "My Folio Theme").toJson().toString(2).toByteArray())
+                }
+                message = if (saved != null) "Saved to ${FolioFiles.displayPath} as $name." else "The theme couldn't be saved."
+            }
+        }
         MenuDivider()
         IosActionRow("Import Theme…", "theme-import") { open.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
         if (undo) { MenuDivider(); IosActionRow("Undo Theme Change", "theme-undo") { model.undoTheme(); undo = false; message = null } }
@@ -1447,5 +1458,20 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
         SettingsSwitch(stringResource(R.string.tint_glass_with_wallpaper_color), state.tintedGlass, model::setTintedGlass, "tinted-glass-switch")
         Text("Frost is how see-through widgets and the Side Bar are; the outline is the thin light edge around them.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** A live sample of the badge settings on a plain icon, so each change shows right away. */
+@Composable private fun BadgePreviewRow(state: LauncherState) {
+    val look = LocalIconLook.current
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally)) {
+        listOf(1, 12).forEach { count ->
+            Box(Modifier.size(56.dp)) {
+                Box(Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(androidx.compose.ui.graphics.Color(0xFF3A3A3C)))
+                val color = look.badgeColor.fixed?.let { androidx.compose.ui.graphics.Color(it) }
+                    ?: if (look.badgeColor == BadgeColor.SOFT) androidx.compose.ui.graphics.Color(0xFFE5E5EA) else androidx.compose.ui.graphics.Color(0xFFFF3B30)
+                IconBadge(count, state.badgeStyle, color, state.badgeLook, state.badgeSize.scale)
+            }
+        }
     }
 }

@@ -200,7 +200,7 @@ class MainActivity : ComponentActivity() {
                         FeatureScopes.on(state.featureScopes, "notificationAppRow", state.notificationAppRow, screen))
                 },
                 androidx.compose.ui.platform.LocalHapticFeedback provides (if (state.haptics) androidx.compose.ui.platform.LocalHapticFeedback.current else NoHaptics),
-                LocalIconLook provides IconLook(state.iconStyle, androidx.compose.ui.graphics.Color(iconTint), state.iconShape, state.iconPack, state.badgeStyle, state.badgeColor, state.liveIcons, state.liveIconLook),
+                LocalIconLook provides IconLook(state.iconStyle, androidx.compose.ui.graphics.Color(iconTint), state.iconShape, state.iconPack, state.badgeStyle, state.badgeColor, state.liveIcons, state.liveIconLook, state.badgeLook, state.badgeSize),
                 LocalFocusLock provides FocusPages.lockingFocus(savedState)?.let { FocusLock(it, savedState.layout.pageCount) },
                 LocalIconsAreDark provides iconsAreDark,
                 LocalRecentPackages provides recentPackages,
@@ -403,7 +403,7 @@ class MainActivity : ComponentActivity() {
     }
     /** Android's "Home app settings" gear, or Folio's own app icon (the FolioSettingsApp alias). */
     private fun opensSettings(intent: Intent) = intent.action == Intent.ACTION_APPLICATION_PREFERENCES ||
-        intent.component?.className?.startsWith("$packageName.${AppIconChoice.ALIAS_PREFIX}") == true
+        intent.component?.className?.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}") == true
 
     /** Any app can start Home with this extra, so it's parsed again and only ever applied after the user taps Apply. */
     private fun takeSharedTheme(intent: Intent?) {

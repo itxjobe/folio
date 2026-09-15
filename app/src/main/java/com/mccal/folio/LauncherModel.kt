@@ -96,6 +96,8 @@ data class LauncherState(
     val iconPack: String? = null,
     val badgeStyle: BadgeStyle = BadgeStyle.DOT,
     val badgeColor: BadgeColor = BadgeColor.RED,
+    val badgeLook: BadgeLook = BadgeLook.IOS,
+    val badgeSize: BadgeSize = BadgeSize.STANDARD,
     /** iOS "Search" capsule on Home in place of the page dots. */
     val searchPill: Boolean = true,
     /** Swipe down on Home (below the top edge) opens Spotlight. */
@@ -320,12 +322,12 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                         val activityList = if (descriptor.available) runCatching { launcherApps.getActivityList(null, profile) }.getOrNull() else null
                         if (activityList == null) emptyList() else activityList.also { authoritativeProfiles += serial }.mapNotNull { info ->
                             // Folio lists itself only as its Settings app, like iOS Settings in the App Library.
-                            if (info.componentName.packageName == application.packageName && !info.componentName.className.startsWith("${application.packageName}.${AppIconChoice.ALIAS_PREFIX}")) return@mapNotNull null
+                            if (info.componentName.packageName == application.packageName && !info.componentName.className.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}")) return@mapNotNull null
                             val component = info.componentName
                             // Every alternate icon is its own component; they share one id so switching icons keeps
                             // Folio's place on Home, in the dock and in folders.
                             val idComponent = if (component.packageName == application.packageName)
-                                ComponentName(application.packageName, "${application.packageName}.${AppIconChoice.OLIVE.alias}") else component
+                                ComponentName(application.packageName, "$FOLIO_CLASSES.${AppIconChoice.OLIVE.alias}") else component
                             val id = profileAppId(idComponent.flattenToString(), serial, personalSerial)
                             val label = info.label.toString()
                             iconCache[id]?.takeIf { it.label == label && it.available && it.component == component } ?: run {
@@ -796,6 +798,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setIconPack(pack: String?) = updateSettings(soon = false) { it.copy(iconPack = pack) }
     fun setBadgeStyle(style: BadgeStyle) = updateSettings(soon = false) { it.copy(badgeStyle = style) }
     fun setBadgeColor(color: BadgeColor) = updateSettings(soon = false) { it.copy(badgeColor = color) }
+    fun setBadgeLook(look: BadgeLook) = updateSettings(soon = false) { it.copy(badgeLook = look) }
+    fun setBadgeSize(size: BadgeSize) = updateSettings(soon = false) { it.copy(badgeSize = size) }
     fun setSearchPill(value: Boolean) = updateSettings(soon = false) { it.copy(searchPill = value) }
     fun setSwipeDownSearch(value: Boolean) = updateSettings(soon = false) { it.copy(swipeDownSearch = value) }
     fun setMessagesApp(pkg: String?) = updateSettings(soon = false) { it.copy(messagesApp = pkg) }
@@ -911,7 +915,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("panelBlur", s.panelBlur.toDouble()).put("notificationClock", s.notificationClock).put("groupNotifications", s.groupNotifications)
             .put("standBy", s.standBy).put("spotlightHidden", JSONArray(s.spotlightHidden.toList())).put("searchEngine", s.searchEngine)
             .put(SettingKeys.ISLAND_EVENTS_OFF, JSONArray(s.islandEventsOff.toList())).put("libraryCategories", s.libraryCategories).put("iconStyle", s.iconStyle.name).put("iconTint", s.iconTint)
-            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("searchPill", s.searchPill).put("swipeDownSearch", s.swipeDownSearch).put("messagesApp", s.messagesApp ?: JSONObject.NULL).put(SettingKeys.MESSAGES_AVOID_DOUBLE, s.messagesAvoidDouble).put("ccControls", JSONArray(s.ccControls))
+            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("badgeLook", s.badgeLook.name).put("badgeSize", s.badgeSize.name).put("searchPill", s.searchPill).put("swipeDownSearch", s.swipeDownSearch).put("messagesApp", s.messagesApp ?: JSONObject.NULL).put(SettingKeys.MESSAGES_AVOID_DOUBLE, s.messagesAvoidDouble).put("ccControls", JSONArray(s.ccControls))
             .put("ccSize", s.ccSize.name).put("ccCentered", s.ccCentered).put("ncSplit", s.ncSplit)
             .put("widgetStacks", JSONObject().apply { s.widgetStacks.forEach { (slot, ids) -> put(slot.toString(), JSONArray(ids)) } })
             .put("stackRotate", s.stackRotate).put("railActivitiesUnderStatus", s.railActivities).put("addNewAppsToHome", s.addNewAppsToHome)
@@ -1089,6 +1093,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             iconPack = j.optString("iconPack").takeIf { it.isNotBlank() && it != "null" },
             badgeStyle = runCatching { BadgeStyle.valueOf(j.optString("badgeStyle")) }.getOrDefault(BadgeStyle.DOT),
             badgeColor = runCatching { BadgeColor.valueOf(j.optString("badgeColor")) }.getOrDefault(BadgeColor.RED),
+            badgeLook = runCatching { BadgeLook.valueOf(j.optString("badgeLook")) }.getOrDefault(BadgeLook.IOS),
+            badgeSize = runCatching { BadgeSize.valueOf(j.optString("badgeSize")) }.getOrDefault(BadgeSize.STANDARD),
             searchPill = j.optBoolean("searchPill", true), swipeDownSearch = j.optBoolean("swipeDownSearch", true),
             messagesApp = j.optString("messagesApp").takeIf { it.isNotBlank() && it != "null" },
             messagesAvoidDouble = j.optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true),

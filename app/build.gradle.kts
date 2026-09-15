@@ -70,6 +70,7 @@ android {
                 "proguard-rules.pro",
             )
             if (releaseStoreFile != null) signingConfig = signingConfigs.getByName("release")
+            manifestPlaceholders["appLabel"] = "Folio"
         }
         // Optimized like release (R8, no debuggable JIT slowdown) but signed with the local debug key, so it
         // installs over a debug build and keeps Folio's data. Use this to judge real smoothness on the phone.
@@ -77,11 +78,20 @@ android {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += "release"
+            // Its own app ("Folio Dev") so test builds install next to the signed release instead of over it.
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appLabel"] = "Folio Dev"
+        }
+        getByName("debug") {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appLabel"] = "Folio Dev"
         }
     }
     // "fast" uses release's no-op tracing/diagnostic sources.
     sourceSets {
-        getByName("fast") { kotlin.directories.add("src/release/java") }
+        getByName("fast") { kotlin.directories.add("src/release/java"); res.directories.add("src/dev/res") }
+        // Folio Dev (debug and fast builds) gets an amber icon so it's easy to tell apart from the release.
+        getByName("debug") { res.directories.add("src/dev/res") }
         getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/changelog").get().asFile) }
     }
     buildFeatures { compose = true }

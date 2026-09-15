@@ -865,6 +865,7 @@ fun LauncherScreen(
                             onAddWidget = { page -> widgetSlot = model.nextWidgetSlot(); widgetTargetIndex = page * HOME_CELLS; widgetPackage = null; widgetProfileSerial = null; widgetExactTarget = false; sheet = "widgets" },
                             onRemoveWidget = widgets::remove,
                             onExportLayout = { sheet = ""; launcherActivity.backups.startExport() },
+                            onSaveLayoutToFolder = { launcherActivity.backups.saveToFolioFolder() },
                             onImportLayout = { sheet = ""; launcherActivity.backups.startImport() },
                             appearance = appearance, onAppearanceMode = onAppearanceMode,
                             onAppearanceManual = onAppearanceManual, onAppearanceDeviceLocation = onAppearanceDeviceLocation,

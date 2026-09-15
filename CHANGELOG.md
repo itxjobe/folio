@@ -21,6 +21,8 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Changed
 - New olive green app icon.
+- Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
+- Side key: choose what holding it does, Folio's picker or talking straight to Google, Claude or Perplexity (Side Key page).
 - Glass settings in Wallpaper & Appearance: a Clear, Light, Frosted or Solid style, plus sliders for widget frost, Side Bar frost and the outline.
 - Shorter, iPhone-style setup: Home app, notifications, pull-down gestures and a look. Optional permissions are asked where they're used.
 - Settings has one list of permissions (Privacy & Permissions) instead of a separate Setup Checklist, and no repeated Home app rows.

@@ -6,6 +6,7 @@ import android.provider.AlarmClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -79,12 +80,19 @@ enum class IconStyle(val label: String) { DEFAULT("Default"), DARK("Dark"), TINT
 
 enum class IconShape(val label: String) { DEFAULT("Default"), SQUIRCLE("Squircle"), CIRCLE("Circle"), ROUNDED("Rounded square") }
 enum class BadgeStyle(val label: String) { OFF("Off"), DOT("Dot"), COUNT("Count") }
-enum class BadgeColor(val label: String) { RED("Red"), APP("Match icon"), SOFT("Soft") }
+enum class BadgeColor(val label: String, val fixed: Long? = null) {
+    RED("Red"), APP("Match icon"), SOFT("Soft"),
+    BLUE("Blue", 0xFF0A84FF), GREEN("Green", 0xFF30D158), ORANGE("Orange", 0xFFFF9F0A), PURPLE("Purple", 0xFFBF5AF2)
+}
+/** iOS: today's flat pill. Classic: the older white-outlined, glossy badge. Glass: frosted dark with a light count. */
+enum class BadgeLook(val label: String) { IOS("iOS"), CLASSIC("Classic"), GLASS("Glass") }
+enum class BadgeSize(val label: String, val scale: Float) { SMALL("Small", .82f), STANDARD("Standard", 1f), LARGE("Large", 1.2f) }
 
 /** Icon look for the whole launcher, provided from the saved settings. */
 internal data class IconLook(val style: IconStyle = IconStyle.DEFAULT, val tint: Color = Color(0xFFFFB340),
     val shape: IconShape = IconShape.DEFAULT, val pack: String? = null, val badges: BadgeStyle = BadgeStyle.DOT,
-    val badgeColor: BadgeColor = BadgeColor.RED, val liveIcons: Boolean = true, val liveLook: String = "AUTO")
+    val badgeColor: BadgeColor = BadgeColor.RED, val liveIcons: Boolean = true, val liveLook: String = "AUTO",
+    val badgeLook: BadgeLook = BadgeLook.IOS, val badgeSize: BadgeSize = BadgeSize.STANDARD)
 
 /** Unread notification counts per package, for icon badges. */
 internal val LocalBadgeCounts = androidx.compose.runtime.compositionLocalOf { emptyMap<String, Int>() }
@@ -185,6 +193,7 @@ internal fun AppIcon(app: AppEntry, contentDescription: String?, modifier: Modif
         if (badgeCount > 0) {
             val color = when {
                 look.badgeColor == BadgeColor.RED -> BadgeRed
+                look.badgeColor.fixed != null -> Color(look.badgeColor.fixed)
                 look.style == IconStyle.TINTED -> if (look.badgeColor == BadgeColor.SOFT) Color(softened(look.tint.toArgb())) else look.tint
                 liveKind == LiveIcons.Kind.CALENDAR -> if (look.badgeColor == BadgeColor.SOFT) Color(softened(IconRed.toArgb())) else IconRed
                 liveKind == LiveIcons.Kind.CLOCK -> if (look.badgeColor == BadgeColor.SOFT) Color(softened(IconOrange.toArgb())) else IconOrange
@@ -197,7 +206,7 @@ internal fun AppIcon(app: AppEntry, contentDescription: String?, modifier: Modif
                     accent?.let { Color(it) } ?: if (soft) SoftNeutral else BadgeRed
                 }
             }
-            IconBadge(badgeCount, look.badges, color)
+            IconBadge(badgeCount, look.badges, color, look.badgeLook, look.badgeSize.scale)
         }
         // Updating: the icon dims under an iOS-style progress ring until the installer finishes.
         LocalInstallProgress.current[app.component.packageName]?.let { progress -> InstallRing(progress, fill) }
@@ -307,16 +316,33 @@ private val SoftNeutral = Color(0xFFE5E5EA)
 
 /** iOS-style badge: sits over the icon's top-right corner, a dot or a pill that widens for 2+ digits. */
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.IconBadge(count: Int, style: BadgeStyle, color: Color) {
+internal fun androidx.compose.foundation.layout.BoxScope.IconBadge(count: Int, style: BadgeStyle, color: Color,
+    badgeLook: BadgeLook = BadgeLook.IOS, scale: Float = 1f) {
     BoxWithConstraints(Modifier.matchParentSize()) {
         val density = androidx.compose.ui.platform.LocalDensity.current
-        val h = if (style == BadgeStyle.COUNT) maxWidth * .34f else maxWidth * .22f
+        val h = (if (style == BadgeStyle.COUNT) maxWidth * .34f else maxWidth * .22f) * scale
         val pill = androidx.compose.foundation.shape.CircleShape
-        val readable = if (color.luminance() > .62f) Color.Black.copy(alpha = .85f) else Color.White
+        val fill = when (badgeLook) {
+            BadgeLook.GLASS -> Color(0xFF1C1C1E).copy(alpha = .78f)
+            else -> color
+        }
+        val readable = when {
+            badgeLook == BadgeLook.GLASS -> color.takeIf { it.luminance() > .2f } ?: Color.White
+            color.luminance() > .62f -> Color.Black.copy(alpha = .85f)
+            else -> Color.White
+        }
+        val look = when (badgeLook) {
+            // iOS 7 and later: a flat pill, no shadow or outline.
+            BadgeLook.IOS -> Modifier.background(fill, pill)
+            // Classic (iOS 6): a white ring, a soft shadow and a glossy top half.
+            BadgeLook.CLASSIC -> Modifier.shadow(with(density) { 2.dp }, pill, ambientColor = Color.Black, spotColor = Color.Black)
+                .background(fill, pill).border(h * .09f, Color.White, pill)
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color.White.copy(alpha = .35f), .5f to Color.Transparent), pill)
+            BadgeLook.GLASS -> Modifier.background(fill, pill).border(1.dp, Color.White.copy(alpha = .25f), pill)
+        }
         Box(Modifier.align(Alignment.TopEnd).offset(h * .32f, -h * .32f)
             .heightIn(min = h).widthIn(min = h)
-            .shadow(with(density) { 2.dp }, pill, ambientColor = Color.Black, spotColor = Color.Black)
-            .background(color, pill)
+            .then(look)
             .padding(horizontal = if (style == BadgeStyle.COUNT && count > 9) h * .22f else 0.dp),
             contentAlignment = Alignment.Center) {
             if (style == BadgeStyle.COUNT) {

@@ -20,17 +20,20 @@ data class FolioTheme(
     val tintedGlass: Boolean = true,
     val dimWallpaperDark: Boolean = true,
     val statusStyle: StatusStyle = StatusStyle(),
+    val badgeLook: BadgeLook = BadgeLook.IOS,
+    val badgeSize: BadgeSize = BadgeSize.STANDARD,
 ) {
     fun toJson(): JSONObject = JSONObject().put("folioTheme", 1).put("name", name)
         .put("iconStyle", iconStyle.name).put("iconTint", iconTint).put("iconTintFromWallpaper", iconTintFromWallpaper)
         .put("iconShape", iconShape.name).put("iconPack", iconPack ?: JSONObject.NULL).put("badgeStyle", badgeStyle.name)
         .put("badgeColor", badgeColor.name).put("liveIcons", liveIcons).put("homeInk", homeInk).put("tintedGlass", tintedGlass)
         .put("dimWallpaperDark", dimWallpaperDark).put("statusStyle", statusStyle.toJson())
+        .put("badgeLook", badgeLook.name).put("badgeSize", badgeSize.name)
 
     companion object {
         fun of(state: LauncherState, name: String) = FolioTheme(name, state.iconStyle, state.iconTint, state.iconTintFromWallpaper,
             state.iconShape, state.iconPack, state.badgeStyle, state.badgeColor, state.liveIcons, state.homeInk, state.tintedGlass,
-            state.dimWallpaperDark, state.statusStyle)
+            state.dimWallpaperDark, state.statusStyle, state.badgeLook, state.badgeSize)
 
         /** Reads a theme file; null if it isn't one. Unknown values fall back to Folio's defaults. */
         fun fromJson(raw: String): FolioTheme? = runCatching {
@@ -51,6 +54,8 @@ data class FolioTheme(
                 tintedGlass = j.optBoolean("tintedGlass", true),
                 dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
                 statusStyle = StatusStyle.fromJson(j.optJSONObject("statusStyle")),
+                badgeLook = enum(BadgeLook.entries.toTypedArray(), "badgeLook", BadgeLook.IOS),
+                badgeSize = enum(BadgeSize.entries.toTypedArray(), "badgeSize", BadgeSize.STANDARD),
             )
         }.getOrNull()
 
@@ -70,6 +75,7 @@ internal fun LauncherState.withTheme(theme: FolioTheme, installedPacks: Set<Stri
     iconShape = theme.iconShape, iconPack = theme.iconPack?.takeIf { it in installedPacks },
     badgeStyle = theme.badgeStyle, badgeColor = theme.badgeColor, liveIcons = theme.liveIcons, homeInk = theme.homeInk,
     tintedGlass = theme.tintedGlass, dimWallpaperDark = theme.dimWallpaperDark, statusStyle = theme.statusStyle,
+    badgeLook = theme.badgeLook, badgeSize = theme.badgeSize,
 )
 
 /** Whether the current look matches [theme] (ignoring its name). */

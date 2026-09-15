@@ -33,7 +33,9 @@ default for that field.
 | `iconShape` | `DEFAULT`, `SQUIRCLE`, `CIRCLE`, `ROUNDED` | `DEFAULT` |
 | `iconPack` | `null` for shared themes | `null` |
 | `badgeStyle` | `OFF`, `DOT`, `COUNT` | `DOT` |
-| `badgeColor` | `RED`, `APP`, `SOFT` | `RED` |
+| `badgeColor` | `RED`, `APP`, `SOFT`, `BLUE`, `GREEN`, `ORANGE`, `PURPLE` | `RED` |
+| `badgeLook` | `IOS`, `CLASSIC`, `GLASS` | `IOS` |
+| `badgeSize` | `SMALL`, `STANDARD`, `LARGE` | `STANDARD` |
 | `liveIcons` | `true`, `false` | `true` |
 | `homeInk` | `AUTO`, `LIGHT`, `DARK` | `AUTO` |
 | `tintedGlass` | `true`, `false` | `true` |
