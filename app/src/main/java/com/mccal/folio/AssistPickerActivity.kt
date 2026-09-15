@@ -50,8 +50,18 @@ import androidx.core.graphics.drawable.toBitmap
  * then opens this small chooser instead of a single fixed assistant.
  */
 class AssistPickerActivity : ComponentActivity() {
+    /** Follows the latest side-key intent: this activity is singleTask, so a new press arrives in onNewIntent. */
+    private val searchOnlyState = androidx.compose.runtime.mutableStateOf(false)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        searchOnlyState.value = intent.getBooleanExtra(EXTRA_SEARCH_ONLY, false)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        searchOnlyState.value = intent.getBooleanExtra(EXTRA_SEARCH_ONLY, false)
         val targets = AssistTarget.entries.mapNotNull { target ->
             val launch = packageManager.getLaunchIntentForPackage(target.packageName) ?: return@mapNotNull null
             val icon = runCatching { packageManager.getApplicationIcon(target.packageName).toBitmap(144, 144) }.getOrNull()
@@ -63,7 +73,7 @@ class AssistPickerActivity : ComponentActivity() {
             var query by remember { mutableStateOf("") }
             val focus = remember { FocusRequester() }
             // Side key set to "Search Google Without AI": just the search field, ready to type.
-            val searchOnly = intent.getBooleanExtra(EXTRA_SEARCH_ONLY, false)
+            val searchOnly = searchOnlyState.value
             LaunchedEffect(searchOnly) { if (searchOnly) { kotlinx.coroutines.delay(250); runCatching { focus.requestFocus() } } }
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .35f))
                 .clickable(remember { MutableInteractionSource() }, null) { finish() }, contentAlignment = Alignment.BottomCenter) {

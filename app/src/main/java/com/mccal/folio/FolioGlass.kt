@@ -97,7 +97,9 @@ enum class MotionSpeed(val label: String, val factor: Float) {
  */
 internal fun androidx.compose.ui.Modifier.edgeFade(canScrollUp: () -> Boolean, canScrollDown: () -> Boolean,
     size: androidx.compose.ui.unit.Dp = 20.dp): androidx.compose.ui.Modifier =
-    graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+    // An offscreen layer only while an edge is actually fading, so a list at rest draws normally.
+    graphicsLayer { compositingStrategy = if (canScrollUp() || canScrollDown()) androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+        else androidx.compose.ui.graphics.CompositingStrategy.Auto }
         .drawWithContent {
             drawContent()
             val px = size.toPx().coerceAtMost(this.size.height / 3f)

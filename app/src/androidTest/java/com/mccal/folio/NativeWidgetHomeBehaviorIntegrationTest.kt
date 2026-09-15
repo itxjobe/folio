@@ -132,7 +132,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
             var widgets = widgetsField
                 .get(main) as WidgetController
             val provider = widgets.personalProviders().single {
-                it.provider.packageName == "com.mccal.folio.test" &&
+                it.provider.packageName == FolioTestPackages.test &&
                     it.provider.className.endsWith("RequiredConfigWidgetProvider")
             }
             var slot = -1
@@ -149,7 +149,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
             val label = provider.loadLabel(main.packageManager).toString()
             search(label); await { find(label)?.isVisibleToUser == true }; click(label)
             await { find("Ready to place")?.isVisibleToUser == true }; click("Place")
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
             await { widgets.pendingPlacement?.slot == slot }
             val assignedId = requireNotNull(widgets.pendingPlacement).id
             assertTrue(assignedId in widgets.host.appWidgetIds)
@@ -157,7 +157,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
 
             shell("input keyevent KEYCODE_HOME")
             val reachedHome = runCatching {
-                await(8_000) { automation.rootInActiveWindow?.packageName == "com.mccal.folio" }; true
+                await(8_000) { automation.rootInActiveWindow?.packageName == FolioTestPackages.app }; true
             }.getOrDefault(false)
             val afterHome = shell("dumpsys activity activities")
             val postMain = LiveDiscover.owner.get()
@@ -175,7 +175,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
             assertTrue("MainActivity was not resumed after HOME; see native-widget-home-$variant.txt",
                 afterHome.lineSequence().any { line ->
                     (line.contains("mResumedActivity") || line.contains("topResumedActivity")) &&
-                        line.contains("com.mccal.folio/.MainActivity")
+                        (line.contains("${FolioTestPackages.app}/") && line.contains("MainActivity"))
                 })
 
             if (postMain != null && postMain !== main) {
@@ -194,7 +194,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
                 assertEquals("Durable setup must retain the same ID", assignedId, widgets.pendingPlacement?.id)
                 assertEquals(1, widgets.host.appWidgetIds.count { it == assignedId })
                 click("Finish setup")
-                await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+                await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
                 click("Use configured widget")
                 await { model.placement(slot)?.id == assignedId && widgets.pendingPlacement == null }
                 assertEquals(assignedId, model.placement(slot)?.id)
@@ -221,7 +221,7 @@ class NativeWidgetHomeBehaviorIntegrationTest {
                 widgets.host.appWidgetIds.filter { it !in idsBefore }.forEach(widgets.host::deleteAppWidgetId)
                 assertEquals("Every baseline widget binding must survive", idsBefore, widgets.host.appWidgetIds.toSet())
             } }
-            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             cleanup { shell("cmd role add-role-holder android.app.role.HOME $cleanupHome 0") }
             cleanup { instrumentation.runOnMainSync { LiveDiscover.owner.get()?.finish(); LiveDiscover.host.get()?.finish() } }

@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
@@ -884,6 +885,16 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
 
 /** Tweak preference page: main switch first, per-screen overrides (dimmed when off), credit, reset. */
 @Composable private fun TweakPage(tweak: TweakFeature, state: LauncherState, model: LauncherModel) {
+    // Not installed yet: just what it does and Get, like a package page. Its settings appear once it's installed.
+    if (tweak.id !in state.installedTweaks) {
+        SettingsCard(tweak.name) {
+            Text(tweak.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Inspired by ${tweak.inspiredBy}. Re-created from scratch; no tweak code is included.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SheetGroup { IosActionRow("Get ${tweak.name}", "tweak-get-${tweak.id}") { model.installTweak(tweak) } }
+        return
+    }
     val on = tweak.get(state)
     SettingsCard(tweak.name) {
         SettingsSwitch("Enabled", on, { tweak.set(model, it) }, "tweak-enabled-${tweak.id}")
@@ -904,10 +915,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextButton(onClick = { model.resetTweak(tweak) }) { Text("Reset ${tweak.name}") }
     }
-    SheetGroup {
-        if (tweak.id in state.installedTweaks) IosActionRow("Remove ${tweak.name}", "tweak-remove-${tweak.id}", destructive = true) { model.removeTweak(tweak) }
-        else IosActionRow("Get ${tweak.name}", "tweak-get-${tweak.id}") { model.installTweak(tweak) }
-    }
+    SheetGroup { IosActionRow("Remove ${tweak.name}", "tweak-remove-${tweak.id}", destructive = true) { model.removeTweak(tweak) } }
 }
 
 /** Themes (after SnowBoard): built-in looks with a live preview, plus saving and importing theme files. */
@@ -1529,7 +1537,8 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
 /** A live sample of the badge settings on a plain icon, so each change shows right away. */
 @Composable private fun BadgePreviewRow(state: LauncherState) {
     val look = LocalIconLook.current
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).clearAndSetSemantics { contentDescription = "Badge preview" },
+        horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally)) {
         listOf(1, 12).forEach { count ->
             Box(Modifier.size(56.dp)) {
                 Box(Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(androidx.compose.ui.graphics.Color(0xFF3A3A3C)))
@@ -1573,7 +1582,8 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
         TweakFeatures.forEachIndexed { index, tweak ->
             if (index > 0) MenuDivider()
             val installed = tweak.id in state.installedTweaks
-            Row(Modifier.fillMaxWidth().clickable { onOpen(tweak) }.padding(horizontal = 14.dp, vertical = 10.dp).testTag("library-tweak-${tweak.id}"),
+            Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Show details") { onOpen(tweak) }
+                .padding(horizontal = 14.dp, vertical = 10.dp).testTag("library-tweak-${tweak.id}"),
                 verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(androidx.compose.ui.graphics.Color(tweak.color)), contentAlignment = Alignment.Center) {
                     Icon(tweak.icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(22.dp))
@@ -1586,8 +1596,8 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
                 // Sileo's pill: Get in blue; once installed it reads Open and goes to the tweak's settings.
                 Text(if (installed) "Open" else "Get", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     color = if (installed) IosBlue else androidx.compose.ui.graphics.Color.White,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (installed) androidx.compose.ui.graphics.Color.White.copy(alpha = .12f) else IosBlue)
-                        .clickable { if (installed) onOpen(tweak) else model.installTweak(tweak) }.padding(horizontal = 16.dp, vertical = 6.dp)
+                    modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(50)).background(if (installed) androidx.compose.ui.graphics.Color.White.copy(alpha = .12f) else IosBlue)
+                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { if (installed) onOpen(tweak) else model.installTweak(tweak) }.padding(horizontal = 16.dp, vertical = 6.dp)
                         .semantics { contentDescription = if (installed) "Open ${tweak.name}" else "Get ${tweak.name}" })
             }
         }
@@ -1600,7 +1610,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
     val scope = rememberCoroutineScope()
     val status by SoftwareUpdate.status.collectAsState()
     var auto by remember { mutableStateOf(SoftwareUpdate.autoCheck(context)) }
-    val installed = SoftwareUpdate.installedVersion(context)
+    val installed = remember { SoftwareUpdate.installedVersion(context) }
     SettingsCard("Folio $installed") {
         if (!SoftwareUpdate.supported(context)) {
             Text("This is Folio Dev, a test build. Updates for it come from new builds, not GitHub.",
@@ -1621,13 +1631,13 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
         SheetGroup {
             val available = status as? SoftwareUpdate.Status.Available
             if (available != null) {
-                IosActionRow("Download and Install", "update-install") { scope.launch { SoftwareUpdate.downloadAndInstall(context, available.release) } }
+                IosActionRow("Download and Install", "update-install") { SoftwareUpdate.startInstall(context, available.release) }
                 MenuDivider()
                 IosActionRow("Release Notes", "update-notes") {
                     runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(available.release.notesUrl))) }
                 }
             } else IosActionRow("Check for Updates", "update-check",
-                enabled = status !is SoftwareUpdate.Status.Checking && status !is SoftwareUpdate.Status.Downloading) { scope.launch { SoftwareUpdate.check(context) } }
+                enabled = status !is SoftwareUpdate.Status.Checking && status !is SoftwareUpdate.Status.Downloading) { SoftwareUpdate.startCheck(context) }
         }
         SettingsCard("Automatic Updates") {
             SettingsSwitch("Check for Updates Daily", auto, { auto = it; SoftwareUpdate.setAutoCheck(context, it) }, "update-auto")

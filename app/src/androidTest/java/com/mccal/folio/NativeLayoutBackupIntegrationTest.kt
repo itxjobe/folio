@@ -248,7 +248,7 @@ class NativeLayoutBackupIntegrationTest {
                 model.setVerticalStatus(requireNotNull(before).verticalStatus)
             } }
             cleanup { clearFixtureDocument() }
-            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             cleanup { shell("cmd role add-role-holder android.app.role.HOME $cleanupHome 0") }
             cleanup { instrumentation.runOnMainSync { LiveDiscover.owner.get()?.finish(); LiveDiscover.host.get()?.finish() } }

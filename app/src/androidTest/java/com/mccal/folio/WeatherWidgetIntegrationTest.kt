@@ -268,7 +268,7 @@ class WeatherWidgetIntegrationTest {
                     .forEach(cleanupController.host::deleteAppWidgetId)
                 assertEquals(idsBefore, cleanupController.host.appWidgetIds.toSet())
             }
-            val fallback = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val fallback = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             shell("cmd role add-role-holder android.app.role.HOME $fallback 0")
             instrumentation.runOnMainSync {

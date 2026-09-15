@@ -34,7 +34,7 @@ class SystemShadeIntegrationTest {
     )
     private val compose = createAndroidComposeRule<MainActivity>()
     @get:Rule val rules = org.junit.rules.RuleChain.outerRule(WithoutNativeFeed()).around(compose)
-    private val component = "com.mccal.folio/com.mccal.folio.SystemShadeAccessibilityService"
+    private val component = "${FolioTestPackages.app}/com.mccal.folio.SystemShadeAccessibilityService"
 
     private fun shell(command: String) = ParcelFileDescriptor.AutoCloseInputStream(
         automation.executeShellCommand(command)
@@ -184,13 +184,13 @@ class SystemShadeIntegrationTest {
             shell("cmd statusbar collapse")
             stage = "collapse"
             await {
-                automation.rootInActiveWindow?.packageName?.toString() == "com.mccal.folio" &&
+                automation.rootInActiveWindow?.packageName?.toString() == FolioTestPackages.app &&
                     findText("notification", "com.android.systemui") == null &&
                     findText("brightness", "com.android.systemui") == null
             }
             // Require the collapsed state to remain settled beyond the last animation frame.
             SystemClock.sleep(300)
-            assertEquals("com.mccal.folio", automation.rootInActiveWindow?.packageName?.toString())
+            assertEquals(FolioTestPackages.app, automation.rootInActiveWindow?.packageName?.toString())
             assertTrue(findText("notification", "com.android.systemui") == null)
             assertTrue(findText("brightness", "com.android.systemui") == null)
 

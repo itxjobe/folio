@@ -219,7 +219,7 @@ class LiveDiscoverIntegrationTest {
         } finally {
             // A Home task can be recreated while an external search activity returns.
             // Follow the live owner instead of treating it as a fixed ActivityScenario.
-            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             shell("cmd role add-role-holder android.app.role.HOME $cleanupHome 0")
             try {

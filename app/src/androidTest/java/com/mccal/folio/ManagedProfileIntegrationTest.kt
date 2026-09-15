@@ -71,7 +71,7 @@ class ManagedProfileIntegrationTest {
                     Regex("after=\\[[^]]*${Regex.escape(removablePackage)}(?:,|])").containsMatchIn(line) &&
                     "error=" !in line
             })
-        val fixture = ComponentName("com.mccal.folio.test", "com.mccal.folio.test.ProfileFixtureActivity")
+        val fixture = ComponentName(FolioTestPackages.test, "com.mccal.folio.test.ProfileFixtureActivity")
         val personalId = profileAppId(fixture.flattenToString(), userManager.getSerialNumberForUser(personal),
             userManager.getSerialNumberForUser(personal))
         val workId = profileAppId(fixture.flattenToString(), workSerial, userManager.getSerialNumberForUser(personal))
@@ -100,7 +100,7 @@ class ManagedProfileIntegrationTest {
 
         val controller = MainActivity::class.java.getDeclaredField("widgets").apply { isAccessible = true }
             .get(compose.activity) as WidgetController
-        assertTrue(controller.providers(personal).any { it.provider.packageName == "com.mccal.folio.test" })
+        assertTrue(controller.providers(personal).any { it.provider.packageName == FolioTestPackages.test })
         assertTrue("The DPC-allowlisted work widget package must be discoverable",
             controller.providers(work).any { it.provider.packageName == removablePackage })
 

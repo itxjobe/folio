@@ -154,7 +154,7 @@ class HomeReturnIntegrationTest {
             before?.let { layout -> instrumentation.runOnMainSync {
                 LiveDiscover.owner.get()?.let { ViewModelProvider(it)[LauncherModel::class.java].restoreLayout(layout) }
             } }
-            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             shell("cmd role add-role-holder android.app.role.HOME $cleanupHome 0")
             try {

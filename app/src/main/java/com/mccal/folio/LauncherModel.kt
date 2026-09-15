@@ -1175,7 +1175,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 when {
                     saved != null -> st.copy(installedTweaks = (0 until saved.length()).mapNotNull { saved.optString(it).takeIf(String::isNotBlank) }.toSet())
                     // Updating from before the Tweak Library: every tweak that's on counts as installed, so nothing changes.
-                    legacyRaw != null -> st.copy(installedTweaks = TweakFeatures.filter { it.get(st) }.mapTo(mutableSetOf()) { it.id })
+                    legacyRaw != null -> st.copy(installedTweaks = TweakFeatures.filter { it.get(st) || it.id in st.featureScopes }.mapTo(mutableSetOf()) { it.id })
                     // A new install starts clean: tweaks are added from the Tweak Library when wanted.
                     else -> st.copy(installedTweaks = emptySet(), appPanels = false, dockMagnify = false, notificationAppRow = false,
                         tintNotifications = false, tintMedia = false)

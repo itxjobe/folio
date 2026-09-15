@@ -166,7 +166,7 @@ class NativeWidgetLifecycleIntegrationTest {
             var widgets = widgetsField
                 .get(main) as WidgetController
             val provider = widgets.personalProviders().single {
-                it.provider.packageName == "com.mccal.folio.test" &&
+                it.provider.packageName == FolioTestPackages.test &&
                     it.provider.className.endsWith("RequiredConfigWidgetProvider")
             }
             instrumentation.runOnMainSync {
@@ -190,7 +190,7 @@ class NativeWidgetLifecycleIntegrationTest {
             await { widgets.pendingPlacement?.slot == slot }
             val bindCanceledId = requireNotNull(widgets.pendingPlacement).id
             click("Cancel")
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.app }
             await { widgets.pendingPlacement == null }
             assertNull("Canceling system widget consent must not place a widget", model.placement(slot))
             assertFalse("Canceling system widget consent must delete its allocated ID",
@@ -221,13 +221,13 @@ class NativeWidgetLifecycleIntegrationTest {
                 .writeText(shell("dumpsys activity activities"))
             java.io.File(context.filesDir, "native-widget-after-place-logcat.txt")
                 .writeText(shell("logcat -d -v threadtime -t 500"))
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
             await { widgets.pendingPlacement?.slot == slot }
             val canceledId = requireNotNull(widgets.pendingPlacement).id
             assertTrue(canceledId in widgets.host.appWidgetIds)
 
             click("Cancel fixture configuration")
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.app }
             main = requireNotNull(LiveDiscover.owner.get())
             lastMain = main
             model = launcherModel(main)
@@ -242,10 +242,10 @@ class NativeWidgetLifecycleIntegrationTest {
             click(provider.loadLabel(main.packageManager).toString())
             await { find("Ready to place")?.isVisibleToUser == true }
             click("Place")
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
             await { widgets.pendingPlacement?.slot == slot }
             val committedId = requireNotNull(widgets.pendingPlacement).id
-            await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+            await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
             click("Use configured widget")
             await(15_000) { model.placement(slot)?.id == committedId && widgets.pendingPlacement == null }
             await { find("Configured fixture is live · ${AppWidgetManager.getInstance(main).getAppWidgetOptions(committedId)
@@ -263,7 +263,7 @@ class NativeWidgetLifecycleIntegrationTest {
             await { LiveDiscover.progress == 0f }
             assertEquals(committedId, model.placement(slot)?.id)
         } finally {
-            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != "com.mccal.folio" }
+            val cleanupHome = previousHome.takeIf { it.isNotEmpty() && it != FolioTestPackages.app }
                 ?: "com.google.android.apps.nexuslauncher"
             try {
                 val cleanupMain = lastMain ?: LiveDiscover.owner.get()

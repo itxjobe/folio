@@ -37,7 +37,7 @@ class LeadingWidgetInteractionIntegrationTest {
         compose.waitUntil(15_000) { !model().state.value.loading }
     }
     private fun provider() = controller().personalProviders().single {
-        it.provider.packageName == "com.mccal.folio.test" &&
+        it.provider.packageName == FolioTestPackages.test &&
             it.provider.className.endsWith("OptionalConfigWidgetProvider")
     }
     private fun providerTag() = "widget-provider-${provider().provider.flattenToString()}"

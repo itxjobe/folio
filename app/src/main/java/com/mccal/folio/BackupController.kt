@@ -90,8 +90,8 @@ class BackupController(
         }
         val name = FolioFiles.fileName(name, "folio-layout")
         activity.lifecycleScope.launch {
-            val saved = withContext(Dispatchers.IO) { FolioFiles.save(activity, name, "application/json", raw.toByteArray()) }
-            if (saved != null) successMessage = "Saved to ${FolioFiles.displayPath} as $name."
+            val saved = withContext(Dispatchers.IO) { FolioFiles.save(activity, name, "application/json", raw.toByteArray())?.let { FolioFiles.displayName(activity, it) ?: name } }
+            if (saved != null) successMessage = "Saved to ${FolioFiles.displayPath} as $saved."
             else errorMessage = "Layout backup could not be saved."
         }
     }

@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -47,6 +48,19 @@ internal object SoftwareUpdate {
 
     val status = MutableStateFlow<Status>(Status.Idle)
 
+    /** Update work outlives the Settings page and the activity, and only one check or install runs at a time. */
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private val busy = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun startCheck(context: Context) = launchExclusive { check(context.applicationContext) }
+    fun startInstall(context: Context, release: Release) = launchExclusive { downloadAndInstall(context.applicationContext, release) }
+    fun startCheckIfDue(context: Context) = launchExclusive { checkIfDue(context.applicationContext) }
+
+    private fun launchExclusive(block: suspend () -> Unit) {
+        if (!busy.compareAndSet(false, true)) return
+        scope.launch { try { block() } finally { busy.set(false) } }
+    }
+
     fun supported(context: Context) = context.packageName == FOLIO_CLASSES
     fun autoCheck(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(AUTO, false)
     fun setAutoCheck(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(AUTO, on).apply()
@@ -77,6 +91,16 @@ internal object SoftwareUpdate {
         prefs.edit().putString(NOTIFIED_VERSION, release.version).apply()
     }
 
+    /** "Tap to finish updating": used when the install needs a confirmation and Folio isn't on screen. */
+    fun postConfirm(context: Context, confirm: Intent) {
+        if (!canPostNotifications(context)) return
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+        val tap = PendingIntent.getActivity(context, 1, confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle("Finish updating Folio").setContentText("Tap to install the update.").setContentIntent(tap).setAutoCancel(true).build()) }
+    }
+
     const val EXTRA_OPEN_UPDATE = "folio_open_software_update"
     /** Set when the update notification is tapped, so Settings opens straight to Software Update. */
     @Volatile var openRequested = false
@@ -100,22 +124,23 @@ internal object SoftwareUpdate {
     }
 
     /** Called when Folio comes to the front: checks at most once a day, only if automatic checks are on. */
-    suspend fun checkIfDue(context: Context) {
+    private suspend fun checkIfDue(context: Context) {
         if (!supported(context) || !autoCheck(context)) return
         val prefs = context.getSharedPreferences(PREFS, 0)
         if (System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0) < DAY_MS) return
+        // Recorded before the request, so being offline doesn't retry on every trip Home.
+        prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         check(context)
         val available = (status.value as? Status.Available)?.release ?: return
         if (autoInstall(context)) downloadAndInstall(context, available) else postAvailable(context, available)
     }
 
-    suspend fun check(context: Context) {
+    private suspend fun check(context: Context) {
         if (!supported(context)) return
         status.value = Status.Checking
         status.value = withContext(Dispatchers.IO) {
             runCatching {
                 val json = JSONObject(get(RELEASES))
-                context.getSharedPreferences(PREFS, 0).edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
                 val version = json.getString("tag_name").removePrefix("v")
                 val assets = json.getJSONArray("assets")
                 fun asset(predicate: (String) -> Boolean) = (0 until assets.length()).map { assets.getJSONObject(it) }
@@ -129,7 +154,7 @@ internal object SoftwareUpdate {
     }
 
     /** Downloads, verifies and installs [release]. Android shows its own confirmation when it needs one. */
-    suspend fun downloadAndInstall(context: Context, release: Release) {
+    private suspend fun downloadAndInstall(context: Context, release: Release) {
         status.value = Status.Downloading(release)
         val result = withContext(Dispatchers.IO) {
             runCatching {
@@ -188,11 +213,17 @@ internal object SoftwareUpdate {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
         val sessionId = installer.createSession(params)
-        installer.openSession(sessionId).use { session ->
-            apk.inputStream().use { input -> session.openWrite("folio.apk", 0, apk.length()).use { out -> input.copyTo(out); session.fsync(out) } }
-            val intent = Intent(context, SoftwareUpdateReceiver::class.java)
-            val pending = PendingIntent.getBroadcast(context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
-            session.commit(pending.intentSender)
+        try {
+            installer.openSession(sessionId).use { session ->
+                apk.inputStream().use { input -> session.openWrite("folio.apk", 0, apk.length()).use { out -> input.copyTo(out); session.fsync(out) } }
+                val intent = Intent(context, SoftwareUpdateReceiver::class.java)
+                // Mutable so the installer can add its status extras; the intent is explicit to Folio's own receiver.
+                val pending = PendingIntent.getBroadcast(context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+                session.commit(pending.intentSender)
+            }
+        } catch (error: Exception) {
+            runCatching { installer.abandonSession(sessionId) }
+            throw error
         }
     }
 }
@@ -203,7 +234,9 @@ class SoftwareUpdateReceiver : BroadcastReceiver() {
         when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION") val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
-                runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                // Android may block starting a screen while Folio isn't in front, so then ask with a notification.
+                if (FolioForeground.visible.value) runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                else SoftwareUpdate.postConfirm(context, confirm)
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed(

@@ -297,7 +297,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
-        lifecycleScope.launch { SoftwareUpdate.checkIfDue(this@MainActivity) }
+        SoftwareUpdate.startCheckIfDue(this)
         FolioForeground.visible.value = true
         FolioActions.home = java.lang.ref.WeakReference(this)
         model.syncFocus()

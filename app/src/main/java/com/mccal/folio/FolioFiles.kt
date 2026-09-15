@@ -23,9 +23,14 @@ internal object FolioFiles {
      * default when it's blank.
      */
     fun fileName(typed: String?, prefix: String, extension: String = "json"): String {
-        val clean = typed.orEmpty().removeSuffix(".$extension").replace(Regex("[^A-Za-z0-9 _-]"), "").trim().take(60)
+        val clean = typed.orEmpty().removeSuffix(".$extension").replace(Regex("[^\\p{L}\\p{N} _-]"), "").trim().take(60)
         return if (clean.isEmpty()) datedName(prefix, extension) else "$clean.$extension"
     }
+
+    /** The name Android actually gave a saved file (it adds " (1)" when a name is taken). */
+    fun displayName(context: Context, uri: Uri): String? = runCatching {
+        context.contentResolver.query(uri, arrayOf(MediaStore.Downloads.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+    }.getOrNull()
 
     /** Writes [bytes] to Download/Folio and returns the new file, or null if it couldn't be saved. Call off the main thread. */
     fun save(context: Context, name: String, mimeType: String, bytes: ByteArray): Uri? = runCatching {

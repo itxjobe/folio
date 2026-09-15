@@ -29,7 +29,7 @@ class WidgetPickerE2ETest {
         .get(compose.activity) as WidgetController
     private fun ready() = compose.waitUntil(15_000) { !model().state.value.loading }
     private fun provider(simpleName: String) = controller().personalProviders().single {
-        it.provider.packageName == "com.mccal.folio.test" && it.provider.className.endsWith(simpleName)
+        it.provider.packageName == FolioTestPackages.test && it.provider.className.endsWith(simpleName)
     }
     private fun providerTag(simpleName: String) = "widget-provider-${provider(simpleName).provider.flattenToString()}"
     private fun previewTag(simpleName: String) = "widget-preview-${provider(simpleName).provider.flattenToString()}"

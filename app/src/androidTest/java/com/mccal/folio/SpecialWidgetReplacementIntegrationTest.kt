@@ -90,7 +90,7 @@ class SpecialWidgetReplacementIntegrationTest {
                     compose.runOnIdle { assertTrue(model().placeWidget(it)) }
                 }
             val provider = requireNotNull(controller().personalProviders().firstOrNull {
-                it.provider.packageName == "com.mccal.folio.test" &&
+                it.provider.packageName == FolioTestPackages.test &&
                     it.provider.className.endsWith("OptionalConfigWidgetProvider")
             })
 
@@ -109,7 +109,7 @@ class SpecialWidgetReplacementIntegrationTest {
         val idsBefore = controller().host.appWidgetIds.toSet()
         try {
             val provider = requireNotNull(controller().personalProviders().firstOrNull {
-                it.provider.packageName == "com.mccal.folio.test" &&
+                it.provider.packageName == FolioTestPackages.test &&
                     it.provider.className.endsWith("OptionalConfigWidgetProvider")
             })
             val anchorApp = model().state.value.apps.first { it.available && it.id !in before.dock }

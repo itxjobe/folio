@@ -63,7 +63,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         val model = ViewModelProvider(main)[LauncherModel::class.java]
         await { !model.state.value.loading }
         val widgets = MainActivity::class.java.getDeclaredField("widgets").apply { isAccessible = true }.get(main) as WidgetController
-        val provider = widgets.personalProviders().single { it.provider.packageName == "com.mccal.folio.test" &&
+        val provider = widgets.personalProviders().single { it.provider.packageName == FolioTestPackages.test &&
             it.provider.className.endsWith("RequiredConfigWidgetProvider") }
         val beforeRaw = main.getSharedPreferences("launcher", 0).getString("state", null)
         val beforeIds = widgets.host.appWidgetIds.toSet()
@@ -78,7 +78,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         instrumentation.runOnMainSync { widgets.add(draft, provider) }
         val assignedId = requireNotNull(widgets.pendingPlacement).id
         assertTrue(record.edit().putInt("pendingId", assignedId).commit())
-        await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" && widgets.pendingPlacement?.slot == slot }
+        await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test && widgets.pendingPlacement?.slot == slot }
         val pending = requireNotNull(widgets.pendingPlacement)
         assertTrue(pending.id in widgets.host.appWidgetIds)
         assertEquals(beforeIds + pending.id, widgets.host.appWidgetIds.toSet())
@@ -106,7 +106,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         assertEquals(1, widgets.host.appWidgetIds.count { it == pendingId })
         assertNull(model.placement(slot))
         instrumentation.runOnMainSync { widgets.finishPendingSetup() }
-        await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+        await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
         click("Use configured widget")
         await { model.placement(slot)?.id == pendingId && widgets.pendingPlacement == null }
         assertEquals(beforeIds + pendingId, widgets.host.appWidgetIds.toSet())
@@ -125,7 +125,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         val model = ViewModelProvider(main)[LauncherModel::class.java]
         await { !model.state.value.loading }
         val widgets = MainActivity::class.java.getDeclaredField("widgets").apply { isAccessible = true }.get(main) as WidgetController
-        val provider = widgets.personalProviders().single { it.provider.packageName == "com.mccal.folio.test" &&
+        val provider = widgets.personalProviders().single { it.provider.packageName == FolioTestPackages.test &&
             it.provider.className.endsWith("OptionalConfigWidgetProvider") }
         val beforeRaw = main.getSharedPreferences("launcher", 0).getString("state", null)
         val beforeIds = widgets.host.appWidgetIds.toSet()
@@ -143,7 +143,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         assertTrue(record.edit().putInt("pendingId", id).commit())
         assertTrue(widgets.canReconfigure(id))
         instrumentation.runOnMainSync { assertTrue(widgets.reconfigure(id)) }
-        await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" && widgets.reconfigureWidgetId == id }
+        await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test && widgets.reconfigureWidgetId == id }
         SystemClock.sleep(1_000)
     }
 
@@ -166,7 +166,7 @@ class NativeWidgetProcessDeathIntegrationTest {
         assertEquals(id, placement.id)
         assertEquals(beforeIds + id, widgets.host.appWidgetIds.toSet())
         instrumentation.runOnMainSync { assertTrue(widgets.finishPendingReconfigure()) }
-        await { automation.rootInActiveWindow?.packageName == "com.mccal.folio.test" }
+        await { automation.rootInActiveWindow?.packageName == FolioTestPackages.test }
         click("Cancel fixture configuration")
         await { widgets.reconfigureWidgetId == null }
         assertEquals(placement, model.placement(slot))
