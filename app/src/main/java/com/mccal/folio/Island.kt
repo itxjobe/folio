@@ -375,7 +375,7 @@ class IslandListenerService : NotificationListenerService() {
         /** Messaging channels seen since Folio started (kept in memory only). */
         val messageChannels: StateFlow<Map<String, MessageChannel>> = messageChannelsMutable.asStateFlow()
         private val notificationsMutable = MutableStateFlow<List<NotificationItem>>(emptyList())
-        val notifications: StateFlow<List<NotificationItem>> = notificationsMutable.asStateFlow()
+        val notifications: StateFlow<List<NotificationItem>> = ScreenshotMode.hide(notificationsMutable.asStateFlow(), emptyList())
 
         fun dismiss(key: String) { runCatching { instance?.cancelNotification(key) } }
         private fun find(key: String) = runCatching { instance?.activeNotifications?.firstOrNull { it.key == key } }.getOrNull()
@@ -404,7 +404,7 @@ class IslandListenerService : NotificationListenerService() {
                 ?.let { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
         }
         private val mutable = MutableStateFlow<IslandActivity?>(null)
-        val activity: StateFlow<IslandActivity?> = mutable.asStateFlow()
+        val activity: StateFlow<IslandActivity?> = ScreenshotMode.hide(mutable.asStateFlow(), null)
         val connected = MutableStateFlow(false)
         private const val PUBLISH_COALESCE_MS = 120L
         private val iconCache = android.util.LruCache<String, Bitmap>(64)

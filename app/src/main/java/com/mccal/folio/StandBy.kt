@@ -1,7 +1,6 @@
 package com.mccal.folio
 
 import android.app.Activity
-import android.app.AlarmManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -70,7 +69,7 @@ internal fun StandByOverlay(pose: FoldingFeature.Orientation?, enabled: Boolean,
 
     AnimatedVisibility(active, enter = fadeIn(tween(500)), exit = fadeOut(tween(300))) {
         val tick by rememberMinuteTick()
-        val now = remember(tick) { LocalDateTime.now() }
+        val now = displayNow(tick)
         val night = now.hour >= 22 || now.hour < 6
         val ink = if (night) Color(0xFFB3261E) else Color.White
         val soft = ink.copy(alpha = if (night) .75f else .6f)
@@ -102,7 +101,7 @@ private fun BigClock(now: LocalDateTime, ink: Color, soft: Color, modifier: Modi
 private fun StandByInfo(status: DeviceStatus, ink: Color, soft: Color, night: Boolean, modifier: Modifier) {
     val context = LocalContext.current
     val tick by rememberMinuteTick()
-    val alarm = remember(tick) { context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime }
+    val alarm = remember(tick) { UpNext.nextAlarm(context) }
     val media = IslandListenerService.activity.collectAsState().value as? IslandActivity.Media
     Column(modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally) {

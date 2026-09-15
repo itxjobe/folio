@@ -54,10 +54,11 @@ internal fun LockCover(visible: Boolean, onDismiss: () -> Unit) {
     val offset = remember { Animatable(0f) }
     androidx.activity.compose.BackHandler { onDismiss() }
     val tick by rememberMinuteTick()
-    val now = remember(tick) { LocalDateTime.now() }
+    val now = displayNow(tick)
     val is24 = android.text.format.DateFormat.is24HourFormat(context)
-    val alarm = remember(tick) {
-        context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.let {
+    val screenshot by ScreenshotMode.on.collectAsState()
+    val alarm = remember(tick, screenshot) {
+        if (screenshot) null else context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.let {
             LocalDateTime.ofInstant(Instant.ofEpochMilli(it.triggerTime), ZoneId.systemDefault())
                 .format(DateTimeFormatter.ofPattern(if (is24) "EEE HH:mm" else "EEE h:mm a"))
         }

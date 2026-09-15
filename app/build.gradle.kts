@@ -46,9 +46,10 @@ android {
         applicationId = "com.mccal.folio"
         minSdk = 31
         targetSdk = 36
-        // Semantic version; see CHANGELOG.md. versionCode = MAJOR * 10000 + MINOR * 100 + PATCH.
+        // Semantic version; see CHANGELOG.md. versionCode = MAJOR * 10000 + MINOR * 100 + PATCH, so a beta
+        // (0.7.0-beta.1) shares its release's code and the release installs over it.
         versionName = folioVersion
-        versionCode = folioVersion.split('.').let { (major, minor, patch) -> major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt() }
+        versionCode = folioVersion.substringBefore('-').split('.').let { (major, minor, patch) -> major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt() }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {

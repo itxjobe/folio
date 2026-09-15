@@ -105,7 +105,7 @@ class IslandEvents private constructor(private val context: Context) {
         lastCharging = null
     }
 
-    private fun emit(event: IslandEvent) { mutable.value = event to System.currentTimeMillis() }
+    private fun emit(event: IslandEvent) = post(event)
 
     companion object {
         private val mutable = MutableStateFlow<Pair<IslandEvent, Long>?>(null)
@@ -115,7 +115,11 @@ class IslandEvents private constructor(private val context: Context) {
         const val MESSAGE_SHOW_MS = 6_000L
         fun showMs(event: IslandEvent) = if (event is IslandEvent.Message) MESSAGE_SHOW_MS else SHOW_MS
         /** Posted by the notification listener for new messages. */
-        internal fun post(event: IslandEvent) { mutable.value = event to System.currentTimeMillis() }
+        internal fun post(event: IslandEvent) {
+            // Messages and device names are personal; Screenshot Mode keeps them off screen.
+            if (ScreenshotMode.on.value && (event is IslandEvent.Message || event is IslandEvent.Bluetooth)) return
+            mutable.value = event to System.currentTimeMillis()
+        }
         @android.annotation.SuppressLint("StaticFieldLeak") // holds only the application context
         private var shared: IslandEvents? = null
         private var users = 0

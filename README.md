@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/github/v/release/McCal-Codes/folio?include_prereleases&label=download" alt="Download the latest release"></a>
+  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/github/v/release/McCal-Codes/folio?label=download" alt="Download the latest release"></a>
   <a href="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml"><img src="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="#what-you-need"><img src="https://img.shields.io/badge/Android-12%2B-3DDC84" alt="Android 12+"></a>
@@ -218,6 +218,9 @@ share one. Software Update only asks GitHub for the latest release when you chec
 **How do I update?** Settings › Software Update checks GitHub, verifies the download and installs it. You can also
 turn on daily checks and automatic installs there, or use Obtainium.
 
+**Can I try new features early?** Yes: Settings › Software Update › Beta Updates › Folio Beta. Betas are GitHub
+pre-releases, signed with the same key, and may have bugs.
+
 **How do I go back to my old launcher?** Settings › Apps › Default apps › Home app on your phone (the exact path can
 vary by phone). Your Folio layout stays saved if you switch back later.
 
@@ -269,6 +272,7 @@ build a bridge from. And to anyone else who's interested in my fun little projec
 - **[DuoLauncher](https://github.com/jakesgoodapps/DuoLauncher)** by [jakesgoodapps](https://github.com/jakesgoodapps) and the Duo Launcher contributors (MIT): Folio's starting codebase — the iPhone Duo-style right-side dock and layouts for both Fold screens, paired Home pages and the unfolded workspace, Android widgets, folders, work profiles, wallpapers with sunrise/sunset switching, and Google search/Discover.
 - **[iphone-duo](https://github.com/chuspeeism/iphone-duo)** by chuspeeism (MIT): the blur/darkening curves and hinge-angle model that Folio's fold shader follows.
 - **u/moomanjohnny** on r/GalaxyFold: the Galaxy Z Fold 8 proof of concept that showed screenshots + shaders + hinge sensors can recreate the iPhone Duo unfold; inspired Folio's screenshot-morph fold style. No code was released or used.
+- **[ZFoldDuo](https://github.com/nnnnnnn0090/Z-Fold-Duo-TEST)** by nnnnnnn0090 (MIT): showed that a Galaxy Z Fold7/Fold8 can read Samsung's internal hinge angle on the phone itself, without root, using Wireless Debugging. Research for Enhanced Fold Tracking, which is being explored; no ZFoldDuo code is in Folio yet.
 - **FoldFX** by u/FixHour8452 on r/GalaxyFold: ideas for the fold transition (a haptic tick halfway, a light sweep, a slight scale, and following a smooth hinge angle where the phone reports one). Re-created from scratch; no code was used.
 - **[QuickLaunch](https://github.com/AhmedTheGeek/QuickLaunch)** by AhmedTheGeek (GPL-3.0): ideas for Spotlight — requesting the keyboard after the first frame, frecency ranking with a 7-day half-life, and drag-to-split-screen. Re-implemented independently; no QuickLaunch code is included.
 - **iOS jailbreak tweaks** (ideas only, re-created from scratch; no code): Velox by Phillip Tennen (app panels), Activator by Ryan Petrich (gesture and event actions), Axon by Nepeta (notification app row), Velvet by NoisyFlake & HiMyNameisUbik (tinted notifications), ColorFlow by David Goldman (album-art colors), Harbor by Evan Swick (dock magnification), SnowBoard by SparkDev (themes), Apex by Sticktron (Icon Stacks), Icon Restore (Layout History), Lynx 2 (recent-app dots), ColorBadges (badges that match the app) and Barrel (Page Effects, coming soon). Authors for Velox through Harbor as credited by iDownloadBlog.

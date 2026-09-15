@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** How the side-rail status capsule looks. Saved with the launcher state. */
@@ -95,9 +94,10 @@ fun StatusRail(
     fun faint(alpha: Float) = if (onLight) (alpha * 1.6f).coerceAtMost(.6f) else alpha
     val charging = if (onLight) BatteryChargingOnLight else BatteryCharging
     val low = if (onLight) BatteryLowOnLight else BatteryLow
-    val now by produceState(LocalDateTime.now()) {
+    val screenshot by ScreenshotMode.on.collectAsState()
+    val now by produceState(ScreenshotMode.now(screenshot), screenshot) {
         while (true) {
-            value = LocalDateTime.now()
+            value = ScreenshotMode.now(screenshot)
             delay(60_050L - (System.currentTimeMillis() % 60_000L))
         }
     }

@@ -16,7 +16,7 @@ internal object UpNext {
 
     /** Events that haven't ended, starting within [withinMs], soonest first; declined invitations are left out. Off the main thread. */
     fun events(context: Context, now: Long = System.currentTimeMillis(), withinMs: Long = 36 * 60 * 60 * 1000L, limit: Int = 3): List<UpNextEvent> {
-        if (!hasCalendar(context)) return emptyList()
+        if (!hasCalendar(context) || ScreenshotMode.on.value) return emptyList()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
             ContentUris.appendId(it, now - 12 * 60 * 60 * 1000L); ContentUris.appendId(it, now + withinMs)
         }.build()
@@ -48,5 +48,5 @@ internal object UpNext {
     }
 
     /** The next alarm the Clock app has set, if any. */
-    fun nextAlarm(context: Context): Long? = context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
+    fun nextAlarm(context: Context): Long? = if (ScreenshotMode.on.value) null else context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
 }

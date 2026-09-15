@@ -40,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.cos
@@ -246,7 +245,7 @@ private fun CalendarIcon(modifier: Modifier, palette: LivePalette) {
 @Composable
 private fun ClockIcon(modifier: Modifier, palette: LivePalette) {
     val tick by rememberSecondTick()
-    val now = remember(tick) { LocalTime.now() }
+    val now = displayNow(tick).toLocalTime()
     Box(modifier.clip(RoundedCornerShape(22)).background(palette.clockBackground)) {
         Canvas(Modifier.fillMaxSize()) {
             val c = Offset(size.width / 2, size.height / 2)

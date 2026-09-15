@@ -69,7 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
@@ -157,7 +156,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
     val items by IslandListenerService.notifications.collectAsState()
     val hasAccess = remember { IslandListenerService.hasAccess(context) }
     val tick by rememberMinuteTick()
-    val now = remember(tick) { LocalDateTime.now() }
+    val now = displayNow(tick)
     val clock = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm"
     var expandedGroup by remember { mutableStateOf<String?>(null) }
     // Axon-style: a row of app icons above the list; tap one to show just that app, tap again for all.
@@ -348,7 +347,7 @@ enum class PanelSize(val label: String, val cell: Dp) { COMPACT("Compact", 58.dp
 private fun SplitClock(modifier: Modifier) {
     val context = LocalContext.current
     val tick by rememberMinuteTick()
-    val now = remember(tick) { LocalDateTime.now() }
+    val now = displayNow(tick)
     val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm"
     Column(modifier.padding(start = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), color = Color.White.copy(alpha = .9f), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)

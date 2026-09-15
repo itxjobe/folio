@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.material3.Text("Restart Normally") } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { safeAcknowledged.value = true }) {
                     androidx.compose.material3.Text("Continue in Safe Mode") } })
-            val deviceStatus = status.state.collectAsStateWithLifecycle().value
+            val deviceStatus = ScreenshotMode.status(status.state.collectAsStateWithLifecycle().value, ScreenshotMode.on.collectAsStateWithLifecycle().value)
             // Folio shows its own status in the rail, so hide Android's status bar on Home (it
             // stays in apps, and a swipe from the very top edge reveals it briefly).
             androidx.compose.runtime.LaunchedEffect(state.verticalStatus) {

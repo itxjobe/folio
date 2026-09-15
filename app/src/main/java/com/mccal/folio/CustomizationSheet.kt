@@ -511,6 +511,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     )
                 }
                 CustomizationPage.ADVANCED -> {
+                    SettingsCard("Screenshot Mode") {
+                        val screenshot by ScreenshotMode.on.collectAsState()
+                        SettingsSwitch("Screenshot Mode", screenshot, ScreenshotMode::set, "screenshot-mode-switch")
+                        Text("For sharing your setup: Folio shows 9:41 with full battery and signal, and hides notifications, music, messages, device names, calendar events and alarms. Android's own status bar and apps aren't changed. Turns off by itself after 30 minutes.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     SettingsCard("Safe Mode") {
                         Text(if (SafeMode.active) "Folio is running in Safe Mode: optional features are paused for this session."
                             else "If Folio closes unexpectedly twice right after starting, it starts in Safe Mode with optional features paused. Your settings are never changed.",
@@ -826,6 +832,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Tweaks", "tweak jailbreak velox harbor axon velvet colorflow panels magnification tint album", CustomizationPage.TWEAKS),
     Triple("Privacy & Permissions", "privacy permissions setup checklist home app notification access accessibility gestures contacts bluetooth", CustomizationPage.PERMISSIONS),
     Triple("Safe Mode & crash reports", "safe mode crash report bug", CustomizationPage.ADVANCED),
+    Triple("Screenshot Mode", "screenshot 9:41 demo clean share setup hide notifications privacy", CustomizationPage.ADVANCED),
     Triple("Backup & restore", "backup restore export import layout", CustomizationPage.BACKUP),
     Triple("Roadmap", "roadmap coming soon planned future features next later lock designer keyboard", CustomizationPage.COMING_SOON),
     Triple("Credits", "credits thanks duolauncher jakesgoodapps license", CustomizationPage.CREDITS),
@@ -1117,6 +1124,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         "iPhone Duo on Galaxy Z Fold 8 demo" to "u/moomanjohnny · screenshot + shader idea (no code)",
         "QuickLaunch" to "AhmedTheGeek · Spotlight ideas (no code)",
         "FoldFX" to "u/FixHour8452 · fold transition ideas: halfway haptic tick, light sweep, slight scale, following a smooth hinge angle (no code)",
+        "ZFoldDuo" to "nnnnnnn0090 · MIT · showed a Fold7/Fold8 can read Samsung's internal hinge angle without root; research for Enhanced Fold Tracking",
         "Velox" to "Phillip Tennen · app panels idea",
         "Activator" to "Ryan Petrich · gestures and events idea",
         "Axon" to "Nepeta · notification app row idea",
@@ -1437,6 +1445,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
         ),
         "Exploring" to listOf(
+            RoadmapItem(Icons.Rounded.Sensors, 0xFF32ADE6, "Enhanced Fold Tracking", "Samsung's precise hinge angle for a smoother fold, set up once with Wireless Debugging. Based on research by ZFoldDuo.", RoadmapStatus.EXPLORING),
             RoadmapItem(Icons.Rounded.Keyboard, 0xFF8E8E93, "Folio Keyboard", "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.", RoadmapStatus.EXPLORING),
             RoadmapItem(Icons.Rounded.Palette, 0xFFFF375F, "Community themes", "Browse and add themes shared on GitHub, right from Folio.", RoadmapStatus.EXPLORING),
             RoadmapItem(Icons.Rounded.Extension, 0xFFBF5AF2, "Folio Tweaks", "Tweaks made by the community, if it can be done safely.", RoadmapStatus.EXPLORING),
@@ -1701,6 +1710,13 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
                 }
             } else IosActionRow("Check for Updates", "update-check",
                 enabled = status !is SoftwareUpdate.Status.Checking && status !is SoftwareUpdate.Status.Downloading) { SoftwareUpdate.startCheck(context) }
+        }
+        var beta by remember { mutableStateOf(SoftwareUpdate.beta(context)) }
+        SettingsCard("Beta Updates") {
+            IosMenuRow("Beta Updates", listOf(false to "Off", true to "Folio Beta"), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
+            Text(if (beta) "You'll get Folio betas from GitHub as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
+                else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         SettingsCard("Automatic Updates") {
             SettingsSwitch("Check for Updates Daily", auto, { auto = it; SoftwareUpdate.setAutoCheck(context, it) }, "update-auto")

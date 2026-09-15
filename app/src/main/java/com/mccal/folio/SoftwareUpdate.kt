@@ -24,12 +24,15 @@ import java.security.MessageDigest
  * GitHub's public releases API. Folio Dev builds update from Android Studio instead, so this is off for them.
  */
 internal object SoftwareUpdate {
-    private const val RELEASES = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
+    private const val LATEST = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
+    // GitHub's "latest" skips pre-releases, so the beta channel reads the recent list and takes the newest.
+    private const val RECENT = "https://api.github.com/repos/McCal-Codes/folio/releases?per_page=15"
     private const val PREFS = "software_update"
     private const val AUTO = "auto"
     private const val LAST_CHECK = "lastCheck"
     private const val AUTO_INSTALL = "autoInstall"
     private const val NOTIFY = "notify"
+    private const val BETA = "beta"
     private const val NOTIFIED_VERSION = "notifiedVersion"
     private const val CHANNEL = "software_update"
     private const val DAY_MS = 24L * 60 * 60 * 1000
@@ -68,6 +71,13 @@ internal object SoftwareUpdate {
     /** Post a notification when a daily check finds an update (off until the user turns it on). */
     fun notify(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(NOTIFY, false)
     fun setNotify(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(NOTIFY, on).apply()
+
+    /** Like iOS Beta Updates: also offer GitHub pre-releases. Leaving keeps the installed beta until a newer public release. */
+    fun beta(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(BETA, false)
+    fun setBeta(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS, 0).edit().putBoolean(BETA, on).apply()
+        status.value = Status.Idle
+    }
 
     fun canPostNotifications(context: Context) = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -114,14 +124,35 @@ internal object SoftwareUpdate {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "0"
 
     /** 1.10.0 is newer than 1.9.2: numeric comparison part by part. */
+    /**
+     * Semantic versions: numbers part by part, and a pre-release comes before its release
+     * (0.7.0-beta.1 < 0.7.0-beta.2 < 0.7.0).
+     */
     fun isNewer(candidate: String, installed: String): Boolean {
-        fun parts(v: String) = v.removePrefix("v").split('.', '-').map { it.toIntOrNull() ?: 0 }
-        val a = parts(candidate); val b = parts(installed)
-        for (i in 0 until maxOf(a.size, b.size)) {
-            val x = a.getOrElse(i) { 0 }; val y = b.getOrElse(i) { 0 }
+        fun split(v: String) = v.removePrefix("v").split('-', limit = 2).let { it[0].split('.').map { n -> n.toIntOrNull() ?: 0 } to it.getOrNull(1) }
+        val (coreA, preA) = split(candidate); val (coreB, preB) = split(installed)
+        for (i in 0 until maxOf(coreA.size, coreB.size)) {
+            val x = coreA.getOrElse(i) { 0 }; val y = coreB.getOrElse(i) { 0 }
             if (x != y) return x > y
         }
+        if (preA == null || preB == null) return preA == null && preB != null
+        val a = preA.split('.'); val b = preB.split('.')
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrNull(i) ?: return false; val y = b.getOrNull(i) ?: return true
+            val nx = x.toIntOrNull(); val ny = y.toIntOrNull()
+            val order = if (nx != null && ny != null) nx.compareTo(ny) else x.compareTo(y)
+            if (order != 0) return order > 0
+        }
         return false
+    }
+
+    /** A published release with an APK, or null. */
+    private fun releaseOf(json: JSONObject): Release? {
+        val assets = json.optJSONArray("assets") ?: return null
+        fun asset(predicate: (String) -> Boolean) = (0 until assets.length()).map { assets.getJSONObject(it) }
+            .firstOrNull { predicate(it.getString("name")) }?.getString("browser_download_url")
+        val apk = asset { it.endsWith(".apk") } ?: return null
+        return Release(json.getString("tag_name").removePrefix("v"), apk, asset { it == "SHA256SUMS.txt" }, json.optString("html_url"))
     }
 
     /** Called when Folio comes to the front: checks at most once a day, only if automatic checks are on. */
@@ -141,15 +172,11 @@ internal object SoftwareUpdate {
         status.value = Status.Checking
         status.value = withContext(Dispatchers.IO) {
             runCatching {
-                val json = JSONObject(get(RELEASES))
-                val version = json.getString("tag_name").removePrefix("v")
-                val assets = json.getJSONArray("assets")
-                fun asset(predicate: (String) -> Boolean) = (0 until assets.length()).map { assets.getJSONObject(it) }
-                    .firstOrNull { predicate(it.getString("name")) }?.getString("browser_download_url")
-                val apk = asset { it.endsWith(".apk") } ?: error("This release has no APK.")
-                if (isNewer(version, installedVersion(context)))
-                    Status.Available(Release(version, apk, asset { it == "SHA256SUMS.txt" }, json.optString("html_url")))
-                else Status.UpToDate
+                val candidates = if (beta(context)) org.json.JSONArray(get(RECENT)).let { list -> (0 until list.length()).map(list::getJSONObject) }
+                    else listOf(JSONObject(get(LATEST)))
+                val newest = candidates.filter { !it.optBoolean("draft") }.mapNotNull(::releaseOf)
+                    .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error("No release has an APK.")
+                if (isNewer(newest.version, installedVersion(context))) Status.Available(newest) else Status.UpToDate
             }.getOrElse { Status.Failed("Couldn't check for updates. Check your connection and try again.") }
         }
     }

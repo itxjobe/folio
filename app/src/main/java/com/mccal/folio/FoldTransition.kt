@@ -41,10 +41,12 @@ import androidx.lifecycle.repeatOnLifecycle
 /**
  * iPhone Duo–style fold effect, as dynamic as a Galaxy Z Fold allows.
  *
- * Apps only get coarse hinge steps (0°, 90°, 180°), and One UI decides when displays switch. So the
- * effect is *step-anchored and speed-adaptive*: each real step is a checkpoint, the motion between
- * checkpoints is predicted from how fast this person folds (learned over time), and a late or early
- * step bends the animation instead of snapping it.
+ * Android doesn't require the public hinge sensor to be continuous, and on a Galaxy Z Fold8 it reports only 0°, 90°
+ * and 180° to apps (Samsung's finer readings stay with its own components); One UI decides when displays switch.
+ * So on stepped sensors the effect is *step-anchored and speed-adaptive*: each real step is a checkpoint, the motion
+ * between checkpoints is predicted from how fast this person folds (learned over time), and a late or early step
+ * bends the animation instead of snapping it. Phones whose sensor proves continuous follow the angle itself
+ * (see [HingeTracker]).
  *
  * Visual model (from the MIT Three.js recreation): the half left of the hinge is blurred with
  * radius ∝ m·e^1.35 and darkened toward its outer edge; m is 1 half-folded and 0 flat.
@@ -211,12 +213,24 @@ private class FoldTimeline(context: Context) : SensorEventListener {
     var switchedAt = -1L; private set
     var waitingForPanel = false; private set
 
-    private var angle: Float? = null
+    // What this phone's hinge sensor reports, learned from its readings and remembered. The Fold8's public sensor is
+    // stepped (0/90/180), so the motion between steps is predicted from learned timing; a continuous sensor is
+    // followed directly.
+    private val tracker = HingeTracker(if (hinge == null) HingeCapability.POSTURE_ONLY
+        else if (prefs.getString(CAPABILITY_KEY, null) == HingeCapability.CONTINUOUS.name) HingeCapability.CONTINUOUS else HingeCapability.STEPPED)
+    private val continuous get() = tracker.capability == HingeCapability.CONTINUOUS
     private var angleAt = 0L
+    // A real movement, not sensor jitter: what the stall checks measure from on continuous sensors.
+    private var movedAt = 0L
+    private var movedFrom = 0f
+    // Highest angle while not folding, and lowest while folding: a fold or a reopen is a real change from these.
+    private var peak = 0f
+    private var trough = 0f
 
     // Unfold (inner display): lit → flat.
     private var litAt = -1L
     private var flatAt = -1L
+    private var litAngle = HingeTracker.FLAT_ENTER_DEG
     private var predictedOpenMs = prefs.getFloat("fold_open_ms", 520f)
 
     // Fold (inner display): 180→90 step → 0 step.
@@ -231,15 +245,8 @@ private class FoldTimeline(context: Context) : SensorEventListener {
     private val appContext = context.applicationContext
 
     var onOpeningStarted: (() -> Unit)? = null
-    var onHalfway: (() -> Unit)? = null
-
-    // Most hinge sensors (the Fold8's included) report only 0/90/180°. Once one reports an angle in between, the
-    // effect follows the real angle on this phone instead of predicting the motion between steps.
-    private var smoothAngle = prefs.getBoolean("fold_smooth_angle", false)
-    private var litAngle = FLAT_DEG
-    private var movedAt = 0L
-    private var movedFrom = 0f
     var onClosingStarted: (() -> Unit)? = null
+    var onHalfway: (() -> Unit)? = null
     /** Uptime when the screenshot morph started on the new display, or -1. */
     var morphFrom = -1L
     /** Folding from the open screen right now. */
@@ -256,61 +263,64 @@ private class FoldTimeline(context: Context) : SensorEventListener {
 
     fun onPanelLit(now: Long) {
         waitingForPanel = false
-        if (expanded) { litAt = now; litAngle = angle ?: FLAT_DEG; if ((angle ?: 0f) >= FLAT_DEG) flatAt = now } else coverLitAt = now
+        if (expanded) { litAt = now; litAngle = tracker.visual ?: HingeTracker.FLAT_ENTER_DEG; if (tracker.flat) flatAt = now } else coverLitAt = now
     }
 
     override fun onSensorChanged(event: SensorEvent) {
         val value = event.values.firstOrNull() ?: return
         val now = SystemClock.uptimeMillis()
-        val previous = angle
-        angle = value; angleAt = now
-        if (previous == null || previous == value) return
-        if (!smoothAngle && STEP_ANGLES.none { kotlin.math.abs(value - it) < 2f }) {
-            smoothAngle = true; prefs.edit().putBoolean("fold_smooth_angle", true).apply()
-        }
-        // A real movement, not sensor jitter: what the stall checks measure from on smooth sensors.
+        val previous = tracker.raw
+        val wasFlat = tracker.flat
+        val wasClosed = tracker.closed
+        if (tracker.feed(value, event.timestamp)) prefs.edit().putString(CAPABILITY_KEY, tracker.capability.name).apply()
+        angleAt = now
+        if (previous == null) { peak = value; movedFrom = value; movedAt = now; return }
+        if (previous == value) return
+        // A phone held still for a while starts a fresh reference, so an old maximum can't turn a small move into a fold.
+        if (now - movedAt > STALL_MS && closeStartAt < 0) peak = previous
         if (kotlin.math.abs(value - movedFrom) >= MOVE_DEG) { movedFrom = value; movedAt = now }
-        // Once per pass: leaving one side of 90° for the middle or the other side. Step sensors land exactly on 90°,
-        // so opening ticks at 0→90 and closing at 180→90, never again on the step after.
-        if (halfSide(previous) != 0 && halfSide(previous) != halfSide(value)) onHalfway?.invoke()
+        if (HingeTracker.crossedHalfway(previous, value)) onHalfway?.invoke()
         if (expanded) {
             when {
                 // Reached flat while revealing: learn how long lit → flat takes for this person.
-                value >= FLAT_DEG && litAt >= 0 && flatAt < 0 -> {
+                tracker.flat && !wasFlat && litAt >= 0 && flatAt < 0 -> {
                     flatAt = now
                     learnOpen((now - litAt).toFloat())
                 }
                 // Started folding from flat: keep One UI from sleeping, and start the fold-away.
-                previous >= FLAT_DEG && value < FLAT_DEG -> {
-                    closeStartAt = now; closedAt = -1L; reopenedAt = -1L
-                    onClosingStarted?.invoke()
-                    if (stayAwake) FoldBridgeActivity.start(appContext)
-                }
+                wasFlat && !tracker.flat -> startClosing(now, value)
                 // Nearly closed: learn how long the fold takes, and make sure the bridge is up.
-                value <= CLOSED_DEG && closeStartAt >= 0 && closedAt < 0 -> {
+                tracker.closed && closeStartAt >= 0 && closedAt < 0 -> {
                     closedAt = now
                     learnClose((now - closeStartAt).toFloat())
                     if (stayAwake) FoldBridgeActivity.start(appContext)
                 }
                 // Folding that didn't start from flat (e.g. from half-open): only a real drop counts,
                 // so sensor jitter or adjusting a propped phone never starts the bridge.
-                value < FLAT_DEG && closeStartAt < 0 && previous - value >= MIN_FOLD_DROP_DEG -> {
-                    if (closeStartAt < 0) { closeStartAt = now; closedAt = if (value <= CLOSED_DEG) now else -1L; reopenedAt = -1L; onClosingStarted?.invoke() }
-                    if (stayAwake) FoldBridgeActivity.start(appContext)
+                !tracker.flat && closeStartAt < 0 && peak - value >= MIN_FOLD_DROP_DEG -> {
+                    startClosing(now, value)
+                    if (tracker.closed) closedAt = now
                 }
                 // Opened back up before closing.
-                value > previous && closeStartAt >= 0 -> {
-                    closeStartAt = -1L; closedAt = -1L; reopenedAt = now
+                closeStartAt >= 0 && value - trough >= REOPEN_DEG -> {
+                    closeStartAt = -1L; closedAt = -1L; reopenedAt = now; peak = value
                     FoldBridgeActivity.cancel()
                 }
             }
+            if (closeStartAt >= 0) trough = minOf(trough, value) else peak = maxOf(peak, value)
         } else {
             when {
                 // Starting to open on the cover: blur the whole cover screen.
-                previous <= CLOSED_DEG && value > CLOSED_DEG -> { coverOpeningAt = now; onOpeningStarted?.invoke() }
-                value <= CLOSED_DEG -> coverOpeningAt = -1L
+                wasClosed && !tracker.closed -> { coverOpeningAt = now; onOpeningStarted?.invoke() }
+                tracker.closed -> coverOpeningAt = -1L
             }
         }
+    }
+
+    private fun startClosing(now: Long, value: Float) {
+        closeStartAt = now; closedAt = -1L; reopenedAt = -1L; trough = value
+        onClosingStarted?.invoke()
+        if (stayAwake) FoldBridgeActivity.start(appContext)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -326,22 +336,24 @@ private class FoldTimeline(context: Context) : SensorEventListener {
             if (t >= 1f) { litAt = -1L; flatAt = -1L; 0f }
             else {
                 val timed = START_M_ON_UNFOLD * (1f - easeInOutSine(t))
-                // With a smooth sensor, a hand that's already flat clears sooner; the timed fade still caps it,
+                // With a continuous sensor, a hand that's already flat clears sooner; the timed fade still caps it,
                 // so holding the phone half open never leaves Home blurred.
-                val byAngle = (angle ?: FLAT_DEG).let { a -> if (litAngle >= FLAT_DEG) 0f else ((FLAT_DEG - a) / (FLAT_DEG - litAngle)).coerceIn(0f, 1f) }
-                if (smoothAngle) minOf(timed, START_M_ON_UNFOLD * byAngle) else timed
+                val flatDeg = HingeTracker.FLAT_ENTER_DEG
+                val byAngle = (tracker.visual ?: flatDeg).let { a -> if (litAngle >= flatDeg) 0f else ((flatDeg - a) / (flatDeg - litAngle)).coerceIn(0f, 1f) }
+                if (continuous) minOf(timed, START_M_ON_UNFOLD * byAngle) else timed
             }
         }
 
-        // Fold: blur builds at the learned speed and completes at the closed step.
+        // Fold: blur builds with the hinge (continuous) or at the learned speed (stepped), complete at closed.
         expanded && closeStartAt >= 0 -> {
             val since = (now - closeStartAt).toFloat()
-            val stalled = closedAt < 0 && now - (if (smoothAngle) movedAt else angleAt) > (if (smoothAngle) 0f else predictedCloseMs) + STALL_MS
+            val stalled = closedAt < 0 && (if (continuous) now - movedAt > STALL_MS else now - angleAt > predictedCloseMs + STALL_MS)
             when {
-                stalled -> { closeStartAt = -1L; 0f } // deliberately half-open (flex mode): clear
+                stalled -> { closeStartAt = -1L; peak = tracker.raw ?: 0f; 0f } // deliberately half-open (flex mode): clear
                 closedAt >= 0 && now - closedAt > CLOSED_STALL_MS -> { closeStartAt = -1L; closedAt = -1L; 0f } // never stuck dimmed
                 closedAt >= 0 -> 1f
-                smoothAngle -> easeInOutSine(((FLAT_DEG - (angle ?: FLAT_DEG)) / (FLAT_DEG - CLOSED_DEG)).coerceIn(0f, 1f)) * HOLD_M_BEFORE_CLOSED
+                continuous -> easeInOutSine(((HingeTracker.FLAT_ENTER_DEG - (tracker.visual ?: HingeTracker.FLAT_ENTER_DEG)) /
+                    (HingeTracker.FLAT_ENTER_DEG - HingeTracker.CLOSED_ENTER_DEG)).coerceIn(0f, 1f)) * HOLD_M_BEFORE_CLOSED
                 else -> easeInOutSine((since / predictedCloseMs).coerceIn(0f, 1f)) * HOLD_M_BEFORE_CLOSED
             }
         }
@@ -352,7 +364,7 @@ private class FoldTimeline(context: Context) : SensorEventListener {
         // Opening from the cover: quick whole-screen blur until the inner display takes over.
         !expanded && coverOpeningAt >= 0 -> {
             if (now - coverOpeningAt > COVER_OPEN_STALL_MS) { coverOpeningAt = -1L; 0f }
-            else if (smoothAngle) easeOutCubic(((angle ?: 0f) / HALFWAY_DEG).coerceIn(0f, 1f))
+            else if (continuous) easeOutCubic(((tracker.visual ?: 0f) / HingeTracker.HALFWAY_DEG).coerceIn(0f, 1f))
             else easeOutCubic(((now - coverOpeningAt) / COVER_OPEN_MS).coerceIn(0f, 1f))
         }
 
@@ -374,8 +386,6 @@ private class FoldTimeline(context: Context) : SensorEventListener {
         prefs.edit().putFloat("fold_close_ms", predictedCloseMs).apply()
     }
 }
-
-private fun halfSide(angle: Float): Int = when { angle < HALFWAY_DEG - 1f -> -1; angle > HALFWAY_DEG + 1f -> 1; else -> 0 }
 private fun easeOutCubic(t: Float): Float { val u = 1f - t; return 1f - u * u * u }
 private fun easeInOutSine(t: Float): Float = (-(kotlin.math.cos(Math.PI * t) - 1) / 2).toFloat()
 
@@ -480,17 +490,15 @@ private const val START_M_ON_COVER = .7f
 private const val COVER_OPEN_MS = 220f
 private const val COVER_OPEN_STALL_MS = 2_000L
 private const val FOLLOW_MS = 28f
-private const val FLAT_DEG = 170f
 private const val MIN_FOLD_DROP_DEG = 20f
 private const val CLOSED_STALL_MS = 1_800L
-private const val CLOSED_DEG = 10f
 private const val LIT_TIMEOUT_MS = 1_200L
 private const val IDLE_POLL_MS = 50L
 /** How much smaller the open screen is at the start of the reveal (97%). */
 private const val FOLD_SCALE = .03f
-private const val HALFWAY_DEG = 90f
 private const val MOVE_DEG = 3f
-private val STEP_ANGLES = floatArrayOf(0f, 90f, 180f)
+private const val REOPEN_DEG = 15f
+private const val CAPABILITY_KEY = "fold_hinge_capability"
 
 /**
  * The fold effect on a preview (Settings): [m] 0 is open and clear, 1 half folded. Same shader, sweep and scale as Home,

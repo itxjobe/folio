@@ -191,7 +191,7 @@ class DiscoverActivity : DiscoverPageActivity() {
         val startupApps = DiscoverSession.apps
         setContent {
             val state by model.state.collectAsStateWithLifecycle()
-            val status by monitor.state.collectAsStateWithLifecycle()
+            val status = ScreenshotMode.status(monitor.state.collectAsStateWithLifecycle().value, ScreenshotMode.on.collectAsStateWithLifecycle().value)
             DuoTheme(rememberSavedAppearance().dark) {
             // Discover is its own window, so it needs the Glass setting too (the Side Bar outline follows it).
             androidx.compose.runtime.CompositionLocalProvider(LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline)) {

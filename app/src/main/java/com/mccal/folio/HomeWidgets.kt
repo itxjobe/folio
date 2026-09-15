@@ -115,7 +115,7 @@ internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit, conte
 @Composable
 internal fun currentTime(): LocalDateTime {
     val tick by rememberMinuteTick()
-    return remember(tick) { LocalDateTime.now() }
+    return displayNow(tick)
 }
 
 @Composable
