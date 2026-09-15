@@ -1,15 +1,35 @@
-# Folio
+<p align="center">
+  <img src="docs/images/folio-icon.png" width="96" alt="Folio app icon: two olive green panels unfolding">
+</p>
 
-A clean, iPhone-style Home Screen for Android, with the jailbreak tweaks I always wanted, and none of the lockdown.
+<h1 align="center">Folio</h1>
 
-[![CI](https://github.com/McCal-Codes/folio/actions/workflows/ci.yml/badge.svg)](https://github.com/McCal-Codes/folio/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Android 12+](https://img.shields.io/badge/Android-12%2B-3DDC84)](#what-you-need)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B)](https://ko-fi.com/mccal)
+<p align="center">
+  <b>A clean, iPhone-style Home Screen for Android</b><br>
+  with the jailbreak tweaks I always wanted, and none of the lockdown.
+</p>
+
+<p align="center">
+  <a href="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml"><img src="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <a href="#what-you-need"><img src="https://img.shields.io/badge/Android-12%2B-3DDC84" alt="Android 12+"></a>
+  <img src="https://img.shields.io/badge/root-not%20needed-8C8A5E" alt="Root not needed">
+  <img src="https://img.shields.io/badge/made%20for-foldables-6DB7B4" alt="Made for foldables">
+  <img src="https://img.shields.io/badge/inspired%20by-jailbreak%20tweaks-BF5AF2" alt="Inspired by jailbreak tweaks">
+  <a href="https://ko-fi.com/mccal"><img src="https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B" alt="Buy me a coffee on Ko-fi"></a>
+</p>
 
 <p align="center">
   <img src="docs/images/folio-inner-today.webp" width="720" alt="Folio on the unfolded Galaxy Z Fold8: the Today View with search, Suggestions and widgets on the left, Home with widgets and apps on the right, and the Side Bar with the time, battery and dock along the edge">
 </p>
+
+<div align="center">
+
+| Version | Price | Android | Root | Tested on |
+| :---: | :---: | :---: | :---: | :---: |
+| 0.5.0 | Free | 12+ | Not needed | Galaxy Z Fold8 |
+
+</div>
 
 > **Status:** very early. I just wanted to get something out. It's a bit rusty in places, and things will settle down
 > as more people use it: more feedback means I can work on performance and fine-tuning. I plan to keep maintaining it.
@@ -81,7 +101,7 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
   </tr>
 </table>
 
-<sub>Screenshots use the Minimal O icon pack. Song details and album art are hidden.</sub>
+<sub>Screenshots use the Minimal O icon pack, and the wallpaper is my own. Song details and album art are hidden.</sub>
 
 ## What it does
 
