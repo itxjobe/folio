@@ -13,7 +13,14 @@ import android.speech.SpeechRecognizer
  * (One UI's press-and-hold starts the assistant through it, not through ACTION_ASSIST), so Folio provides a minimal
  * one: holding the key shows Folio's assistant picker. It never listens or records.
  */
-class FolioVoiceInteractionService : VoiceInteractionService()
+class FolioVoiceInteractionService : VoiceInteractionService() {
+    override fun onReady() {
+        super.onReady()
+        // Folio only shows its picker, so it asks Android not to collect the current app's screen content or a
+        // screenshot when the assistant opens.
+        setDisabledShowContext(VoiceInteractionSession.SHOW_WITH_ASSIST or VoiceInteractionSession.SHOW_WITH_SCREENSHOT)
+    }
+}
 
 class FolioVoiceSessionService : VoiceInteractionSessionService() {
     override fun onNewSession(args: Bundle?): VoiceInteractionSession = FolioVoiceSession(this)

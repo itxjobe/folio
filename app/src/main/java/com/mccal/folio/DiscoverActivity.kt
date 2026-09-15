@@ -193,10 +193,13 @@ class DiscoverActivity : DiscoverPageActivity() {
             val state by model.state.collectAsStateWithLifecycle()
             val status by monitor.state.collectAsStateWithLifecycle()
             DuoTheme(rememberSavedAppearance().dark) {
+            // Discover is its own window, so it needs the Glass setting too (the Side Bar outline follows it).
+            androidx.compose.runtime.CompositionLocalProvider(LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline)) {
                 BackHandler { DiscoverSession.requestHome(this) }
                 DiscoverDock(if (state.loading) state.copy(apps = startupApps) else state, status, fullSize.value, onLaunch = ::launchApp,
                     onHome = { DiscoverSession.requestHome(this) }, onSearch = { DiscoverSession.home(this, search = true) },
                     onReady = { viewportReady = true; openFeed() })
+            }
             }
         }
         if (!DiscoverBounds.available) window.decorView.post { viewportReady = true; openFeed() }

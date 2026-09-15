@@ -710,7 +710,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
         Text("Still nothing? Choose a different digital assistant, then Folio again, so Android picks up Folio's assistant service.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         // Good Lock's RegiStar can take over the side key before Android's assistant setting is used.
-        val registar = remember { runCatching { context.packageManager.getPackageInfo("com.samsung.android.app.galaxyregistry", 0) }.isSuccess }
+        val registar = remember(tick) { runCatching { context.packageManager.getPackageInfo("com.samsung.android.app.galaxyregistry", 0) }.isSuccess }
         if (registar) Text("RegiStar (Good Lock) is installed. If it has its own side key action, it runs instead: set RegiStar's Press and hold to Digital assistant, or turn that action off.",
             style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFF9F0A))
     }
