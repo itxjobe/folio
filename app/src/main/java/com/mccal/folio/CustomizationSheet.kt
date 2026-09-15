@@ -37,7 +37,15 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE }
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE;
+
+    /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
+    val parent get() = when (this) {
+        TWEAK, TWEAK_LIBRARY -> TWEAKS
+        FOCUS_MODE -> FOCUS
+        else -> OVERVIEW
+    }
+}
 
 @Composable
 internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, model: LauncherModel,
@@ -89,7 +97,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     LaunchedEffect(page) { bodyScroll.scrollTo(0) }
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
-    val onBack = { onPage(when (page) { CustomizationPage.TWEAK, CustomizationPage.TWEAK_LIBRARY -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> CustomizationPage.OVERVIEW }) }
+    val onBack = { onPage(page.parent) }
+    val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.FOCUS -> "Focus"; else -> null }
 
     // The settings list. On the phone it's the first page; in the split view it's the sidebar, with the open page highlighted.
     val overviewRows: @Composable ColumnScope.(selected: CustomizationPage?, sidebar: Boolean) -> Unit = { selected, sidebar ->
@@ -533,7 +542,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
             }
     }
     if (!split) Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        SettingsNavBar(if (page == CustomizationPage.OVERVIEW) null else if (page == CustomizationPage.TWEAK) "Tweaks" else if (page == CustomizationPage.FOCUS_MODE) "Focus" else stringResource(R.string.folio), onBack, onClose)
+        SettingsNavBar(if (page == CustomizationPage.OVERVIEW) null else nestedBackLabel ?: stringResource(R.string.folio), onBack, onClose)
         if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
         Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp), content = pageContent)
@@ -556,7 +565,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 else {
                     // Like the account card at the top of iPad Settings: Folio's own page.
                     SheetGroup { SidebarAppRow(selected = page == CustomizationPage.OVERVIEW, setupLeft) { onPage(CustomizationPage.OVERVIEW) } }
-                    overviewRows(when (page) { CustomizationPage.TWEAK, CustomizationPage.TWEAK_LIBRARY -> CustomizationPage.TWEAKS; CustomizationPage.FOCUS_MODE -> CustomizationPage.FOCUS; else -> page }, true)
+                    overviewRows(if (page.parent == CustomizationPage.OVERVIEW) page else page.parent, true)
                 }
             }
         }
@@ -566,7 +575,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 Box(Modifier.fillMaxHeight().width(.5.dp).background(androidx.compose.ui.graphics.Color.White.copy(alpha = .14f)))
             }
             Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 20.dp)) {
-                SettingsNavBar(if (page == CustomizationPage.TWEAK) "Tweaks" else if (page == CustomizationPage.FOCUS_MODE) "Focus" else null, onBack, onClose,
+                SettingsNavBar(nestedBackLabel, onBack, onClose,
                     leading = if (tiled) null else ({ SidebarButton { sidebarOpen = !sidebarOpen } }))
                 if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
                 Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {

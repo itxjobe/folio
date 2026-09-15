@@ -24,6 +24,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Scrolling lists and grids fade softly at their edges instead of being cut off.
 - The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
+- Back in Settings returns to the page you came from, such as Tweaks or Focus, instead of the top of Settings.
 
 ## [0.5.0] - 2026-09-15
 
