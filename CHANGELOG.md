@@ -15,6 +15,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Roadmap in Settings (replaces Coming Soon): what's in this update, what's next, later and being explored.
 - Tweak Library: tweaks are packages you Get (Sileo-style) and only the ones you get show in Settings › Tweaks. New installs start with none; updating keeps the tweaks you already use.
 - Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
+- Fold transition: a light tick as the hinge passes halfway, a soft light sweep and a slight settle in size as the open screen clears, and a Preview slider in Fold & Displays to see the effect without folding. Phones whose hinge sensor reports in-between angles follow the real angle. Ideas from FoldFX.
 - Headphones & speakers: when Bluetooth headphones or a speaker connects, an iPhone-style card shows its name on Home, and the Dynamic Island shows it over other apps.
 
 ### Changed

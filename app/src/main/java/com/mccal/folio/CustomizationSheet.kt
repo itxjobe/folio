@@ -465,6 +465,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (state.foldEffect) CustomizationSlider("Intensity", "${(state.foldIntensity * 100).toInt()}%",
                             state.foldIntensity, .3f..1.5f) { model.setFoldIntensity(it) }
+                        if (state.foldEffect) FoldEffectPreview(state, backgrounds.previewBitmap)
                         Text(stringResource(R.string.your_fold_reports_only_a_few_hinge_posit),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -1115,6 +1116,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         "iphone-duo" to "chuspeeism · MIT · fold blur and darkening model",
         "iPhone Duo on Galaxy Z Fold 8 demo" to "u/moomanjohnny · screenshot + shader idea (no code)",
         "QuickLaunch" to "AhmedTheGeek · Spotlight ideas (no code)",
+        "FoldFX" to "u/FixHour8452 · fold transition ideas: halfway haptic tick, light sweep, slight scale, following a smooth hinge angle (no code)",
         "Velox" to "Phillip Tennen · app panels idea",
         "Activator" to "Ryan Petrich · gestures and events idea",
         "Axon" to "Nepeta · notification app row idea",
@@ -1159,7 +1161,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
  * image can't be read by apps, so in that mode the preview uses the wallpaper's own reported colors and says so.
  */
 @Composable private fun MiniHomePreview(stagedBitmap: android.graphics.Bitmap?, state: LauncherState,
-    previewHeight: androidx.compose.ui.unit.Dp) {
+    previewHeight: androidx.compose.ui.unit.Dp, framed: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val backgroundRevision = LauncherBackgroundCache.revision.intValue
     val committedBitmap = remember(backgroundRevision) { cachedLauncherBackground(context) }
@@ -1183,11 +1185,11 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     // A thin black bezel with the screen's own corners inside it, so the preview reads as the phone, not a card.
     val corner = 26.dp * (previewHeight.value / 260f)
     val bezel = previewHeight * .022f
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.clip(RoundedCornerShape(corner + bezel)).background(androidx.compose.ui.graphics.Color(0xFF0B0B0C))
+    Column(if (framed) Modifier.fillMaxWidth() else Modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(if (!framed) Modifier else Modifier.clip(RoundedCornerShape(corner + bezel)).background(androidx.compose.ui.graphics.Color(0xFF0B0B0C))
             .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .2f), RoundedCornerShape(corner + bezel)).padding(bezel)) {
         Box(Modifier.height(previewHeight).width(previewHeight * (refW / refH))
-            .clip(RoundedCornerShape(corner))
+            .clip(RoundedCornerShape(if (framed) corner else 0.dp))
             .testTag("customization-home-preview"), contentAlignment = Alignment.Center) {
             Box(Modifier.requiredSize(refW.dp, refH.dp).graphicsLayer { scaleX = scale; scaleY = scale }) {
                 if (state.systemWallpaper) Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
@@ -1243,9 +1245,28 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             }
         }
         }
-        if (state.systemWallpaper) Text(stringResource(R.string.colors_from_your_android_wallpaper_apps),
+        if (framed && state.systemWallpaper) Text(stringResource(R.string.colors_from_your_android_wallpaper_apps),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
     }
+}
+
+/** Drag to see the fold effect at your Intensity without folding: two Home pages side by side, like the open screen. */
+@Composable private fun FoldEffectPreview(state: LauncherState, bitmap: android.graphics.Bitmap?) {
+    var fold by rememberSaveable { mutableFloatStateOf(.5f) }
+    val corner = 16.dp
+    val bezel = 5.dp
+    Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.clip(RoundedCornerShape(corner + bezel)).background(androidx.compose.ui.graphics.Color(0xFF0B0B0C))
+            .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .2f), RoundedCornerShape(corner + bezel)).padding(bezel)
+            .clearAndSetSemantics { contentDescription = "Fold effect preview" }) {
+            Row(Modifier.clip(RoundedCornerShape(corner)).foldPreviewEffect { fold * state.foldIntensity }) {
+                MiniHomePreview(bitmap, state, 150.dp, framed = false)
+                MiniHomePreview(bitmap, state, 150.dp, framed = false)
+            }
+        }
+    }
+    // Slider end to end is the hinge from open (180°) to half folded (90°), where the effect peaks.
+    CustomizationSlider("Preview", if (fold < .01f) "Open" else "${(180 - 90 * fold).toInt()}°", fold, 0f..1f) { fold = it }
 }
 
 /** A folder as Home draws it (first four apps on glass or the folder's color), without Home's drag and launch hooks. */

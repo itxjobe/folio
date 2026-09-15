@@ -51,7 +51,7 @@ import androidx.lifecycle.repeatOnLifecycle
  */
 @Composable
 fun FoldTransitionHost(enabled: Boolean = true, intensity: Float = 1f, stayAwake: Boolean = true,
-    snapshotMorph: Boolean = false, content: @Composable () -> Unit) {
+    snapshotMorph: Boolean = false, haptics: Boolean = true, content: @Composable () -> Unit) {
     // Which screen we're on, by size in both dimensions, so rotating the cover to landscape never looks like an unfold.
     val expanded = LocalConfiguration.current.let { it.screenWidthDp >= EXPANDED_WIDTH_DP && it.screenHeightDp >= REGULAR_MIN_HEIGHT_DP }
     val view = LocalView.current
@@ -63,6 +63,10 @@ fun FoldTransitionHost(enabled: Boolean = true, intensity: Float = 1f, stayAwake
     val shader = remember { if (Build.VERSION.SDK_INT >= 33) DuoShader() else null }
     val fold = remember { FoldTimeline(context) }
     fold.stayAwake = stayAwake
+    // One light tick as the hinge passes halfway, opening or closing (idea from FoldFX).
+    val tick by androidx.compose.runtime.rememberUpdatedState(enabled && haptics)
+    fold.onHalfway = { if (tick) view.performHapticFeedback(
+        if (Build.VERSION.SDK_INT >= 34) android.view.HapticFeedbackConstants.SEGMENT_TICK else android.view.HapticFeedbackConstants.CLOCK_TICK) }
     // m: 0 = clean, 1 = fully half-folded look. cover = whole-screen mode on the cover display.
     var m by remember { mutableFloatStateOf(0f) }
 
@@ -137,6 +141,9 @@ fun FoldTransitionHost(enabled: Boolean = true, intensity: Float = 1f, stayAwake
         if (shader != null) Modifier.graphicsLayer {
             renderEffect = if (useBlurEffect && m > 0f && Build.VERSION.SDK_INT >= 33) shader.effect(size.width, size.height, (m * intensity).coerceIn(0f, 1.5f),
                 cover = !fold.expanded, geometry = foldGeometry(rotation, hinge, size.width, size.height)) else null
+            // The open screen settles up to full size as it clears, and eases back down as it folds.
+            val settle = if (useBlurEffect && fold.expanded) 1f - FOLD_SCALE * m.coerceIn(0f, 1f) else 1f
+            scaleX = settle; scaleY = settle
         } else Modifier.drawWithContent {
             drawContent()
             if (useBlurEffect && m > 0f) {
@@ -224,6 +231,14 @@ private class FoldTimeline(context: Context) : SensorEventListener {
     private val appContext = context.applicationContext
 
     var onOpeningStarted: (() -> Unit)? = null
+    var onHalfway: (() -> Unit)? = null
+
+    // Most hinge sensors (the Fold8's included) report only 0/90/180°. Once one reports an angle in between, the
+    // effect follows the real angle on this phone instead of predicting the motion between steps.
+    private var smoothAngle = prefs.getBoolean("fold_smooth_angle", false)
+    private var litAngle = FLAT_DEG
+    private var movedAt = 0L
+    private var movedFrom = 0f
     var onClosingStarted: (() -> Unit)? = null
     /** Uptime when the screenshot morph started on the new display, or -1. */
     var morphFrom = -1L
@@ -241,7 +256,7 @@ private class FoldTimeline(context: Context) : SensorEventListener {
 
     fun onPanelLit(now: Long) {
         waitingForPanel = false
-        if (expanded) { litAt = now; if ((angle ?: 0f) >= FLAT_DEG) flatAt = now } else coverLitAt = now
+        if (expanded) { litAt = now; litAngle = angle ?: FLAT_DEG; if ((angle ?: 0f) >= FLAT_DEG) flatAt = now } else coverLitAt = now
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -250,6 +265,14 @@ private class FoldTimeline(context: Context) : SensorEventListener {
         val previous = angle
         angle = value; angleAt = now
         if (previous == null || previous == value) return
+        if (!smoothAngle && STEP_ANGLES.none { kotlin.math.abs(value - it) < 2f }) {
+            smoothAngle = true; prefs.edit().putBoolean("fold_smooth_angle", true).apply()
+        }
+        // A real movement, not sensor jitter: what the stall checks measure from on smooth sensors.
+        if (kotlin.math.abs(value - movedFrom) >= MOVE_DEG) { movedFrom = value; movedAt = now }
+        // Once per pass: leaving one side of 90° for the middle or the other side. Step sensors land exactly on 90°,
+        // so opening ticks at 0→90 and closing at 180→90, never again on the step after.
+        if (halfSide(previous) != 0 && halfSide(previous) != halfSide(value)) onHalfway?.invoke()
         if (expanded) {
             when {
                 // Reached flat while revealing: learn how long lit → flat takes for this person.
@@ -300,17 +323,25 @@ private class FoldTimeline(context: Context) : SensorEventListener {
         // was visible. The fade is a steady, fixed-length ease from the moment the panel is lit instead.
         expanded && litAt >= 0 -> {
             val t = ((now - litAt) / UNFOLD_FADE_MS).coerceIn(0f, 1f)
-            if (t >= 1f) { litAt = -1L; flatAt = -1L; 0f } else START_M_ON_UNFOLD * (1f - easeInOutSine(t))
+            if (t >= 1f) { litAt = -1L; flatAt = -1L; 0f }
+            else {
+                val timed = START_M_ON_UNFOLD * (1f - easeInOutSine(t))
+                // With a smooth sensor, a hand that's already flat clears sooner; the timed fade still caps it,
+                // so holding the phone half open never leaves Home blurred.
+                val byAngle = (angle ?: FLAT_DEG).let { a -> if (litAngle >= FLAT_DEG) 0f else ((FLAT_DEG - a) / (FLAT_DEG - litAngle)).coerceIn(0f, 1f) }
+                if (smoothAngle) minOf(timed, START_M_ON_UNFOLD * byAngle) else timed
+            }
         }
 
         // Fold: blur builds at the learned speed and completes at the closed step.
         expanded && closeStartAt >= 0 -> {
             val since = (now - closeStartAt).toFloat()
-            val stalled = closedAt < 0 && now - angleAt > predictedCloseMs + STALL_MS
+            val stalled = closedAt < 0 && now - (if (smoothAngle) movedAt else angleAt) > (if (smoothAngle) 0f else predictedCloseMs) + STALL_MS
             when {
                 stalled -> { closeStartAt = -1L; 0f } // deliberately half-open (flex mode): clear
                 closedAt >= 0 && now - closedAt > CLOSED_STALL_MS -> { closeStartAt = -1L; closedAt = -1L; 0f } // never stuck dimmed
                 closedAt >= 0 -> 1f
+                smoothAngle -> easeInOutSine(((FLAT_DEG - (angle ?: FLAT_DEG)) / (FLAT_DEG - CLOSED_DEG)).coerceIn(0f, 1f)) * HOLD_M_BEFORE_CLOSED
                 else -> easeInOutSine((since / predictedCloseMs).coerceIn(0f, 1f)) * HOLD_M_BEFORE_CLOSED
             }
         }
@@ -321,6 +352,7 @@ private class FoldTimeline(context: Context) : SensorEventListener {
         // Opening from the cover: quick whole-screen blur until the inner display takes over.
         !expanded && coverOpeningAt >= 0 -> {
             if (now - coverOpeningAt > COVER_OPEN_STALL_MS) { coverOpeningAt = -1L; 0f }
+            else if (smoothAngle) easeOutCubic(((angle ?: 0f) / HALFWAY_DEG).coerceIn(0f, 1f))
             else easeOutCubic(((now - coverOpeningAt) / COVER_OPEN_MS).coerceIn(0f, 1f))
         }
 
@@ -343,6 +375,7 @@ private class FoldTimeline(context: Context) : SensorEventListener {
     }
 }
 
+private fun halfSide(angle: Float): Int = when { angle < HALFWAY_DEG - 1f -> -1; angle > HALFWAY_DEG + 1f -> 1; else -> 0 }
 private fun easeOutCubic(t: Float): Float { val u = 1f - t; return 1f - u * u * u }
 private fun easeInOutSine(t: Float): Float = (-(kotlin.math.cos(Math.PI * t) - 1) / 2).toFloat()
 
@@ -415,7 +448,11 @@ private class DuoShader {
                 half4 c = blur(p, maxRadius * mm * pow(e, 1.35));
                 float d = clamp((e - 0.2) / 0.8, 0.0, 1.0);
                 float k = 1.0 - min(1.0, 2.0 * mm * pow(d, 1.35));
-                return half4(c.rgb * k, c.a);
+                // A soft band of light that leaves the hinge and crosses the half as it clears, brightest mid-way
+                // (idea from FoldFX).
+                float band = (e - (1.0 - mc)) / 0.1;
+                float sweep = exp(-band * band) * 0.55 * mc * (1.0 - mc);
+                return half4(c.rgb * k + half3(sweep) * c.a, c.a);
             }
         """
     }
@@ -449,6 +486,30 @@ private const val CLOSED_STALL_MS = 1_800L
 private const val CLOSED_DEG = 10f
 private const val LIT_TIMEOUT_MS = 1_200L
 private const val IDLE_POLL_MS = 50L
+/** How much smaller the open screen is at the start of the reveal (97%). */
+private const val FOLD_SCALE = .03f
+private const val HALFWAY_DEG = 90f
+private const val MOVE_DEG = 3f
+private val STEP_ANGLES = floatArrayOf(0f, 90f, 180f)
+
+/**
+ * The fold effect on a preview (Settings): [m] 0 is open and clear, 1 half folded. Same shader, sweep and scale as Home,
+ * with the hinge down the middle and the left half moving.
+ */
+@Composable
+internal fun Modifier.foldPreviewEffect(m: () -> Float): Modifier {
+    val shader = remember { if (Build.VERSION.SDK_INT >= 33) DuoShader() else null }
+    return graphicsLayer {
+        val value = m()
+        val settle = 1f - FOLD_SCALE * value.coerceIn(0f, 1f)
+        scaleX = settle; scaleY = settle
+        if (shader != null && Build.VERSION.SDK_INT >= 33) renderEffect = if (value > 0f)
+            shader.effect(size.width, size.height, value, cover = false, geometry = FoldGeometry(false, size.width / 2f, false)) else null
+    }.then(if (shader == null) Modifier.drawWithContent {
+        drawContent()
+        drawRect(Brush.horizontalGradient(0f to Color.Black.copy(alpha = m().coerceIn(0f, 1f)), .5f to Color.Transparent, startX = 0f, endX = size.width))
+    } else Modifier)
+}
 
 /** The fold effect's layout: which way the hinge runs, where it is, and which side of it moves. */
 internal data class FoldGeometry(val horizontal: Boolean, val hingePx: Float, val movingAfterHinge: Boolean)
