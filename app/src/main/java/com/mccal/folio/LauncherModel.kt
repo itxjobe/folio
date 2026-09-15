@@ -318,9 +318,13 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                             // Folio lists itself only as its Settings app, like iOS Settings in the App Library.
                             if (info.componentName.packageName == application.packageName && !info.componentName.className.startsWith("${application.packageName}.${AppIconChoice.ALIAS_PREFIX}")) return@mapNotNull null
                             val component = info.componentName
-                            val id = profileAppId(component.flattenToString(), serial, personalSerial)
+                            // Every alternate icon is its own component; they share one id so switching icons keeps
+                            // Folio's place on Home, in the dock and in folders.
+                            val idComponent = if (component.packageName == application.packageName)
+                                ComponentName(application.packageName, "${application.packageName}.${AppIconChoice.OLIVE.alias}") else component
+                            val id = profileAppId(idComponent.flattenToString(), serial, personalSerial)
                             val label = info.label.toString()
-                            iconCache[id]?.takeIf { it.label == label && it.available } ?: run {
+                            iconCache[id]?.takeIf { it.label == label && it.available && it.component == component } ?: run {
                                 val icon = runCatching { info.getBadgedIcon(0) }.getOrElse { application.packageManager.defaultActivityIcon }
                                 AppEntry(id, label, launcherIcon(icon), component, profile, serial, descriptor.label,
                                     descriptor.isWork, available = true).also { iconCache[id] = it }
@@ -642,22 +646,26 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
      * widgets Android no longer has are left out, and Undo is offered like any other layout change.
      */
     fun restoreLayoutSnapshot(snapshot: LayoutSnapshot): Boolean {
-        if (statePayloadInvalid || FocusPages.lockingFocus(mutable.value) != null) return false
+        if (statePayloadInvalid || mutable.value.loading || FocusPages.lockingFocus(mutable.value) != null) return false
         saveLayoutSnapshot("Before restoring", force = true)
         val old = mutable.value
         val before = snapshot.layout
-        val installed = (old.apps.map { it.id } + before.folders.map { it.id }).toSet()
         val manager = android.appwidget.AppWidgetManager.getInstance(getApplication())
         val widgets = before.widgetPlacements.filter { it.id < 0 || runCatching { manager.getAppWidgetInfo(it.id) != null }.getOrDefault(false) }
-        val next = HomeLayout(reconcileHomeSlots(before.slots, installed), before.dock.map { it?.takeIf(installed::contains) }, widgets,
-            before.folders.map { f -> f.copy(appIds = f.appIds.filter(installed::contains)) },
-            before.widgetRestores, before.leadingSlots.map { it?.takeIf(installed::contains) }, before.minPages)
+        // Same rules as a refresh: only apps from profiles Android can see right now count as removed (a paused work
+        // profile's apps stay), and folders are dissolved properly, so a restored layout always loads again.
+        val savedIds = before.slots.filterNotNull() + before.leadingSlots.filterNotNull() + before.dock.filterNotNull() + before.folders.flatMap { it.appIds }
+        val removed = removedAppIds(savedIds, old.apps.mapTo(mutableSetOf(), AppEntry::id),
+            old.profiles.filter { it.available }.mapTo(mutableSetOf(), AppProfile::userSerial), emptySet(), emptySet(),
+            userManager.getSerialNumberForUser(Process.myUserHandle()))
+        val next = reconcileFolders(before.copy(widgetPlacements = widgets), removed)
         if (old.layout == next) return false
         undoLayout = old.layout to next
         undoImportSettings = null
         mutable.value = old.copy(homeSlots = next.slots, leadingSlots = next.leadingSlots, dock = next.dock,
             widgetPlacements = next.widgetPlacements, folders = next.folders, widgetRestores = next.widgetRestores, minPages = next.minPages,
-            widgetStacks = WidgetStacks.prune(old.widgetStacks, (next.widgetPlacements + old.widgetPlacements).map { it.slot }.toSet()),
+            // Only stacks of the restored widgets: a snapshot widget landing in a reused slot mustn't inherit another stack.
+            widgetStacks = WidgetStacks.prune(old.widgetStacks, next.widgetPlacements.map { it.slot }.toSet()),
             editRevision = old.editRevision + 1, canUndoEdit = true)
         persist()
         return true

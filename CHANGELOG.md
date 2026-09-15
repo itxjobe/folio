@@ -31,6 +31,13 @@ Folio shows the newest section on the phone after an update, and every version u
 - Back always closes Spotlight first, instead of sometimes changing the Home page behind it.
 - Spotlight's keyboard comes back if it didn't appear when Spotlight opened.
 - Unfolded, Settings › Icons & Side Bar no longer shows its Home preview twice.
+- Restoring a Layout History snapshot handles removed apps and folders the same way as a normal refresh, so the saved layout always loads again.
+- Switching the app icon keeps Folio's place on Home, in the dock and in folders.
+- Sharing a theme file to Folio reads it in the background, so a slow or broken file can't freeze Home.
+- Spotlight no longer closes when the keyboard drops for a moment while folding, rotating or switching to voice typing.
+- Clear Badge stays cleared while an app updates the same notification, and is hidden when badges are off.
+- Setup resumes on the right screen after an update.
+- The live Clock icon no longer occasionally stays a normal icon.
 - An app's long-press menu no longer cuts off its last row when Clear Badge is showing.
 - Spotlight's Cancel hides the keyboard and has a bigger touch target.
 

@@ -92,9 +92,12 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                 action = "Get Started", optional = false),
         ).filter { page -> page.key in setOf("welcome", "look", "done") || !page.done() }
     }
-    var index by rememberSaveable { mutableIntStateOf(prefs.getInt(STEP, 0).coerceIn(0, all.lastIndex)) }
-    fun go(to: Int) { index = to.coerceIn(0, all.lastIndex); prefs.edit().putInt(STEP, index).apply() }
-    fun finish() { prefs.edit().remove(STEP).apply(); onFinish() }
+    // Resume by page key: the page list changes between versions (and skips what's already allowed), so an index
+    // saved by an older Folio could land on the wrong page.
+    var index by rememberSaveable { mutableIntStateOf(runCatching { prefs.getString(STEP_KEY, null) }.getOrNull()
+        ?.let { key -> all.indexOfFirst { it.key == key } }?.takeIf { it >= 0 } ?: 0) }
+    fun go(to: Int) { index = to.coerceIn(0, all.lastIndex); prefs.edit().remove(STEP).putString(STEP_KEY, all[index].key).apply() }
+    fun finish() { prefs.edit().remove(STEP).remove(STEP_KEY).apply(); onFinish() }
     BackHandler(index > 0) { go(index - 1) }
     val page = all[index]
     val reduceMotion = LocalReduceMotion.current
@@ -181,3 +184,4 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
 
 private val IosBlue = Color(0xFF0A84FF)
 private const val STEP = "onboardingStep"
+private const val STEP_KEY = "onboardingPage"

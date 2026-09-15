@@ -69,6 +69,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.layout.layout
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -186,12 +187,20 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
     // isImeVisible alone can lag on some keyboards; the keyboard's target height is updated as soon as it starts moving.
     val imeTarget = WindowInsets.imeAnimationTarget.getBottom(androidx.compose.ui.platform.LocalDensity.current) > 0
     val imeState = androidx.compose.runtime.rememberUpdatedState(imeVisible || imeTarget)
+    val configState = androidx.compose.runtime.rememberUpdatedState(LocalConfiguration.current.let { Triple(it.orientation, it.screenWidthDp, it.screenHeightDp) })
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
         var wasUp = false
-        snapshotFlow { imeState.value }.collect { up ->
-            if (up) wasUp = true
-            else if (wasUp && windowInfo.isWindowFocused) { wasUp = false; focusManager.clearFocus(force = true); onClose() }
+        snapshotFlow { imeState.value }.collectLatest { up ->
+            if (up) { wasUp = true; return@collectLatest }
+            if (!wasUp) return@collectLatest
+            // The keyboard also drops for a moment when folding, rotating or switching to voice typing; only a
+            // keyboard that stays down (and a window that kept focus and size) means the user dismissed it.
+            val config = configState.value
+            kotlinx.coroutines.delay(450)
+            if (!imeState.value && windowInfo.isWindowFocused && configState.value == config) {
+                wasUp = false; focusManager.clearFocus(force = true); onClose()
+            }
         }
     }
     var frecency by remember { mutableStateOf(emptyMap<String, Double>()) }

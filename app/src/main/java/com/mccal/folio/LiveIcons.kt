@@ -47,29 +47,31 @@ import kotlin.math.sin
 
 /** Which installed apps get a live icon: the phone's calendar apps and clock apps. */
 internal object LiveIcons {
-    private var calendar: Set<String>? = null
-    private var clock: Set<String>? = null
+    /** Calendar and clock packages, published together so a thread never sees one set without the other. */
+    @Volatile private var sets: Pair<Set<String>, Set<String>>? = null
 
     enum class Kind { CALENDAR, CLOCK }
 
     fun kind(context: Context, packageName: String): Kind? {
-        if (calendar == null) load(context)
+        val (calendar, clock) = sets ?: load(context)
         return when (packageName) {
-            in calendar.orEmpty() -> Kind.CALENDAR
-            in clock.orEmpty() -> Kind.CLOCK
+            in calendar -> Kind.CALENDAR
+            in clock -> Kind.CLOCK
             else -> null
         }
     }
 
-    private fun load(context: Context) {
+    @Synchronized private fun load(context: Context): Pair<Set<String>, Set<String>> {
+        sets?.let { return it }
         val pm = context.packageManager
         fun packages(intent: Intent) = runCatching {
             pm.queryIntentActivities(intent, 0).map { it.activityInfo.packageName }.toSet()
         }.getOrDefault(emptySet())
-        calendar = packages(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR)) +
+        val calendar = packages(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR)) +
             setOf("com.samsung.android.calendar", "com.google.android.calendar")
-        clock = packages(Intent(AlarmClock.ACTION_SHOW_ALARMS)) +
+        val clock = packages(Intent(AlarmClock.ACTION_SHOW_ALARMS)) +
             setOf("com.sec.android.app.clockpackage", "com.google.android.deskclock")
+        return (calendar to clock).also { sets = it }
     }
 }
 
@@ -457,16 +459,19 @@ internal fun mixColor(base: Color, accent: Color?, amount: Float): Color = if (a
  * them. A notification posted later brings the badge back, like iOS. Kept in memory only.
  */
 internal object BadgeClears {
-    /** Package → newest postTime that was cleared. */
-    val cleared = kotlinx.coroutines.flow.MutableStateFlow<Map<String, Long>>(emptyMap())
+    /**
+     * Keys of the notifications that were showing when Clear Badge was tapped. An app updating one of those (a download
+     * progressing, music, a summary) keeps the badge cleared; a new notification brings it back.
+     */
+    val cleared = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
 
     fun clear(packageName: String, items: List<NotificationItem>) {
-        val newest = items.filter { it.packageName == packageName }.maxOfOrNull { it.postTime } ?: return
-        cleared.value = cleared.value + (packageName to newest)
+        val keys = items.filter { it.packageName == packageName }.map { it.key }
+        if (keys.isNotEmpty()) cleared.value = cleared.value + keys
     }
 
-    fun counts(items: List<NotificationItem>, cleared: Map<String, Long>): Map<String, Int> =
-        items.filter { item -> cleared[item.packageName]?.let { item.postTime > it } ?: true }.groupingBy { it.packageName }.eachCount()
+    fun counts(items: List<NotificationItem>, cleared: Set<String>): Map<String, Int> =
+        items.filter { it.key !in cleared }.groupingBy { it.packageName }.eachCount()
 }
 
 /** Most icons dark? Samples up to 40 app icons (skipping Clock and Calendar themselves); null if there aren't enough. */

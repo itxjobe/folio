@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 /**
  * Share a theme file to Folio (from Files, Chrome or a chat). What's shared is untrusted: only content:// streams or
@@ -14,11 +16,17 @@ import androidx.activity.ComponentActivity
 class ThemeImportActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val theme = readTheme(intent)
-        if (theme == null) Toast.makeText(this, "That file isn't a Folio theme.", Toast.LENGTH_SHORT).show()
-        else startActivity(Intent(this, MainActivity::class.java).putExtra(EXTRA_THEME, theme.toJson().toString())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        finish()
+        // This activity shares Home's process, so the untrusted file is read off the main thread and given up on
+        // after a couple of seconds: a stream that never ends can't freeze Home.
+        lifecycleScope.launch {
+            val theme = kotlinx.coroutines.withTimeoutOrNull(2_000) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { readTheme(intent) }
+            }
+            if (theme == null) Toast.makeText(this@ThemeImportActivity, "That file isn't a Folio theme.", Toast.LENGTH_SHORT).show()
+            else startActivity(Intent(this@ThemeImportActivity, MainActivity::class.java).putExtra(EXTRA_THEME, theme.toJson().toString())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish()
+        }
     }
 
     private fun readTheme(intent: Intent?): FolioTheme? {
