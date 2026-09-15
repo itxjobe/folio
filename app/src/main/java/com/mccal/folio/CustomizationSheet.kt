@@ -1308,6 +1308,8 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
         ComingSoonRow(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.")
         MenuDivider()
         ComingSoonRow(Icons.Rounded.ViewCarousel, 0xFF32ADE6, "Page Effects", "3D effects when you swipe between Home pages, like a cube or a wheel. Inspired by Barrel.")
+        MenuDivider()
+        ComingSoonRow(Icons.Rounded.TouchApp, 0xFF30D158, "Back Tap", "Double or triple tap the back of your phone to open Spotlight, Control Center or an app. Inspired by RegiStar.")
     }
     SettingsCard("Further Out") {
         ComingSoonRow(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy, with layouts for folded, unfolded and half folded.")
