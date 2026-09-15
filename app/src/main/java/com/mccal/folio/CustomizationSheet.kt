@@ -246,9 +246,13 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.GESTURES) SettingsCard(stringResource(R.string.gestures)) {
                         Text(stringResource(R.string.pull_down_from_the_top_left_for_notifica),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        SettingsSwitch(stringResource(R.string.iphone_style_control_center_and_notifica), state.folioPanels, model::setFolioPanels, "folio-panels-switch")
+                        SettingsSwitch(stringResource(R.string.drag_page_dots_to_flip_pages), state.pageScrub, model::setPageScrub, "page-scrub-switch")
+                        SettingsSwitch(stringResource(R.string.haptic_feedback), state.haptics, model::setHaptics, "haptics-switch")
                     }
-                    if ((page == CustomizationPage.NOTIFICATIONS) && state.folioPanels) SettingsCard(stringResource(R.string.panels)) {
+                    // One page for the panels: the on/off switch and, when on, their options.
+                    if (page == CustomizationPage.NOTIFICATIONS) SettingsCard(stringResource(R.string.panels)) {
+                        SettingsSwitch(stringResource(R.string.iphone_style_control_center_and_notifica), state.folioPanels, model::setFolioPanels, "folio-panels-switch")
+                        if (state.folioPanels) {
                         CustomizationSlider("Background blur", "${(state.panelBlur * 100).toInt()}%", state.panelBlur, 0f..1f) { model.setPanelBlur(it) }
                         SettingsSwitch(stringResource(R.string.big_clock_in_notification_center), state.notificationClock, model::setNotificationClock, "notification-clock-switch")
                         SettingsSwitch(stringResource(R.string.stack_notifications_by_app), state.groupNotifications, model::setGroupNotifications, "notification-group-switch")
@@ -259,15 +263,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(R.string.to_restyle_samsungs_own_pull_down_colors),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (page == CustomizationPage.SIDE_KEY) SettingsCard(stringResource(R.string.side_key)) {
-                        val assistContext = androidx.compose.ui.platform.LocalContext.current
-                        val held = remember(page) { AssistPickerActivity.isDefaultAssistant(assistContext) }
-                        Text(if (held) "Holding the side key opens Folio\u2019s picker: ChatGPT, Claude, Perplexity, Gemini or search without AI."
-                            else "Make Folio the digital assistant, then set Settings \u203a Advanced features \u203a Side button \u203a Press and hold \u203a Digital assistant.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (!held) FilledTonalButton(onClick = { runCatching { assistContext.startActivity(AssistPickerActivity.settingsIntent()) } }) {
-                            Text(stringResource(R.string.choose_folio_as_assistant))
                         }
                     }
                     if (page == CustomizationPage.SEARCH) SettingsCard(stringResource(R.string.spotlight)) {
@@ -318,8 +313,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.SEARCH) SettingsCard(stringResource(R.string.search)) {
                         SettingsSwitch(stringResource(R.string.search_button_on_home), state.searchPill, model::setSearchPill, "search-pill-switch")
                         SettingsSwitch(stringResource(R.string.swipe_down_on_home_for_spotlight), state.swipeDownSearch, model::setSwipeDownSearch, "swipe-search-switch")
-                        SettingsSwitch(stringResource(R.string.drag_page_dots_to_flip_pages), state.pageScrub, model::setPageScrub, "page-scrub-switch")
-                        SettingsSwitch(stringResource(R.string.haptic_feedback), state.haptics, model::setHaptics, "haptics-switch")
                         SettingsSwitch(stringResource(R.string.search_button_opens_the_google_app), state.googleSearch, model::setGoogleSearch, "google-search-switch")
                         Text(stringResource(R.string.when_off_the_search_button_opens_spotlig),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -760,12 +753,13 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Side Bar & Status Bar", "side bar rail status bar battery wifi time left-handed labels app names", CustomizationPage.STATUS),
     Triple("Dynamic Island", "island pill camera pop-ups calls messages charging bluetooth", CustomizationPage.ISLAND),
     Triple("Island and dock in every app", "overlay everywhere other apps handle", CustomizationPage.ISLAND),
-    Triple("Notification Center", "notifications clock stack group split blur", CustomizationPage.NOTIFICATIONS),
+    Triple("Notification Center", "notifications clock stack group split blur panels iphone style", CustomizationPage.NOTIFICATIONS),
     Triple("Control Center", "control center size centered toggles", CustomizationPage.NOTIFICATIONS),
     Triple("Spotlight", "search engine google duckduckgo contacts calculator sections messages openbubbles", CustomizationPage.SEARCH),
     Triple("App Library", "library categories hidden apps", CustomizationPage.SEARCH),
-    Triple("Search button & swipe down", "search pill swipe page dots scrub haptics", CustomizationPage.SEARCH),
-    Triple("Gestures & pull-downs", "gesture pull down panels iphone style", CustomizationPage.GESTURES),
+    Triple("Search button & swipe down", "search pill swipe google", CustomizationPage.SEARCH),
+    Triple("Page dots & haptics", "page dots scrub drag flip haptics vibration feedback", CustomizationPage.GESTURES),
+    Triple("Gestures & pull-downs", "gesture pull down swipe", CustomizationPage.GESTURES),
     Triple("Actions", "activator double tap two finger charging bluetooth headphones trigger", CustomizationPage.GESTURES),
     Triple("Side Key", "side key assistant chatgpt claude wallet double press hold", CustomizationPage.SIDE_KEY),
     Triple("Lock Cover", "lock screen unlock cover clock", CustomizationPage.LOCK),
