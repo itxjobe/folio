@@ -76,7 +76,7 @@ way of bringing that back:
 - **The iPhone Duo Side Bar.** The status bar, Dynamic Island and dock live on the right edge. Thanks to
   [DuoLauncher](https://github.com/jakesgoodapps/DuoLauncher), whose dev made it possible for me to build on top of their work.
 - **Left-handed mode and Spotlight.** Flip the Side Bar to the left, and search everything from Spotlight.
-- **Coming soon: Page Effects,** inspired by Barrel. See Settings › Coming Soon for what else is planned.
+- **Coming soon: Page Effects,** inspired by Barrel. See Settings › Roadmap for what else is planned.
 
 There's a lot to this launcher, and it's fun. I hope you have as much fun with it as I've had making it.
 
@@ -215,7 +215,7 @@ vary by phone). Your Folio layout stays saved if you switch back later.
 in. If Folio crashes a few times in a row, it opens in Safe Mode with tweaks paused. More in
 [troubleshooting](docs/troubleshooting.md).
 
-**What's coming next?** See Settings › Coming Soon in the app, or suggest something with the
+**What's coming next?** See Settings › Roadmap in the app, or suggest something with the
 [feature form](https://github.com/McCal-Codes/folio/issues/new/choose).
 
 ## Where things are

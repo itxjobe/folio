@@ -80,7 +80,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.TODAY -> "Today View"
         CustomizationPage.ISLAND -> "Dynamic Island"
         CustomizationPage.PERMISSIONS -> "Privacy & Permissions"
-        CustomizationPage.COMING_SOON -> "Coming Soon"
+        CustomizationPage.COMING_SOON -> "Roadmap"
         CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"
         CustomizationPage.SOFTWARE_UPDATE -> "Software Update"
     }
@@ -145,7 +145,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.SystemUpdate, 0xFF8E8E93, "Software Update", "customization-software-update",
                             if (updateStatus is SoftwareUpdate.Status.Available) "1" else null, selected = selected == CustomizationPage.SOFTWARE_UPDATE, chevron = !sidebar) { onPage(CustomizationPage.SOFTWARE_UPDATE) }
                         MenuDivider()
-                        TweakRow(Icons.Rounded.Upcoming, 0xFF5E5CE6, "Coming Soon", "customization-coming-soon", selected = selected == CustomizationPage.COMING_SOON, chevron = !sidebar) { onPage(CustomizationPage.COMING_SOON) }
+                        TweakRow(Icons.Rounded.Map, 0xFF5E5CE6, "Roadmap", "customization-coming-soon", selected = selected == CustomizationPage.COMING_SOON, chevron = !sidebar) { onPage(CustomizationPage.COMING_SOON) }
                         MenuDivider()
                         val bugContext = androidx.compose.ui.platform.LocalContext.current
                         TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug", chevron = !sidebar) {
@@ -811,7 +811,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Privacy & Permissions", "privacy permissions setup checklist home app notification access accessibility gestures contacts bluetooth", CustomizationPage.PERMISSIONS),
     Triple("Safe Mode & crash reports", "safe mode crash report bug", CustomizationPage.ADVANCED),
     Triple("Backup & restore", "backup restore export import layout", CustomizationPage.BACKUP),
-    Triple("Coming Soon", "coming soon roadmap planned future features lock designer keyboard", CustomizationPage.COMING_SOON),
+    Triple("Roadmap", "roadmap coming soon planned future features next later lock designer keyboard", CustomizationPage.COMING_SOON),
     Triple("Credits", "credits thanks duolauncher jakesgoodapps license", CustomizationPage.CREDITS),
 )
 
@@ -1333,34 +1333,53 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
     }.asImageBitmap()
 }.getOrNull()
 
-/** What's planned, from Folio's roadmap: a short, honest list (no dates), plus a way to suggest something. */
+/**
+ * Roadmap: what shipped in this version, what's next, later, and ideas being explored. Honest statuses, no dates.
+ * Everything here comes from Folio's plan; it changes as feedback comes in.
+ */
+private enum class RoadmapStatus(val label: String, val color: Long) {
+    DONE("In this update", 0xFF30D158), BUILDING("In progress", 0xFF0A84FF), PLANNED("Planned", 0xFFFF9F0A), EXPLORING("Exploring", 0xFFBF5AF2)
+}
+private data class RoadmapItem(val icon: ImageVector, val color: Long, val title: String, val detail: String, val status: RoadmapStatus)
+
 @Composable private fun ComingSoonPage() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    Text("Features being worked on for future updates. Plans can change, and Android doesn't allow everything iOS does.",
+    val version = remember { SoftwareUpdate.installedVersion(context) }
+    val sections = listOf(
+        "Folio $version" to listOf(
+            RoadmapItem(Icons.Rounded.Extension, 0xFFBF5AF2, "Tweak Library", "Get the tweaks you want; only those show in Settings.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.SystemUpdate, 0xFF8E8E93, "Software Update", "Update Folio from GitHub, with optional notifications.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.Notifications, 0xFFFF3B30, "Badge styles", "iOS, Classic or Glass badges in three sizes.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.Folder, 0xFF0A84FF, "Folder options", "Columns and glass, solid or clear folders.", RoadmapStatus.DONE),
+        ),
+        "Next" to listOf(
+            RoadmapItem(Icons.Rounded.Storefront, 0xFF0A84FF, "The Folio app", "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.GridView, 0xFF30D158, "Home grid columns", "Four, five or six columns on Home.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.History, 0xFF8E8E93, "Layout History", "Out of beta: go back to how Home looked before a big change.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.TouchApp, 0xFF30D158, "Back Tap", "Double or triple tap the back of your phone to run an action. Inspired by RegiStar.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.ViewCarousel, 0xFF32ADE6, "Page Effects", "3D effects when you swipe between Home pages. Inspired by Barrel.", RoadmapStatus.PLANNED),
+        ),
+        "Later" to listOf(
+            RoadmapItem(Icons.Rounded.NotificationsActive, 0xFFFF3B30, "Notification Rules", "Choose per app where notifications show.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.Dock, 0xFF30D158, "Dock Drawer", "Swipe in on the dock for recent apps and Now Playing.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
+        ),
+        "Exploring" to listOf(
+            RoadmapItem(Icons.Rounded.Keyboard, 0xFF8E8E93, "Folio Keyboard", "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.", RoadmapStatus.EXPLORING),
+            RoadmapItem(Icons.Rounded.Palette, 0xFFFF375F, "Community themes", "Browse and add themes shared on GitHub, right from Folio.", RoadmapStatus.EXPLORING),
+            RoadmapItem(Icons.Rounded.Extension, 0xFFBF5AF2, "Folio Tweaks", "Tweaks made by the community, if it can be done safely.", RoadmapStatus.EXPLORING),
+        ),
+    )
+    Text("Where Folio is headed. Plans can change with feedback, and Android doesn't allow everything iOS does.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-    SettingsCard("Coming Soon") {
-        ComingSoonRow(Icons.Rounded.History, 0xFF8E8E93, "Layout History", "Go back to how Home looked before a big change, like a theme or Arrange Like iPhone.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.NotificationsActive, 0xFFFF3B30, "Notification Rules", "Choose per app where notifications show: Notification Center, the island or badges.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.Folder, 0xFF0A84FF, "Folder Options", "Bigger folder grids and different ways to open a folder.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.Dock, 0xFF30D158, "Dock Drawer", "Swipe in on the dock for recent apps and Now Playing.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.DarkMode, 0xFF5E5CE6, "Deeper Focus", "Hide badges and suggestions while a Focus is on.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.ViewCarousel, 0xFF32ADE6, "Page Effects", "3D effects when you swipe between Home pages, like a cube or a wheel. Inspired by Barrel.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.TouchApp, 0xFF30D158, "Back Tap", "Double or triple tap the back of your phone to open Spotlight, Control Center or an app. Inspired by RegiStar.")
-    }
-    SettingsCard("Further Out") {
-        ComingSoonRow(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy, with layouts for folded, unfolded and half folded.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.Keyboard, 0xFF8E8E93, "Folio Keyboard", "An iOS-style keyboard, with ideas from jailbreak keyboard tweaks.")
-        MenuDivider()
-        ComingSoonRow(Icons.Rounded.Extension, 0xFFBF5AF2, "Folio Tweaks", "Install tweaks made by the community, if it can be done safely.")
+    sections.forEach { (title, items) ->
+        SettingsCard(title) {
+            items.forEachIndexed { index, item ->
+                if (index > 0) MenuDivider()
+                RoadmapRow(item, last = index == items.lastIndex)
+            }
+        }
     }
     SheetGroup {
         IosActionRow("Suggest a Feature", "coming-soon-suggest") {
@@ -1370,18 +1389,31 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
     }
 }
 
-@Composable private fun ComingSoonRow(icon: ImageVector, color: Long, title: String, detail: String) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(androidx.compose.ui.graphics.Color(color)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(18.dp))
+/** One roadmap item: a timeline dot and line on the left, the item's icon, text and a status label. */
+@Composable private fun RoadmapRow(item: RoadmapItem, last: Boolean) {
+    val statusColor = androidx.compose.ui.graphics.Color(item.status.color)
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Top) {
+        Box(Modifier.width(18.dp).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+            if (!last) Box(Modifier.padding(top = 22.dp).width(2.dp).fillMaxHeight().background(statusColor.copy(alpha = .3f)))
+            Box(Modifier.padding(top = 16.dp).size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(statusColor))
         }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text(detail, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .62f), fontSize = 14.sp, lineHeight = 19.sp)
+        Row(Modifier.weight(1f).padding(start = 8.dp, top = 10.dp, bottom = 10.dp, end = 6.dp), verticalAlignment = Alignment.Top) {
+            Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(androidx.compose.ui.graphics.Color(item.color)), contentAlignment = Alignment.Center) {
+                Icon(item.icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.title, color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
+                    Text(item.status.label, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
+                        modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(50)).background(statusColor.copy(alpha = .16f)).padding(horizontal = 7.dp, vertical = 2.dp))
+                }
+                Text(item.detail, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .62f), fontSize = 14.sp, lineHeight = 19.sp)
+            }
         }
     }
 }
+
 
 /** iOS-style alternate app icons: tap one to use it for Folio's app entry. */
 @Composable private fun AppIconCard(onChanged: () -> Unit) {
@@ -1599,6 +1631,13 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
         }
         SettingsCard("Automatic Updates") {
             SettingsSwitch("Check for Updates Daily", auto, { auto = it; SoftwareUpdate.setAutoCheck(context, it) }, "update-auto")
+            var notify by remember { mutableStateOf(SoftwareUpdate.notify(context)) }
+            val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted -> notify = granted; SoftwareUpdate.setNotify(context, granted) }
+            if (auto) SettingsSwitch("Notify Me About Updates", notify, { on ->
+                if (on && !SoftwareUpdate.canPostNotifications(context)) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                else { notify = on; SoftwareUpdate.setNotify(context, on) }
+            }, "update-notify")
             var autoInstall by remember { mutableStateOf(SoftwareUpdate.autoInstall(context)) }
             if (auto) SettingsSwitch("Install Updates Automatically", autoInstall, { autoInstall = it; SoftwareUpdate.setAutoInstall(context, it) }, "update-auto-install")
             Text("Folio checks GitHub Releases at most once a day and shows the update here. Installing always verifies the download and that it's signed with Folio's key.",

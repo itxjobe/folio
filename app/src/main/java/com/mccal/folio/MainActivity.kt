@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(IslandEvents.Observer(this))
         updateDefaultHome()
         if (savedInstanceState == null && intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
-        if (savedInstanceState == null && opensSettings(intent)) settingsRequests.intValue++
+        if (savedInstanceState == null && opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
         intent.removeExtra("duo_destination")
         // A recreated activity (rotation, fold, process restart) keeps the pending alert; the launch intent is used once.
         if (savedInstanceState == null) takeSharedTheme(intent)
@@ -426,7 +426,7 @@ class MainActivity : ComponentActivity() {
         takeSharedTheme(intent)
         FoldRenderExperiment.onNewIntent(this, intent)
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
-        if (opensSettings(intent)) settingsRequests.intValue++
+        if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
         else if (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getStringExtra("duo_destination") == "home") {
             closeOverlays(); homeRequests.intValue++
         }

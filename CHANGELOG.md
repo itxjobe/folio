@@ -11,7 +11,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
 - Folder options (columns and a glass, solid or clear background), app name size, and Animation Speed (Relaxed, Standard or Snappy).
 - Side key: choose what holding it does: Folio's picker, a Google search without AI Overviews, or talking straight to Google, Claude or Perplexity (Side Key page).
-- Software Update: check GitHub for a new Folio, download and install it after verifying its checksum and signing key; optional daily checks and automatic installs.
+- Software Update: check GitHub for a new Folio, download and install it after verifying its checksum and signing key; optional daily checks, update notifications and automatic installs.
+- Roadmap in Settings (replaces Coming Soon): what's in this update, what's next, later and being explored.
 - Tweak Library: tweaks are packages you Get (Sileo-style) and only the ones you get show in Settings › Tweaks. New installs start with none; updating keeps the tweaks you already use.
 - Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
 

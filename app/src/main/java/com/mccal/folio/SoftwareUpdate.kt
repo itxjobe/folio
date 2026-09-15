@@ -28,6 +28,9 @@ internal object SoftwareUpdate {
     private const val AUTO = "auto"
     private const val LAST_CHECK = "lastCheck"
     private const val AUTO_INSTALL = "autoInstall"
+    private const val NOTIFY = "notify"
+    private const val NOTIFIED_VERSION = "notifiedVersion"
+    private const val CHANNEL = "software_update"
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
     data class Release(val version: String, val apkUrl: String, val sumsUrl: String?, val notesUrl: String)
@@ -48,6 +51,37 @@ internal object SoftwareUpdate {
     fun autoCheck(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(AUTO, false)
     fun setAutoCheck(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(AUTO, on).apply()
     /** Like iOS "Install iOS Updates": after a daily check finds one, download and install it too. */
+    /** Post a notification when a daily check finds an update (off until the user turns it on). */
+    fun notify(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(NOTIFY, false)
+    fun setNotify(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(NOTIFY, on).apply()
+
+    fun canPostNotifications(context: Context) = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    /** One notification per new version, in its own "Software updates" channel the user can mute in Android settings. */
+    private fun postAvailable(context: Context, release: Release) {
+        val prefs = context.getSharedPreferences(PREFS, 0)
+        if (!notify(context) || !canPostNotifications(context) || prefs.getString(NOTIFIED_VERSION, null) == release.version) return
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { description = "When a new version of Folio is available" })
+        val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java)
+            .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES).putExtra(EXTRA_OPEN_UPDATE, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val notification = android.app.Notification.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle("Folio ${release.version} is available")
+            .setContentText("Tap to see what's new and install it.")
+            .setContentIntent(open).setAutoCancel(true).build()
+        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        prefs.edit().putString(NOTIFIED_VERSION, release.version).apply()
+    }
+
+    const val EXTRA_OPEN_UPDATE = "folio_open_software_update"
+    /** Set when the update notification is tapped, so Settings opens straight to Software Update. */
+    @Volatile var openRequested = false
+    private const val NOTIFICATION_ID = 4101
+
     fun autoInstall(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(AUTO_INSTALL, false)
     fun setAutoInstall(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(AUTO_INSTALL, on).apply()
 
@@ -71,7 +105,8 @@ internal object SoftwareUpdate {
         val prefs = context.getSharedPreferences(PREFS, 0)
         if (System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0) < DAY_MS) return
         check(context)
-        (status.value as? Status.Available)?.takeIf { autoInstall(context) }?.let { downloadAndInstall(context, it.release) }
+        val available = (status.value as? Status.Available)?.release ?: return
+        if (autoInstall(context)) downloadAndInstall(context, available) else postAvailable(context, available)
     }
 
     suspend fun check(context: Context) {
