@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/github/v/release/McCal-Codes/folio?include_prereleases&label=download" alt="Download the latest release"></a>
   <a href="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml"><img src="https://github.com/McCal-Codes/folio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="#what-you-need"><img src="https://img.shields.io/badge/Android-12%2B-3DDC84" alt="Android 12+"></a>
@@ -161,13 +162,17 @@ Android doesn't allow everything iOS does, so a few things work differently:
 ## Install
 
 Download the APK from [Releases](https://github.com/McCal-Codes/folio/releases), open it on your phone and allow the
-install. Then press Home and pick Folio, or open Folio and tap **Set as home app**. There's no release yet, so for now
-[build it yourself](#build-it); the first APK is coming soon.
+install. Then press Home and pick Folio, or open Folio and tap **Set as home app**.
+
+<p align="center">
+  <a href="https://github.com/McCal-Codes/folio/releases/latest"><img src="https://img.shields.io/badge/Download-Folio%200.5.0%20APK-56603F?style=for-the-badge&logo=android&logoColor=white" alt="Download the Folio 0.5.0 APK"></a>
+</p>
 
 To get updates automatically, add this repo to [Obtainium](https://github.com/ImranR98/Obtainium), which installs and
 updates apps from GitHub Releases.
 
 Each release lists the APK's SHA-256 and the signing certificate, so you can check an update comes from the same key.
+Folio's signing certificate SHA-256 is `bad8e099557b70c690e71a3fffe13561c8662c20612047ce1e2559a1c14d8441`.
 A release APK can't install over a build you made yourself (different signing keys); see
 [troubleshooting](docs/troubleshooting.md#an-update-wont-install).
 
