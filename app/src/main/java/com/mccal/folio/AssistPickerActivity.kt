@@ -62,6 +62,9 @@ class AssistPickerActivity : ComponentActivity() {
             LaunchedEffect(Unit) { shown = true }
             var query by remember { mutableStateOf("") }
             val focus = remember { FocusRequester() }
+            // Side key set to "Search Google Without AI": just the search field, ready to type.
+            val searchOnly = intent.getBooleanExtra(EXTRA_SEARCH_ONLY, false)
+            LaunchedEffect(searchOnly) { if (searchOnly) { kotlinx.coroutines.delay(250); runCatching { focus.requestFocus() } } }
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .35f))
                 .clickable(remember { MutableInteractionSource() }, null) { finish() }, contentAlignment = Alignment.BottomCenter) {
                 AnimatedVisibility(shown, enter = fadeIn() + slideInVertically(spring(dampingRatio = .82f, stiffness = Spring.StiffnessMediumLow)) { it / 3 }) {
@@ -69,7 +72,7 @@ class AssistPickerActivity : ComponentActivity() {
                         .clip(RoundedCornerShape(30.dp)).background(Color(0xFF1C1C1E).copy(alpha = .94f))
                         .clickable(remember { MutableInteractionSource() }, null) {}.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        if (!searchOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             targets.forEach { (target, launch, icon) ->
                                 Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable { start(launch) }.padding(8.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally) {
@@ -118,6 +121,7 @@ class AssistPickerActivity : ComponentActivity() {
     }
 
     companion object {
+        const val EXTRA_SEARCH_ONLY = "folio_search_only"
         fun isDefaultAssistant(context: Context): Boolean =
             runCatching { context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT) }.getOrDefault(false)
 

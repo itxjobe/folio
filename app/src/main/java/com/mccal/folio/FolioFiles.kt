@@ -18,6 +18,15 @@ internal object FolioFiles {
     /** A dated file name, like folio-layout-2026-09-15.json. Android adds (1), (2)… if the name is taken. */
     fun datedName(prefix: String, extension: String = "json") = "$prefix-${LocalDate.now()}.$extension"
 
+    /**
+     * A safe file name from what the user typed (letters, numbers, spaces, - and _ kept; ".json" added), or a dated
+     * default when it's blank.
+     */
+    fun fileName(typed: String?, prefix: String, extension: String = "json"): String {
+        val clean = typed.orEmpty().removeSuffix(".$extension").replace(Regex("[^A-Za-z0-9 _-]"), "").trim().take(60)
+        return if (clean.isEmpty()) datedName(prefix, extension) else "$clean.$extension"
+    }
+
     /** Writes [bytes] to Download/Folio and returns the new file, or null if it couldn't be saved. Call off the main thread. */
     fun save(context: Context, name: String, mimeType: String, bytes: ByteArray): Uri? = runCatching {
         val resolver = context.contentResolver

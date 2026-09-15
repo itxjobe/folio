@@ -23,7 +23,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - New muted teal app icon.
 - Folder options (columns and a glass, solid or clear background), app name size, and Animation Speed (Relaxed, Standard or Snappy).
 - Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
-- Side key: choose what holding it does, Folio's picker or talking straight to Google, Claude or Perplexity (Side Key page).
+- Side key: choose what holding it does: Folio's picker, a Google search without AI Overviews, or talking straight to Google, Claude or Perplexity (Side Key page).
 - Glass settings in Wallpaper & Appearance: a Clear, Light, Frosted or Solid style, plus sliders for widget frost, Side Bar frost and the outline.
 - Shorter, iPhone-style setup: Home app, notifications, pull-down gestures and a look. Optional permissions are asked where they're used.
 - Settings has one list of permissions (Privacy & Permissions) instead of a separate Setup Checklist, and no repeated Home app rows.
@@ -46,6 +46,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Discover's Side Bar follows the Glass outline setting.
 - Holding the side key opens Folio's assistant picker on phones that start the assistant through a voice interaction service (like One UI 9). Folio asks Android not to share the current app's screen with it, and the Side Key page warns when Good Lock's RegiStar can override the key.
 - The live Clock icon no longer occasionally stays a normal icon.
+- The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
+- Save Backup asks for a name; the default is dated.
+- Beta labels no longer wrap in narrow Settings layouts.
 - An app's long-press menu no longer cuts off its last row when Clear Badge is showing.
 - Spotlight's Cancel hides the keyboard and has a bigger touch target.
 

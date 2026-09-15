@@ -679,7 +679,10 @@ fun LauncherScreen(
                         leftPageContent(Modifier.fillMaxSize())
                     } else if (page == visibleHomePages) {
                         AppLibrary(state, libraryQuery, { libraryQuery = it }, onLaunch, model::setPinned,
-                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(start = 16.dp, top = 16.dp, bottom = bottomSpace).testTag("library-page"),
+                            // Unfolded portrait: the Side Bar's status capsule sits in the top corner, so the library keeps
+                            // the same side margin Home does instead of running underneath it.
+                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(start = 16.dp, top = 16.dp, bottom = bottomSpace,
+                                end = if (geometry.horizontalDock) (preset.dockWidth + 28f).dp else 0.dp).testTag("library-page"),
                             drag = drag, page = visibleHomePages, onLaunchFrom = onLaunchFrom, onTurnOnWork = { model.turnOnWork(it) })
                     } else {
                         // Centered beside the rail when the grid is narrower than the space (short, wide windows).
@@ -866,7 +869,7 @@ fun LauncherScreen(
                             onAddWidget = { page -> widgetSlot = model.nextWidgetSlot(); widgetTargetIndex = page * HOME_CELLS; widgetPackage = null; widgetProfileSerial = null; widgetExactTarget = false; sheet = "widgets" },
                             onRemoveWidget = widgets::remove,
                             onExportLayout = { sheet = ""; launcherActivity.backups.startExport() },
-                            onSaveLayoutToFolder = { launcherActivity.backups.saveToFolioFolder() },
+                            onSaveLayoutToFolder = { launcherActivity.backups.saveToFolioFolder(it) },
                             onImportLayout = { sheet = ""; launcherActivity.backups.startImport() },
                             appearance = appearance, onAppearanceMode = onAppearanceMode,
                             onAppearanceManual = onAppearanceManual, onAppearanceDeviceLocation = onAppearanceDeviceLocation,

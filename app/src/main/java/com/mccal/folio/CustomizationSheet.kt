@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.asImageBitmap
@@ -42,7 +43,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     isDefaultHome: Boolean, page: CustomizationPage, onPage: (CustomizationPage) -> Unit,
     onMakeDefault: () -> Unit, onClose: () -> Unit, onEditPins: () -> Unit, onWidget: (Int) -> Unit,
     onAddWidget: (Int) -> Unit, onRemoveWidget: (Int) -> Unit, onWallpaperPreview: () -> Unit,
-    onExportLayout: () -> Unit, onImportLayout: () -> Unit, onSaveLayoutToFolder: () -> Unit = {},
+    onExportLayout: () -> Unit, onImportLayout: () -> Unit, onSaveLayoutToFolder: (String) -> Unit = {},
     appearance: AppearanceState, onAppearanceMode: (AppearanceMode) -> Unit,
     onAppearanceManual: (String, Double, Double) -> Unit, onAppearanceDeviceLocation: () -> Unit,
     onAppearanceClear: () -> Unit, backgrounds: LauncherBackgroundController, homePage: Int = 0,
@@ -54,6 +55,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     var tweakId by rememberSaveable { mutableStateOf("") }
     var focusId by rememberSaveable { mutableStateOf("") }
     var settingsQuery by rememberSaveable { mutableStateOf("") }
+    var namingBackup by remember { mutableStateOf(false) }
     val title = when (page) {
         CustomizationPage.OVERVIEW -> "Folio"
         CustomizationPage.SETUP -> "Setup Checklist"
@@ -456,8 +458,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                 }
                 CustomizationPage.BACKUP -> {
+                    if (namingBackup) BackupNameAlert(onCancel = { namingBackup = false }) { name -> namingBackup = false; onSaveLayoutToFolder(name) }
                     SheetGroup {
-                        IosActionRow("Save Backup", "layout-save-folder", onClick = onSaveLayoutToFolder)
+                        IosActionRow("Save Backup…", "layout-save-folder", onClick = { namingBackup = true })
                         MenuDivider()
                         IosActionRow("Save Backup to Files…", "layout-export", onClick = onExportLayout)
                         MenuDivider()
@@ -1392,7 +1395,7 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
 
 /** Beta label beside a title, like TestFlight features. */
 @Composable private fun BetaTag() {
-    Text("BETA", color = androidx.compose.ui.graphics.Color(0xFFFF9F0A), fontSize = 11.sp, fontWeight = FontWeight.Bold,
+    Text("BETA", color = androidx.compose.ui.graphics.Color(0xFFFF9F0A), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
         modifier = Modifier.padding(start = 8.dp).border(1.dp, androidx.compose.ui.graphics.Color(0xFFFF9F0A), RoundedCornerShape(5.dp))
             .padding(horizontal = 5.dp, vertical = 1.dp))
 }
@@ -1405,7 +1408,7 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
     var confirm by remember { mutableStateOf<LayoutSnapshot?>(null) }
     SettingsCard("Layout History") {
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Save Home Before Big Changes"); BetaTag() }
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Save Home Before Big Changes", Modifier.weight(1f, fill = false)); BetaTag() }
             IosSwitch(state.layoutHistory, model::setLayoutHistory, Modifier.testTag("layout-history-switch"))
         }
         Text("Before restoring a backup, Arrange Like iPhone or an older layout, Folio saves your Home here so you can go back. The last ${LayoutHistory.MAX} are kept on this phone.",
@@ -1439,7 +1442,7 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
     val context = androidx.compose.ui.platform.LocalContext.current
     SettingsCard("Dock") {
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Recent App Dots"); BetaTag() }
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Recent App Dots", Modifier.weight(1f, fill = false)); BetaTag() }
             IosSwitch(state.dockRecentDots, { on ->
                 model.setDockRecentDots(on)
                 if (on && !Suggestions.hasUsageAccess(context)) runCatching {
@@ -1483,4 +1486,28 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
             }
         }
     }
+}
+
+/** iOS-style "Save Backup" alert with a name field; the file lands in Download/Folio. */
+@Composable private fun BackupNameAlert(onCancel: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf("Folio Layout ${java.time.LocalDate.now()}") }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    AlertDialog(onDismissRequest = onCancel,
+        title = { Text("Save Backup") },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Saved to ${FolioFiles.displayPath}.", fontSize = 13.sp)
+                androidx.compose.foundation.text.BasicTextField(name, { name = it.take(60) },
+                    Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                        .background(androidx.compose.ui.graphics.Color.White.copy(alpha = .1f)).padding(horizontal = 10.dp, vertical = 8.dp)
+                        .focusRequester(focus).testTag("backup-name"),
+                    singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(color = androidx.compose.ui.graphics.Color.White, fontSize = 15.sp),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onSave(name) }))
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(name) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } })
 }

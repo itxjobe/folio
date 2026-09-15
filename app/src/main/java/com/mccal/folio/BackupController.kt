@@ -83,12 +83,12 @@ class BackupController(
     }
 
     /** Saves a backup straight to Download/Folio, no picker. */
-    fun saveToFolioFolder() {
+    fun saveToFolioFolder(name: String? = null) {
         val state = model.state.value
         val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope) }.getOrElse {
             errorMessage = it.message ?: "Layout backup could not be prepared."; return
         }
-        val name = FolioFiles.datedName("folio-layout")
+        val name = FolioFiles.fileName(name, "folio-layout")
         activity.lifecycleScope.launch {
             val saved = withContext(Dispatchers.IO) { FolioFiles.save(activity, name, "application/json", raw.toByteArray()) }
             if (saved != null) successMessage = "Saved to ${FolioFiles.displayPath} as $name."

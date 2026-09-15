@@ -55,10 +55,14 @@ class FolioRecognitionService : RecognitionService() {
 internal enum class SideKeyHold(val label: String, val action: String?, val packageName: String?) {
     PICKER("Folio Picker", null, null),
     GOOGLE("Talk to Google", "android.intent.action.VOICE_ASSIST", "com.google.android.googlequicksearchbox"),
+    /** Type a search that opens Google's Web results (no AI Overview). Always available. */
+    SEARCH_NO_AI("Search Google Without AI", null, null),
     CLAUDE("Talk to Claude", "android.intent.action.VOICE_ASSIST", "com.anthropic.claude"),
     PERPLEXITY("Talk to Perplexity", Intent.ACTION_VOICE_COMMAND, "ai.perplexity.app.android");
 
     fun intent(context: android.content.Context): Intent? {
+        if (this == SEARCH_NO_AI) return Intent(context, AssistPickerActivity::class.java)
+            .putExtra(AssistPickerActivity.EXTRA_SEARCH_ONLY, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (action == null || packageName == null) return null
         val intent = Intent(action).setPackage(packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return intent.takeIf { it.resolveActivity(context.packageManager) != null }
