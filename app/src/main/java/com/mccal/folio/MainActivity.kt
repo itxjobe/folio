@@ -183,6 +183,7 @@ class MainActivity : ComponentActivity() {
             val iconTint = if (state.iconTintFromWallpaper) wallpaperTone.primary?.let(::vividTint)?.toLong()?.and(0xFFFFFFFFL) ?: state.iconTint else state.iconTint
             androidx.compose.runtime.CompositionLocalProvider(
                 LocalWallpaperTone provides wallpaperTone,
+                LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline),
                 LocalReduceMotion provides reduceMotion,
                 LocalHinge provides rememberHinge(this@MainActivity),
                 // Tablets and desktop windows draw Folio proportionally larger instead of a phone-sized layout lost in a

@@ -202,11 +202,11 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         }, modifier = Modifier.testTag("background-change-system")) { Text(stringResource(R.string.change_android_wallpaper)) }
                     }
+                    GlassCardSettings(state, model)
                     SettingsCard(stringResource(R.string.text_on_home)) {
                         IosMenuRow("Text Color", listOf("AUTO" to "Automatic", "LIGHT" to "Light", "DARK" to "Dark"), state.homeInk, model::setHomeInk, tag = "home-ink")
                         Text(stringResource(R.string.labels_status_page_dots_and_widget_text),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        SettingsSwitch(stringResource(R.string.tint_glass_with_wallpaper_color), state.tintedGlass, model::setTintedGlass, "tinted-glass-switch")
                         SettingsSwitch(stringResource(R.string.dark_appearance_dims_wallpaper), state.dimWallpaperDark, model::setDimWallpaperDark, "dim-wallpaper-switch")
                         if (state.systemWallpaper) SettingsSwitch(stringResource(R.string.wallpaper_moves_with_pages), state.wallpaperMotion, model::setWallpaperMotion, "wallpaper-motion-switch")
                     }
@@ -367,9 +367,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.side_rail)) {
                         SettingsSwitch(stringResource(R.string.left_handed_layout_rail_on_the_left), state.leftHanded, model::setLeftHanded, "left-handed-switch")
                         SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
-                        CustomizationSlider("Frost", "${(st.railGlass * 100).toInt()}%", st.railGlass, 0f..0.8f) {
-                            model.setStatusStyle(st.copy(railGlass = it))
-                        }
+                        Text("Frost and outline are in Wallpaper & Appearance › Glass.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.status)) {
                         SettingsSwitch(stringResource(R.string.show_status_in_the_rail), state.verticalStatus, model::setVerticalStatus, "status-switch")
@@ -748,6 +747,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
 private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = listOf(
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
+    Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
     Triple("Tint glass with wallpaper color", "glass tint frost blur", CustomizationPage.WALLPAPER),
     Triple("Dark appearance dims wallpaper", "dim dark mode night", CustomizationPage.WALLPAPER),
     Triple("Appearance (light, dark, sunset)", "theme dark light sunrise", CustomizationPage.WALLPAPER),
@@ -1137,7 +1137,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             Box(Modifier.offset(x = (cells.x(w.column, w.row) + 5f).dp, y = cells.y(w.row).dp)
                                 .size((geometry.cellWidth * w.spanX - 10f).dp, (cells.spanHeight(w.row, w.spanY) - 18f).coerceAtLeast(48f).dp)) {
                                 if (w.id < 0) BuiltinWidgetCard(w.id, w.slot) {}
-                                else Box(Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)).background(glass.copy(alpha = .26f)), contentAlignment = Alignment.Center) {
+                                else Box(Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)).background(glass.copy(alpha = LocalGlassLook.current.widget)), contentAlignment = Alignment.Center) {
                                     Icon(Icons.Rounded.Widgets, null, tint = ink.secondary, modifier = Modifier.size(32.dp))
                                 }
                             }
@@ -1159,7 +1159,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
                     Column(Modifier.align(Alignment.TopEnd).padding(end = 12.dp).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
                         .height(geometry.dockHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
-                        .border(1.dp, RailBorder, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         state.dock.forEach { id ->
                             Box(Modifier.fillMaxWidth().height(geometry.dockRowHeight.dp), contentAlignment = Alignment.Center) {
                                 id?.let(apps::get)?.let { AppIcon(it, null, Modifier.size(dockIconSize(iconSize).dp), shape = RoundedCornerShape(11.dp)) }
@@ -1432,6 +1432,24 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
             }, Modifier.testTag("dock-recent-dots-switch"))
         }
         Text("A small dot beside dock apps you've used in the last hour. Android doesn't tell launchers which apps are running, so this uses Usage Access.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Settings › Wallpaper & Appearance › Glass: one style menu for most people, sliders to fine-tune. */
+@Composable private fun GlassCardSettings(state: LauncherState, model: LauncherModel) {
+    val presets = listOf("CLEAR" to .08f, "LIGHT" to .16f, "FROSTED" to .26f, "SOLID" to .55f)
+    val rail = state.statusStyle.railGlass
+    val current = presets.firstOrNull { (_, v) -> kotlin.math.abs(state.widgetGlass - v) < .005f && kotlin.math.abs(rail - v) < .005f }?.first ?: "CUSTOM"
+    SettingsCard("Glass") {
+        IosMenuRow("Style", listOf("CLEAR" to "Clear", "LIGHT" to "Light", "FROSTED" to "Frosted", "SOLID" to "Solid") +
+            (if (current == "CUSTOM") listOf("CUSTOM" to "Custom") else emptyList()), current,
+            { key -> presets.firstOrNull { it.first == key }?.let { model.setGlassPreset(it.second) } }, tag = "glass-style")
+        CustomizationSlider("Widgets", "${(state.widgetGlass * 100).toInt()}%", state.widgetGlass, 0f..0.8f, model::setWidgetGlass)
+        CustomizationSlider("Side Bar", "${(rail * 100).toInt()}%", rail, 0f..0.8f) { model.setStatusStyle(state.statusStyle.copy(railGlass = it)) }
+        CustomizationSlider("Outline", if (state.glassOutline < .01f) "Off" else "${(state.glassOutline * 100).toInt()}%", state.glassOutline, 0f..0.5f, model::setGlassOutline)
+        SettingsSwitch(stringResource(R.string.tint_glass_with_wallpaper_color), state.tintedGlass, model::setTintedGlass, "tinted-glass-switch")
+        Text("Frost is how see-through widgets and the Side Bar are; the outline is the thin light edge around them.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

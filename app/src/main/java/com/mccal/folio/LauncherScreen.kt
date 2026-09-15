@@ -719,7 +719,7 @@ fun LauncherScreen(
                     compositingStrategy = if (state.dockMagnify) androidx.compose.ui.graphics.CompositingStrategy.Auto
                         else androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                 }.background(Glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
-                .border(1.dp, RailBorder, RoundedCornerShape(30.dp)).testTag("dock")) {
+                .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).testTag("dock")) {
                 Column(if (geometry.horizontalDock) Modifier.fillMaxSize().padding(horizontal = 8.dp) else Modifier.padding(vertical = 8.dp).verticalScroll(dockScroll)) {
                     DockAppColumn(state.dock, previewLayout.dock, appsById, if (geometry.horizontalDock) dockPitch else geometry.dockRowHeight,
                         dockIconSize(geometry.iconSize), drag, insertionTarget,

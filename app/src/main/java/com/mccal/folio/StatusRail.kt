@@ -65,7 +65,6 @@ data class StatusStyle(
 enum class StatusGlyph(val label: String) { RING("Ring"), ICONS("Icons"), MINIMAL("Battery only"), NONE("Hidden") }
 
 /** Shared capsule look for the side rail (status, dock, island). */
-internal val RailBorder = Color.White.copy(alpha = .16f)
 
 @Composable
 fun StatusRail(
@@ -141,7 +140,7 @@ fun StatusRail(
                 (!compact && style.showBatteryPercent)
             // Same frosted capsule as the dock so status and dock read as one side rail.
             if (hasContent) Column(Modifier.fillMaxWidth().background(Glass.copy(alpha = style.railGlass), capsule)
-                .border(1.dp, RailBorder, capsule)
+                .border(1.dp, LocalGlassLook.current.outlineColor, capsule)
                 .padding(vertical = if (compact) 8.dp else 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 focus?.let { Icon(it.icon(), "${it.name} on", tint = androidx.compose.ui.graphics.Color(it.color).let { c ->
