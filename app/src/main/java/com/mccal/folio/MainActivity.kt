@@ -369,14 +369,23 @@ class MainActivity : ComponentActivity() {
         if (shadeSetupDialog?.isShowing == true) return
         ownShadeSetupExternally()
         shadeSetupDialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Turn on Folio gestures")
-            .setMessage("Android requires you to enable “Folio gestures & overlays” in Accessibility settings. It opens Notifications or Quick Settings, and draws the dock handle and island over other apps only if you turn those on. It doesn’t read screen content or watch what you do in other apps.")
-            .setNegativeButton("Not now", null)
-            .setPositiveButton("Open settings") { _, _ ->
-                try {
-                    returningFromShadeSettings = true
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                } catch (_: android.content.ActivityNotFoundException) {
+            .setTitle("Turn On Folio Gestures")
+            .setMessage("Android asks you to turn this on yourself:\n\n" +
+                "1. Tap Open Settings, find “Folio gestures & overlays” (often under Installed apps) and turn it on.\n" +
+                "2. If it's greyed out or Android calls it a restricted setting, tap App Info, open the ⋮ menu, choose " +
+                "“Allow restricted settings”, then come back and try again. Android does this for apps installed from a file.\n\n" +
+                "Folio uses it to open Notification Center and Control Center, and for the dock and island over other apps. " +
+                "It can't read what's on your screen.")
+            .setNegativeButton("Not Now", null)
+            .setNeutralButton("App Info") { _, _ ->
+                returningFromShadeSettings = true
+                runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
+                    .onFailure { returningFromShadeSettings = false; releaseShadeSetupOwnership() }
+            }
+            .setPositiveButton("Open Settings") { _, _ ->
+                returningFromShadeSettings = true
+                val opened = runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }.isSuccess
+                if (!opened) {
                     returningFromShadeSettings = false
                     releaseShadeSetupOwnership()
                     Toast.makeText(this, "Accessibility settings are unavailable.", Toast.LENGTH_LONG).show()
