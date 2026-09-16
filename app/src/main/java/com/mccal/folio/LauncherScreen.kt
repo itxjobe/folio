@@ -1031,7 +1031,8 @@ fun LauncherScreen(
                         }
                         val existing = model.placement(widgetSlot)
                         val special = existing?.takeIf { it.row + it.spanY > GRID_ROWS }
-                        val span = existing?.let { WidgetSpan(it.spanX, it.spanY) } ?: WidgetSpan(2, 2)
+                        // Big Clock starts as wide as the page, like the Lock Screen clock; the others are small.
+                        val span = existing?.let { WidgetSpan(it.spanX, it.spanY) } ?: WidgetSpan(if (builtinId == BIG_CLOCK_WIDGET) 4 else 2, 2)
                         if (special != null) {
                             widgetSession = WidgetPickerSession(null, widgetSlot, span, Offset.Zero,
                                 dragging = false, candidate = special, builtinId = builtinId)
@@ -1166,6 +1167,7 @@ fun LauncherScreen(
                                                 DATE_WIDGET -> "Date"
                                                 UP_NEXT_WIDGET -> "Up Next"
                                                 SUGGESTIONS_WIDGET -> "Suggestions"
+                                                BIG_CLOCK_WIDGET -> "Big Clock"
                                                 else -> "Widget panel"
                                             }, color = Ink,
                                             textAlign = TextAlign.Center)

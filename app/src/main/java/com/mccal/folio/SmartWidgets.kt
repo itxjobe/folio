@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import java.time.format.DateTimeFormatter
 
 const val UP_NEXT_WIDGET = -6
 const val SUGGESTIONS_WIDGET = -7
+const val BIG_CLOCK_WIDGET = -8
 
 /** Apps and launching for built-in widgets that show apps (provided by Home). */
 internal class HomeApps(val apps: List<AppEntry>, val launch: (AppEntry) -> Unit)
@@ -80,6 +82,49 @@ internal fun UpNextCard(onEdit: () -> Unit) {
                 Text(time(alarm), color = ink.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
             else -> Text("No more events today", color = ink.secondary, fontSize = 13.sp)
+        }
+    }
+}
+
+/**
+ * Big Clock, like the iPhone Lock Screen: a large time straight on the wallpaper, with the date and what's next (the next
+ * event today, or the next alarm) underneath. Calendar details only show once calendar access is allowed.
+ */
+@Composable
+internal fun BigClockCard(onEdit: () -> Unit) {
+    val context = LocalContext.current
+    val ink = LocalHomeInk.current
+    val tick by rememberMinuteTick()
+    val screenshot by ScreenshotMode.on.collectAsState()
+    val now = displayNow(tick)
+    val is24 = android.text.format.DateFormat.is24HourFormat(context)
+    val allowed = remember(tick) { UpNext.hasCalendar(context) }
+    val event by produceState<UpNextEvent?>(null, tick, allowed, screenshot) {
+        value = if (!allowed || screenshot) null else withContext(Dispatchers.IO) { UpNext.events(context, limit = 1).firstOrNull() }
+    }
+    val alarm = remember(tick, screenshot) { if (screenshot) null else UpNext.nextAlarm(context) }
+    val today = now.toLocalDate()
+    fun time(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).let { t ->
+        (if (t.toLocalDate() != today) t.format(DateTimeFormatter.ofPattern("EEE ")) else "") + t.format(DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm a"))
+    }
+    val shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = if (ink.dark) 0f else .25f), blurRadius = 8f)
+    BoxWithConstraints(Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)).clickable(onClick = onEdit)
+        .semantics(mergeDescendants = true) {}, contentAlignment = Alignment.Center) {
+        val big = (maxHeight.value * .46f).coerceAtMost(maxWidth.value * .3f).sp
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), color = ink.primary, fontSize = (big.value * .2f).coerceIn(13f, 20f).sp,
+                fontWeight = FontWeight.SemiBold, style = androidx.compose.ui.text.TextStyle(shadow = shadow))
+            Text(now.format(DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm")), color = ink.primary, fontSize = big,
+                fontWeight = FontWeight.SemiBold, lineHeight = big * 1.02f, maxLines = 1,
+                style = androidx.compose.ui.text.TextStyle(shadow = shadow, fontFeatureSettings = "tnum"))
+            val next = event?.let { e -> (if (e.allDay) "All Day" else time(e.begin)) + " · " + e.title }
+                ?: alarm?.let { "Alarm · " + time(it) }
+            if (next != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (event != null) Icons.Rounded.CalendarToday else Icons.Rounded.Alarm, null, tint = ink.secondary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(5.dp))
+                Text(next, color = ink.secondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = androidx.compose.ui.text.TextStyle(shadow = shadow))
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.compose.material.icons.rounded.LockClock
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.ui.res.stringResource
@@ -277,9 +278,9 @@ internal fun VisualWidgetPicker(
                 if (words.isEmpty() && selectedProfile.isPersonal) {
                     header("duo-widgets", "Folio")
                     items(listOf(Triple(CLOCK_WIDGET, "Clock", Icons.Rounded.Schedule), Triple(DATE_WIDGET, "Date", Icons.Rounded.CalendarToday),
-                        Triple(UP_NEXT_WIDGET, "Up Next", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(SUGGESTIONS_WIDGET, "Suggestions", androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
+                        Triple(UP_NEXT_WIDGET, "Up Next", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(BIG_CLOCK_WIDGET, "Big Clock", Icons.Rounded.LockClock), Triple(SUGGESTIONS_WIDGET, "Suggestions", androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
                         Triple(INFO_WIDGET, "Widget Panel", Icons.Rounded.Widgets)), key = { "builtin-${it.first}" }) { (id, label, icon) ->
-                        GalleryCard(label, "Folio", "Small", Modifier.testTag("widget-builtin-$id")
+                        GalleryCard(label, "Folio", if (id == BIG_CLOCK_WIDGET) "Wide" else "Small", Modifier.testTag("widget-builtin-$id")
                             .clickable { focusManager.clearFocus(); keyboard?.hide(); onBuiltin(id) }) {
                             Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp))
                                 .background(Color.White.copy(alpha = .1f)), contentAlignment = Alignment.Center) {
