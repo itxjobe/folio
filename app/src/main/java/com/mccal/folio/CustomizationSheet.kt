@@ -1865,7 +1865,8 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
                     status == SoftwareUpdate.Status.UpToDate -> "Folio is up to date"
                     status is SoftwareUpdate.Status.Failed -> (status as SoftwareUpdate.Status.Failed).message
                     else -> SoftwareUpdate.lastChecked(context).takeIf { it > 0 }?.let { "Last checked " +
-                        android.text.format.DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS) }
+                        if (System.currentTimeMillis() - it < 60_000) "just now"
+                        else android.text.format.DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS) }
                         ?: "Updates come from Folio's GitHub releases"
                 }, style = MaterialTheme.typography.bodySmall,
                     color = if (status is SoftwareUpdate.Status.Failed) androidx.compose.ui.graphics.Color(0xFFFF453A) else MaterialTheme.colorScheme.onSurfaceVariant)
