@@ -129,6 +129,13 @@ private fun FullScreenPage(onDismissRequest: () -> Unit, content: @Composable Co
             }
         }
         val slide = rememberEntrance(stiffness = 500f, from = 1f, to = 0f)
+        // Once the page covers Home, drawing and blurring Home is work nobody sees, and it shows up as stutter
+        // while you're moving between Folio and Android's permission screens. It comes back the moment it's needed.
+        val covering = slide.value == 0f
+        DisposableEffect(covering) {
+            if (covering) LauncherPagesOpen.intValue++
+            onDispose { if (covering) LauncherPagesOpen.intValue-- }
+        }
         MaterialTheme(colorScheme = FolioSheetColors, typography = MaterialTheme.typography) {
             androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
                 translationX = size.width * slide.value
