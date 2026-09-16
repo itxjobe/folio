@@ -7,7 +7,12 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ## [0.6.1] - Unreleased
 
+### Added
+- Status options in Icons & Side Bar: Compact spacing brings the time and date closer together, and Background turns off the frosted capsule behind the status (the dock keeps its own).
+- Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
+
 ### Fixed
+- Google Discover beside Home is only used on Android 17 and newer; on Android 16 (reported on the Galaxy Z Fold7, issue #12) it could leave smeared copies of Home on screen, so Discover opens as its own page there.
 - Creating a folder no longer shows a second copy of it on the unfolded screen's extra left page.
 - Folders can be moved again: dragging one no longer drops it onto itself (which buzzed and put it back).
 

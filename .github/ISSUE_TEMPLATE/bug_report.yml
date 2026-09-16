@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting! Help › **Report a Bug** in Folio fills in the first three fields for you.
+        Thanks for reporting! Help › **Report a Bug** in Folio fills in the phone details for you, and can copy diagnostics to paste below.
         Before attaching screenshots or crash reports, check them for notifications, account names, contacts or work data.
   - type: input
     id: version
@@ -63,3 +63,13 @@ body:
       description: Screenshots, a screen recording or a crash report (Settings › Help › Safe Mode & crash reports) help a lot.
     validations:
       required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In Folio, Settings › Help › Report a Bug › **Copy Diagnostics**, then paste here (or use Settings › Advanced › Share Diagnostics).
+        It has your phone and screen settings, recent Folio events and Folio's own log. Check it before posting.
+      render: text
+    validations:
+      required: false

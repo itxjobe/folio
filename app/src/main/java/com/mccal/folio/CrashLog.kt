@@ -19,6 +19,7 @@ internal object CrashLog {
         val app = context.applicationContext
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         SafeMode.onStart(app)
+        Diagnostics.onStart(app)
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { write(app, thread, error) }
             runCatching { SafeMode.onCrash(app) }
@@ -26,32 +27,45 @@ internal object CrashLog {
         }
     }
 
-    private fun dir(context: Context) = File(context.filesDir, DIR).apply { mkdirs() }
+    internal fun dir(context: Context) = File(context.filesDir, DIR).apply { mkdirs() }
 
-    internal fun report(context: Context, threadName: String, error: Throwable, now: LocalDateTime = LocalDateTime.now()): String {
-        val config = context.resources.configuration
+    /** Folio version, phone and screen: the lines every report starts with. */
+    internal fun environment(context: Context): String {
         val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
-        return buildString {
+        return "Folio: $version\n" +
+            "Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})\n" +
+            "Build: ${Diagnostics.buildDisplay()}\n" +
+            "Screen: ${Diagnostics.screenSummary(context)}"
+    }
+
+    /** Writes one report file of [kind] and keeps only the newest few. */
+    internal fun save(context: Context, kind: String, text: String) {
+        val folder = dir(context)
+        File(folder, "$kind-${System.currentTimeMillis()}.txt").writeText(text)
+        reports(context).drop(KEEP).forEach { it.delete() }
+    }
+
+    internal fun report(context: Context, threadName: String, error: Throwable, now: LocalDateTime = LocalDateTime.now()): String =
+        buildString {
             appendLine("Folio crash report")
             appendLine("Time: ${now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
-            appendLine("Folio: $version")
-            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})")
-            appendLine("Screen: ${if (config.isRegular()) "unfolded" else "folded"} (${config.screenWidthDp}×${config.screenHeightDp} dp)")
+            appendLine(environment(context))
             appendLine("Thread: $threadName")
             appendLine()
-            append(error.stackTraceToString())
+            appendLine(error.stackTraceToString())
+            Diagnostics.trailText().takeIf { it.isNotBlank() }?.let { appendLine("Before it:"); append(it) }
         }
-    }
 
-    private fun write(context: Context, thread: Thread, error: Throwable) {
-        val folder = dir(context)
-        File(folder, "crash-${System.currentTimeMillis()}.txt").writeText(report(context, thread.name, error))
-        folder.listFiles()?.sortedByDescending { it.name }?.drop(KEEP)?.forEach { it.delete() }
-    }
+    private fun write(context: Context, thread: Thread, error: Throwable) = save(context, "crash", report(context, thread.name, error))
 
-    fun reports(context: Context): List<File> = dir(context).listFiles()?.sortedByDescending { it.name }.orEmpty()
+    /** Newest first; only report files (not the saved trail). */
+    fun reports(context: Context): List<File> = dir(context).listFiles()
+        ?.filter { it.name.endsWith(".txt") && it.name.substringBefore('-') in KINDS }
+        ?.sortedByDescending { it.name.substringAfter('-') }.orEmpty()
 
-    fun clear(context: Context) { dir(context).listFiles()?.forEach { it.delete() } }
+    private val KINDS = setOf("crash", "exit", "restart")
+
+    fun clear(context: Context) { reports(context).forEach { it.delete() } }
 
     /** Share sheet with the report text, so you choose where it goes. */
     fun shareIntent(file: File): Intent = Intent.createChooser(

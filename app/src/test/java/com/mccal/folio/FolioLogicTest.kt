@@ -91,7 +91,7 @@ class ShadeZonesTest {
 class StatusStyleJsonTest {
     @Test fun roundTrip() {
         val style = StatusStyle(showTime = false, showDate = true, showBatteryPercent = false, glyph = StatusGlyph.ICONS,
-            colorfulBattery = false, railGlass = .5f, showSilent = false)
+            colorfulBattery = false, railGlass = .5f, showSilent = false, background = false, compactSpacing = true)
         assertEquals(style, StatusStyle.fromJson(style.toJson()))
         for (glyph in StatusGlyph.entries) assertEquals(glyph, StatusStyle.fromJson(StatusStyle(glyph = glyph).toJson()).glyph)
     }

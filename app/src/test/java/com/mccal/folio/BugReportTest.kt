@@ -13,4 +13,9 @@ class BugReportTest {
         assertEquals("https://github.com/McCal-Codes/folio/issues/new?template=bug_report.yml&version=" +
             "&phone=Google+Pixel+%26+Co&android=16+%28API+36%29", BugReport.url(null, "Google", "Google Pixel & Co", "16", 36))
     }
+
+    @Test fun `adds the screen summary to the diagnostics field`() {
+        assertEquals(true, BugReport.url("0.6.1", "samsung", "SM-F966U", "16", 36, "folded 411×891 dp")
+            .endsWith("&diagnostics=Screen%3A+folded+411%C3%97891+dp%0A%0A"))
+    }
 }

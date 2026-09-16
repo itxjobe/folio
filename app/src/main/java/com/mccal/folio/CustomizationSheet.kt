@@ -442,6 +442,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             SettingsSwitch(stringResource(R.string.time), st.showTime, { model.setStatusStyle(st.copy(showTime = it)) }, "status-time")
                             SettingsSwitch(stringResource(R.string.date), st.showDate, { model.setStatusStyle(st.copy(showDate = it)) }, "status-date")
                             SettingsSwitch(stringResource(R.string.battery_percentage), st.showBatteryPercent, { model.setStatusStyle(st.copy(showBatteryPercent = it)) }, "status-percent")
+                            IosMenuRow("Spacing", listOf(false to "Standard", true to "Compact"), st.compactSpacing,
+                                { model.setStatusStyle(st.copy(compactSpacing = it)) }, tag = "status-spacing")
+                            SettingsSwitch("Background", st.background, { model.setStatusStyle(st.copy(background = it)) }, "status-background")
                             SettingsSwitch("Silent mode icon", st.showSilent, { model.setStatusStyle(st.copy(showSilent = it)) }, "status-silent")
                             SettingsSwitch(stringResource(R.string.color_battery_when_charging_or_low), st.colorfulBattery, { model.setStatusStyle(st.copy(colorfulBattery = it)) }, "status-color")
                             Text("Status colors: green while charging, orange when low, a red Silent bell, and colored Rings.",
@@ -556,8 +559,16 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     // Getting help lives here rather than as more rows in the main list (fewer choices there).
                     val helpContext = androidx.compose.ui.platform.LocalContext.current
                     SheetGroup {
-                        TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug") {
-                            runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) }
+                        var askDiagnostics by remember { mutableStateOf(false) }
+                        TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug") { askDiagnostics = true }
+                        if (askDiagnostics) {
+                            fun openForm() { runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) } }
+                            AlertDialog(onDismissRequest = { askDiagnostics = false },
+                                title = { Text("Include Diagnostics?") },
+                                text = { Text("Copy Diagnostics puts your phone and screen settings, recent Folio events and Folio's own log on the clipboard, so you can paste it into the form. Check it before posting; nothing is sent until you submit.") },
+                                confirmButton = { TextButton(onClick = { askDiagnostics = false; Diagnostics.copy(helpContext); openForm() },
+                                    modifier = Modifier.testTag("report-copy-diagnostics")) { Text("Copy Diagnostics") } },
+                                dismissButton = { TextButton(onClick = { askDiagnostics = false; openForm() }) { Text("Just Open Form") } })
                         }
                         MenuDivider()
                         TweakRow(Icons.Rounded.WavingHand, 0xFFFF9F0A, "Show Welcome Again", "customization-onboarding") { onClose(); onShowWelcome() }
@@ -1160,7 +1171,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     val context = androidx.compose.ui.platform.LocalContext.current
     var reports by remember { mutableStateOf(CrashLog.reports(context)) }
     SettingsCard(stringResource(R.string.crash_reports)) {
-        Text(if (reports.isEmpty()) "No crashes recorded." else "${reports.size} saved on this phone. Nothing is sent unless you share it.",
+        Text(if (reports.isEmpty()) "No problems recorded." else "${reports.size} saved on this phone (crashes, freezes and restarts). Nothing is sent unless you share it.",
             style = MaterialTheme.typography.bodyMedium)
         reports.firstOrNull()?.let { latest ->
             Text(latest.readLines().take(5).joinToString("\n"), style = MaterialTheme.typography.bodySmall,
@@ -1172,6 +1183,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                 TextButton(onClick = { CrashLog.clear(context); reports = emptyList() }) { Text(stringResource(R.string.clear)) }
             }
         }
+        TextButton(onClick = { runCatching { context.startActivity(Diagnostics.shareIntent(context).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+            modifier = Modifier.testTag("share-diagnostics")) { Text("Share Diagnostics") }
+        Text("Phone and screen settings, recent Folio events, crash, freeze and restart reports, and Folio's own log, for a bug report. You choose where it goes.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

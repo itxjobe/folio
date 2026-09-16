@@ -205,6 +205,8 @@ fun LauncherScreen(
     // The page left of Home is Folio's Today View, Google Discover when chosen and available, or nothing at all.
     val todayMode = state.leftPage == "TODAY"
     val discoverMode = state.leftPage == "DISCOVER"
+    // Only Discover hosted beside Home reads the recorded Home layer.
+    val hostedDiscover = discoverMode && DiscoverBounds.available
     val currentTodayMode by rememberUpdatedState(todayMode)
     val firstHome = if (todayMode || (discoverMode && DiscoverBounds.available)) 1 else 0
     DisposableEffect(discoverMode) {
@@ -476,7 +478,7 @@ fun LauncherScreen(
         // The feed frame reuses the pager's render nodes in another window. Give Main
         // a complete render target so cross-window damage cannot erase stationary controls.
         // Only Google Discover's hosted feed needs it; with Today View an extra offscreen pass just costs frames.
-        compositingStrategy = if (todayMode) androidx.compose.ui.graphics.CompositingStrategy.Auto
+        compositingStrategy = if (!hostedDiscover) androidx.compose.ui.graphics.CompositingStrategy.Auto
             else androidx.compose.ui.graphics.CompositingStrategy.Offscreen
     }.onSizeChanged { LiveDiscover.fullSize = androidx.compose.ui.geometry.Size(it.width.toFloat(), it.height.toFloat()) }.testTag("launcher-root").homeDragInput(drag,
         enabled = sheet.isEmpty() && !showFirstRun && selectedId == null && resizeSlot == null && pager.currentPage >= 0,
@@ -626,8 +628,8 @@ fun LauncherScreen(
             val pagerModifier = Modifier.align(if (state.leftHanded) Alignment.TopEnd else Alignment.TopStart)
                 .fillMaxHeight().width(pagerWidth)
                 .drawWithContent {
-                    // The recorded Home layer only feeds Google Discover's frame; Today View draws directly.
-                    if (todayMode) drawContent()
+                    // The recorded Home layer only feeds Google Discover's frame; Today View and None draw directly.
+                    if (!hostedDiscover) drawContent()
                     else {
                         homeLayer.record { this@drawWithContent.drawContent() }
                         drawLayer(homeLayer)

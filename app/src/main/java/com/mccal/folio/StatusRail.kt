@@ -49,10 +49,15 @@ data class StatusStyle(
     val railGlass: Float = .26f,
     /** A bell with a slash while the ringer is on silent or vibrate, like iPhone's status bar. */
     val showSilent: Boolean = true,
+    /** The frosted capsule behind the status (the dock keeps its own). */
+    val background: Boolean = true,
+    /** Time, date and icons packed closer together. */
+    val compactSpacing: Boolean = false,
 ) {
     fun toJson(): org.json.JSONObject = org.json.JSONObject().put("showTime", showTime).put("showDate", showDate)
         .put("showBatteryPercent", showBatteryPercent).put("glyph", glyph.name).put("colorfulBattery", colorfulBattery)
         .put("railGlass", railGlass.toDouble()).put("showSilent", showSilent)
+        .put("background", background).put("compactSpacing", compactSpacing)
 
     companion object {
         fun fromJson(j: org.json.JSONObject?): StatusStyle = if (j == null) StatusStyle() else StatusStyle(
@@ -61,7 +66,8 @@ data class StatusStyle(
             glyph = runCatching { StatusGlyph.valueOf(j.optString("glyph")) }.getOrDefault(StatusGlyph.RING),
             colorfulBattery = j.optBoolean("colorfulBattery", true),
             railGlass = j.optDouble("railGlass", .26).toFloat().coerceIn(0f, 1f),
-            showSilent = j.optBoolean("showSilent", true))
+            showSilent = j.optBoolean("showSilent", true),
+            background = j.optBoolean("background", true), compactSpacing = j.optBoolean("compactSpacing", false))
     }
 }
 
@@ -95,7 +101,9 @@ fun StatusRail(
     val homeInk = LocalHomeInk.current.let { base ->
         if (!base.automatic) base else {
             val wallpaperLum = tone.primary?.let { Color(it).luminance() } ?: if (tone.prefersDarkText) .75f else .25f
-            val capsuleLum = wallpaperLum + (glassColor.luminance() - wallpaperLum) * style.railGlass.coerceIn(0f, 1f) * 1.6f
+            // Without the capsule the text sits right on the wallpaper.
+            val capsuleLum = if (!style.background) wallpaperLum
+                else wallpaperLum + (glassColor.luminance() - wallpaperLum) * style.railGlass.coerceIn(0f, 1f) * 1.6f
             HomeInk(dark = capsuleLum.coerceIn(0f, 1f) > .5f, automatic = true)
         }
     }
@@ -151,10 +159,12 @@ fun StatusRail(
             val hasContent = style.showTime || (!compact && style.showDate) || style.glyph != StatusGlyph.NONE ||
                 (!compact && style.showBatteryPercent)
             // Same frosted capsule as the dock so status and dock read as one side rail.
-            if (hasContent) Column(Modifier.fillMaxWidth().background(Glass.copy(alpha = style.railGlass), capsule)
-                .border(1.dp, LocalGlassLook.current.outlineColor, capsule)
-                .padding(vertical = if (compact) 8.dp else 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            val tight = style.compactSpacing
+            if (hasContent) Column(Modifier.fillMaxWidth()
+                .then(if (style.background) Modifier.background(Glass.copy(alpha = style.railGlass), capsule)
+                    .border(1.dp, LocalGlassLook.current.outlineColor, capsule) else Modifier)
+                .padding(vertical = if (compact || tight) 8.dp else 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (tight) 0.dp else 4.dp)) {
                 focus?.let { Icon(it.icon(), "${it.name} on", tint = androidx.compose.ui.graphics.Color(it.color).let { c ->
                     if (LocalHomeInk.current.dark) c else androidx.compose.ui.graphics.lerp(c, androidx.compose.ui.graphics.Color.White, .35f) },
                     modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-focus")) }
@@ -162,8 +172,10 @@ fun StatusRail(
                     tint = if (style.colorfulBattery) (if (onLight) SilentOnLight else Silent) else ink,
                     modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-silent"))
                 if (style.showTime) Text(now.format(timeFormatter), color = ink, fontSize = timeSize, fontWeight = FontWeight.SemiBold,
+                    lineHeight = if (tight) timeSize * 1.05f else androidx.compose.ui.unit.TextUnit.Unspecified,
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                 if (!compact && style.showDate) Text(now.format(dateFormatter), color = ink.copy(alpha = if (onLight) .85f else .7f), fontSize = detailSize,
+                    lineHeight = if (tight) detailSize * 1.1f else androidx.compose.ui.unit.TextUnit.Unspecified,
                     fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                 when (style.glyph) {
                     StatusGlyph.RINGS -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.Center) {

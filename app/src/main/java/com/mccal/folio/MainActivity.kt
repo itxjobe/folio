@@ -142,6 +142,18 @@ class MainActivity : ComponentActivity() {
                 // Only a Lock Cover that's actually drawn blurs Home (turning the setting off mid-way must not leave a blur).
                 (lockCoverVisible.value && state.lockCover)
             MotionSpeed.current = state.motionSpeed
+            // The trail for bug reports: what was open, and a heartbeat while Home is showing.
+            val overlayName = listOfNotNull(topPanel.value?.name, "Spotlight".takeIf { spotlightVisible.value },
+                "sheet".takeIf { LauncherSheetsOpen.intValue > 0 }, "Lock Cover".takeIf { lockCoverVisible.value && state.lockCover })
+                .joinToString(" + ").ifEmpty { null }
+            androidx.compose.runtime.LaunchedEffect(overlayName) { Diagnostics.event(overlayName?.let { "Open: $it" } ?: "Nothing open over Home") }
+            val regular = androidx.compose.ui.platform.LocalConfiguration.current.isRegular()
+            androidx.compose.runtime.LaunchedEffect(regular) { Diagnostics.event(if (regular) "Unfolded layout" else "Folded layout") }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                    while (true) { kotlinx.coroutines.delay(30_000); Diagnostics.checkpoint(this@MainActivity, visible = true) }
+                }
+            }
             val overlayProgress by androidx.compose.animation.core.animateFloatAsState(if (overlayOpen) 1f else 0f,
                 MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "overlay")
             val backdropBlurPx = with(androidx.compose.ui.platform.LocalDensity.current) { (state.panelBlur * 32).dp.toPx() }
@@ -301,11 +313,15 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         FolioForeground.visible.value = false
+        Diagnostics.event("Home hidden")
+        Diagnostics.checkpoint(this, visible = false)
     }
     override fun onResume() {
         super.onResume()
         SoftwareUpdate.startCheckIfDue(this)
         FolioForeground.visible.value = true
+        Diagnostics.event("Home shown (${Diagnostics.screenSummary(this).substringBefore(',')})")
+        Diagnostics.checkpoint(this, visible = true)
         FolioActions.home = java.lang.ref.WeakReference(this)
         model.syncFocus()
         // Unlock arrived just before Home resumed: show the cover now.

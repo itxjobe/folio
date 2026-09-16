@@ -19,6 +19,7 @@ import org.json.JSONObject
  */
 internal object DiscoverBounds {
     private const val TAG = "duo-discover-padded"
+    private const val LIVE_DISCOVER_MIN_SDK = 37
     private var overlayKey: String? = null
     @Volatile private var measuredViewport: Rect? = null
     val available get() = overlayKey != null
@@ -40,6 +41,9 @@ internal object DiscoverBounds {
 
     fun initialize(context: Context) {
         if (WindowSdkExtensions.getInstance().extensionVersion < 8) return
+        // Discover hosted beside Home has only been verified on Android 17. On Android 16 (Galaxy Z Fold7, issue #12)
+        // its frame painted stale copies of Home, so older versions use the plain full-screen Discover page.
+        if (android.os.Build.VERSION.SDK_INT < LIVE_DISCOVER_MIN_SDK) return
         try {
             val extensions = Class.forName("androidx.window.extensions.WindowExtensionsProvider")
                 .getMethod("getWindowExtensions").invoke(null)
