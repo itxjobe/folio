@@ -172,6 +172,14 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     Text("Report a Bug opens GitHub in your browser with your Folio version and phone filled in. Nothing is sent until you submit it.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
+                    SheetGroup {
+                        val supportContext = androidx.compose.ui.platform.LocalContext.current
+                        TweakRow(Icons.Rounded.LocalCafe, 0xFFFF5E5B, "Support Folio", "customization-support", "Ko-fi", chevron = !sidebar) {
+                            runCatching { supportContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://ko-fi.com/mccal"))) }
+                        }
+                    }
+                    Text("Folio is free and always will be. If it made your phone feel like yours, you can buy me a coffee (or a beer) on Ko-fi.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
     }
     // Home-app actions and the setup reminder: above the list on the phone, on Folio's own page in the split view.
     val overviewActions: @Composable ColumnScope.() -> Unit = {
@@ -317,12 +325,13 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.TODAY) SettingsCard(stringResource(R.string.left_of_home)) {
                         val leftContext = androidx.compose.ui.platform.LocalContext.current
                         // The Home pager's page count changes with this; rebuild the screen once.
-                        IosSegmented(listOf("TODAY" to "Today View", "DISCOVER" to "Google Discover"), state.leftPage,
+                        IosSegmented(listOf("TODAY" to "Today View", "DISCOVER" to "Google Discover", "NONE" to "None"), state.leftPage,
                             { model.setLeftPage(it); (leftContext as? android.app.Activity)?.recreate() }, Modifier.padding(vertical = 6.dp), tag = "left-page")
-                        Text(stringResource(R.string.today_view_is_iphone_s_widget_page_searc),
+                        Text(if (state.leftPage == "NONE") "Nothing to the left of Home: swiping right on your first page does nothing."
+                            else stringResource(R.string.today_view_is_iphone_s_widget_page_searc),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (state.leftPage == "TODAY") {
-                            IosMenuRow(stringResource(R.string.when_unfolded), listOf("PAGE" to "Swipe to It", "BESIDE" to "Beside Home", "OFF" to "Off"),
+                            IosMenuRow(stringResource(R.string.when_unfolded), listOf("PAGE" to "Swipe to It", "BESIDE" to "Beside Home", "OFF" to "None"),
                                 state.todayUnfolded, model::setTodayUnfolded, tag = "today-unfolded")
                             Text(when (state.todayUnfolded) {
                                 "BESIDE" -> "Like iPad: Today View stays on the left of the open screen, next to your first Home page. It takes the place of the unfolded-only page."
@@ -695,11 +704,6 @@ private fun LauncherHelp(
         IosActionRow("Email the Developer", "help-contact-email") {
             runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:contact@mcc-cal.com"))
                 .putExtra(android.content.Intent.EXTRA_SUBJECT, "Folio").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }
-        MenuDivider()
-        IosActionRow("Buy Me a Coffee", "help-ko-fi") {
-            runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://ko-fi.com/mccal"))
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
         }
     }
 }
@@ -1177,7 +1181,9 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
  * image can't be read by apps, so in that mode the preview uses the wallpaper's own reported colors and says so.
  */
 @Composable private fun MiniHomePreview(stagedBitmap: android.graphics.Bitmap?, state: LauncherState,
-    previewHeight: androidx.compose.ui.unit.Dp, framed: Boolean = true) {
+    previewHeight: androidx.compose.ui.unit.Dp, framed: Boolean = true,
+    /** The Side Bar (status, dock and search): off for the second page of an unfolded preview, which has one Side Bar. */
+    sideBar: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val backgroundRevision = LauncherBackgroundCache.revision.intValue
     val committedBitmap = remember(backgroundRevision) { cachedLauncherBackground(context) }
@@ -1241,10 +1247,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             }
                         }
                     }
-                    if (state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
+                    if (sideBar && state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
                         Modifier.align(railAlign).then(railEdge).offset(y = geometry.contentTop.dp).width(state.compact.dockWidth.dp),
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
-                    Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
+                    if (sideBar) Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
                         .height(geometry.dockHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         state.dock.forEach { id ->
@@ -1253,7 +1259,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             }
                         }
                     }
-                    if (state.searchPill) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
+                    if (sideBar && state.searchPill) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
                         .then(if (left) Modifier.padding(start = (state.compact.dockWidth + 24f).dp) else Modifier.padding(end = (state.compact.dockWidth + 24f).dp))) {
                         HomeSearchPill {}
                     }
@@ -1276,8 +1282,9 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .2f), RoundedCornerShape(corner + bezel)).padding(bezel)
             .clearAndSetSemantics { contentDescription = "Fold effect preview" }) {
             Row(Modifier.clip(RoundedCornerShape(corner)).foldPreviewEffect { fold * state.foldIntensity }) {
-                MiniHomePreview(bitmap, state, 150.dp, framed = false)
-                MiniHomePreview(bitmap, state, 150.dp, framed = false)
+                // Two Home pages with one Side Bar, on the right (on the left in left-handed layouts), like the open Fold.
+                MiniHomePreview(bitmap, state, 150.dp, framed = false, sideBar = state.leftHanded)
+                MiniHomePreview(bitmap, state, 150.dp, framed = false, sideBar = !state.leftHanded)
             }
         }
     }
@@ -1416,16 +1423,9 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     }
 }
 
-/** Folio's icon from its adaptive layers, so it gets an iOS rounded square rather than the device's icon mask. */
-internal fun folioIconBitmap(context: android.content.Context, size: Int = 216): androidx.compose.ui.graphics.ImageBitmap? = runCatching {
-    val adaptive = context.getDrawable(AppIconChoice.current(context).mipmap) as android.graphics.drawable.AdaptiveIconDrawable
-    android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888).also { bitmap ->
-        val canvas = android.graphics.Canvas(bitmap)
-        listOfNotNull(adaptive.background, adaptive.foreground).forEach { layer ->
-            layer.setBounds(-size / 4, -size / 4, size * 5 / 4, size * 5 / 4); layer.draw(canvas)
-        }
-    }.asImageBitmap()
-}.getOrNull()
+/** Folio's current app icon as its screens show it. */
+internal fun folioIconBitmap(context: android.content.Context, size: Int = 216): androidx.compose.ui.graphics.ImageBitmap? =
+    AppIconChoice.current(context).artwork(context, size)
 
 /**
  * Roadmap: what shipped in this version, what's next, later, and ideas being explored. Honest statuses, no dates.
@@ -1518,13 +1518,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
     SettingsCard("App Icon") {
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             AppIconChoice.entries.forEach { choice ->
-                val bitmap = remember(choice) { runCatching {
-                    val adaptive = context.getDrawable(choice.mipmap) as android.graphics.drawable.AdaptiveIconDrawable
-                    android.graphics.Bitmap.createBitmap(180, 180, android.graphics.Bitmap.Config.ARGB_8888).also { b ->
-                        val canvas = android.graphics.Canvas(b)
-                        listOfNotNull(adaptive.background, adaptive.foreground).forEach { it.setBounds(-45, -45, 225, 225); it.draw(canvas) }
-                    }.asImageBitmap()
-                }.getOrNull() }
+                val bitmap = remember(choice) { choice.artwork(context, 180) }
                 val selected = choice == current
                 Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable {
                     if (!selected) { AppIconChoice.set(context, choice); current = choice; onChanged() }

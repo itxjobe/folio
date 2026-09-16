@@ -3,6 +3,7 @@ package com.mccal.folio
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.compose.ui.graphics.asImageBitmap
 
 /**
  * Alternate app icons, like iOS's setAlternateIconName: each icon is its own launcher entry (an activity-alias of
@@ -11,10 +12,24 @@ import android.content.pm.PackageManager
 /** Folio's Kotlin package: class names stay the same in the Folio Dev build, whose app ID ends in ".dev". */
 internal const val FOLIO_CLASSES = "com.mccal.folio"
 
-internal enum class AppIconChoice(val label: String, val alias: String, val mipmap: Int) {
-    TEAL("Teal", "FolioSettingsApp", R.mipmap.ic_launcher),
-    SOFT("Soft", "FolioSettingsAppSoft", R.mipmap.ic_launcher_soft),
-    OLIVE("Olive", "FolioSettingsAppOlive", R.mipmap.ic_launcher_olive);
+internal enum class AppIconChoice(val label: String, val alias: String, private val background: Int, private val foreground: Int) {
+    TEAL("Teal", "FolioSettingsApp", R.drawable.folio_icon_teal_background, R.drawable.ic_launcher_foreground),
+    SOFT("Soft", "FolioSettingsAppSoft", R.drawable.folio_icon_soft_background, R.drawable.ic_launcher_soft_foreground),
+    OLIVE("Olive", "FolioSettingsAppOlive", R.drawable.ic_launcher_olive_background, R.drawable.ic_launcher_olive_foreground);
+
+    /**
+     * The icon as Folio draws it in its own screens: the real artwork (never Folio Dev's launcher tint) as an iOS
+     * rounded square, drawn from the adaptive layers rather than through the device's icon mask.
+     */
+    fun artwork(context: Context, size: Int): androidx.compose.ui.graphics.ImageBitmap? = runCatching<androidx.compose.ui.graphics.ImageBitmap> {
+        android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888).also { bitmap ->
+            val canvas = android.graphics.Canvas(bitmap)
+            listOf(background, foreground).mapNotNull(context::getDrawable).forEach { layer ->
+                // Adaptive layers are 108dp with the visible icon in the middle 72dp.
+                layer.setBounds(-size / 4, -size / 4, size * 5 / 4, size * 5 / 4); layer.draw(canvas)
+            }
+        }.asImageBitmap()
+    }.getOrNull()
 
     companion object {
         /** Every alias class name starts with this, so Folio can recognize its own app entry. */

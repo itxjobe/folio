@@ -1,9 +1,4 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="108" android:startY="0" android:endX="0" android:endY="108"
-                android:startColor="#FFC4EDDF" android:endColor="#FF6DB7B4" />
-        </aapt:attr>
-    </path>
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon's background. Folio Dev swaps this one (src/dev/res) so the builds are easy to tell apart;
+     Folio's own screens draw folio_icon_soft_background so they always show the real icon. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/folio_icon_soft_background" />

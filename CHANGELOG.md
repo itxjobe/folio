@@ -14,6 +14,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - Software Update: check GitHub for a new Folio, download and install it after verifying its checksum and signing key; optional daily checks, update notifications and automatic installs.
 - Roadmap in Settings (replaces Coming Soon): what's in this update, what's next, later and being explored.
 - Tweak Library: tweaks are packages you Get (Sileo-style) and only the ones you get show in Settings › Tweaks. New installs start with none; updating keeps the tweaks you already use.
+- Left of Home can be None (Settings › Today View), alongside Today View and Google Discover.
+- Support Folio in Settings, for buying me a coffee on Ko-fi.
 - Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
 - Fold transition: a light tick as the hinge passes halfway, a soft light sweep and a slight settle in size as the open screen clears, and a Preview slider in Fold & Displays to see the effect without folding. Phones whose hinge sensor reports in-between angles follow the real angle. Ideas from FoldFX.
 - Beta Updates in Software Update: choose Folio Beta to get GitHub pre-releases too. Turning it off keeps your beta until a newer public release.
@@ -32,6 +34,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Setting Folio up no longer leaves the screen blurred and unresponsive. A sheet opened while Folio was behind a system permission screen could stay invisible and still take every tap, so Home sat blurred with no way out but a restart. Sheets now always appear, and the Home button closes anything that's open.
 - Setup and full-screen Settings pages are smoother: Home no longer blurs behind a page that covers it, which was work nobody could see.
 - Message pop-ups can be handed back to Android: every messaging app in Dynamic Island settings has a button to its own notification settings, both ways, and that list stays reachable while the island is off. Apps switched to the island used to end up with no pop-up at all and no way back.
+- With Dock Magnification on, sliding along the side dock no longer opens Spotlight.
+- The fold preview in Settings shows one Side Bar, like the open Fold, instead of one on each page.
+- Folio's own screens always show its real icon; only the Folio Dev launcher icon is amber.
 - Back in Settings returns to the page you came from, such as Tweaks or Focus, instead of the top of Settings.
 - Unfolded in portrait, going back to the top of Settings opens the settings list again instead of a mostly empty page.
 

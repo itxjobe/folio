@@ -203,14 +203,15 @@ fun LauncherScreen(
     var expandedWorkspace by remember { mutableStateOf(false) }
     /** Where the jiggle bar's Edit button is, so its menu opens right under it. */
     var editPillBounds by remember { mutableStateOf<androidx.compose.ui.unit.IntRect?>(null) }
-    // The page left of Home is Folio's Today View, or Google Discover when chosen and available.
+    // The page left of Home is Folio's Today View, Google Discover when chosen and available, or nothing at all.
     val todayMode = state.leftPage == "TODAY"
+    val discoverMode = state.leftPage == "DISCOVER"
     val currentTodayMode by rememberUpdatedState(todayMode)
-    val firstHome = if (todayMode || DiscoverBounds.available) 1 else 0
-    DisposableEffect(todayMode) {
-        // Today mode never starts Google's hidden feed window (and closes one that's running).
-        if (todayMode) LiveDiscover.setExternalResultPending(launcherActivity, "main", "today-view", true)
-        onDispose { if (todayMode) LiveDiscover.setExternalResultPending(launcherActivity, "main", "today-view", false) }
+    val firstHome = if (todayMode || (discoverMode && DiscoverBounds.available)) 1 else 0
+    DisposableEffect(discoverMode) {
+        // Only Discover mode starts Google's hidden feed window (any other choice closes one that's running).
+        if (!discoverMode) LiveDiscover.setExternalResultPending(launcherActivity, "main", "today-view", true)
+        onDispose { if (!discoverMode) LiveDiscover.setExternalResultPending(launcherActivity, "main", "today-view", false) }
     }
     val pageCount = visibleHomePages + 1
     val nativePager = rememberPagerState(initialPage = savedPage.coerceIn(-firstHome, pageCount - 1) + firstHome, pageCount = { pageCount + firstHome })
@@ -337,7 +338,7 @@ fun LauncherScreen(
         val destination = if (drag.source?.target is DropTarget.Library) homePages else drag.originPage.coerceAtMost(homePages - 1)
         drag.clear(); scope.launch { pager.scrollToPage(destination) }
     } else if (selectedId != null) selectedId = null else if (homeEdit.active) homeEdit.stop() else { focus.clearFocus(); scope.launch { pager.animateScrollToPage(0) } } }
-    val openDiscover = { if (firstHome > 0) scope.launch { pager.animateScrollToPage(-1) } else onDiscover(); Unit }
+    val openDiscover = { if (firstHome > 0) scope.launch { pager.animateScrollToPage(-1) } else if (discoverMode) onDiscover(); Unit }
     val openLibrary = { scope.launch { pager.animateScrollToPage(homePages) }; Unit }
     val todayContent: @Composable (Modifier) -> Unit = { pageModifier ->
         TodayView(state, widgets, pageModifier,
@@ -598,14 +599,16 @@ fun LauncherScreen(
                 enabled = pagerInputEnabled,
                 // Positive IDs are provider-owned Android views. Leave their vertical
                 // stream untouched so scrollable widgets retain native gesture handling.
-                // A dock that is already scrolled also gets first use of a downward drag.
+                // A dock that is already scrolled, or magnifies under the finger, also gets first use of a downward drag.
                 canStartDownwardSwipe = { point ->
                     if (pager.currentPage !in 0 until visibleHomePages) false else {
                         val region = drag.hit(point + gestureOriginInRoot, eligibleDragPages)
                         val rootOnScreen = IntArray(2).also(launcherRootView::getLocationOnScreen)
                         val screenPoint = point + gestureOriginInWindow +
                             Offset(rootOnScreen[0].toFloat(), rootOnScreen[1].toFloat())
-                        !(region?.target is DropTarget.Dock && dockScroll.value > 0) &&
+                        // Sliding along the dock magnifies it (Harbor), so it never opens Spotlight.
+                        !(region?.target is DropTarget.Dock && (dockScroll.value > 0 ||
+                            FeatureScopes.on(state.featureScopes, "dockMagnify", state.dockMagnify, screenFor(wide)))) &&
                             !((region?.target as? DropTarget.Widget)?.index?.let { state.widgetStacks[it]?.isNotEmpty() } == true) &&
                             // A swipe down on a stacked icon opens its stack, not Spotlight.
                             region?.appId?.let { it in state.iconStacks } != true &&
@@ -617,7 +620,7 @@ fun LauncherScreen(
                     if (panel == ShadePanel.SEARCH) { if (state.swipeDownSearch) launcherActivity.openSpotlight() }
                     else launcherActivity.openSystemShade(panel)
                 },
-                onLeadingOverscroll = if (firstHome == 0) onDiscover else null,
+                onLeadingOverscroll = if (firstHome == 0 && discoverMode) onDiscover else null,
             )) {
             val pagerModifier = Modifier.align(if (state.leftHanded) Alignment.TopEnd else Alignment.TopStart)
                 .fillMaxHeight().width(pagerWidth)
@@ -630,7 +633,7 @@ fun LauncherScreen(
                     }
                     LiveDiscover.host.get()?.invalidateFrame()
                 }.testTag("app-pager")
-                .discoverSwipe(firstHome == 0 && pager.currentPage == 0 && !drag.active && sheet.isEmpty() &&
+                .discoverSwipe(discoverMode && firstHome == 0 && pager.currentPage == 0 && !drag.active && sheet.isEmpty() &&
                     !showFirstRun && selectedId == null, onDiscover)
                 .onGloballyPositioned {
                     if (firstHome > 0 && !todayMode) {

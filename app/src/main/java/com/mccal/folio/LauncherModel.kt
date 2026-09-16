@@ -1142,7 +1142,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             widgetGlass = j.optDouble("widgetGlass", .26).toFloat().coerceIn(0f, 1f), glassOutline = j.optDouble("glassOutline", .16).toFloat().coerceIn(0f, 1f),
             focusModes = focusModesFromJson(j.optJSONArray("focusModes")),
             activeFocus = j.optString("activeFocus").takeIf { it.isNotEmpty() },
-            leftPage = j.optString("leftPage", "TODAY").takeIf { it == "TODAY" || it == "DISCOVER" } ?: "TODAY",
+            leftPage = j.optString("leftPage", "TODAY").takeIf { it in setOf("TODAY", "DISCOVER", "NONE") } ?: "TODAY",
             todayUnfolded = j.optString("todayUnfolded", "PAGE").takeIf { it in setOf("PAGE", "BESIDE", "OFF") } ?: "PAGE",
             systemWallpaper = j.optBoolean("systemWallpaper", false),
             homeInk = j.optString("homeInk", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
