@@ -96,7 +96,7 @@
     <string name="long_press_and_drag_the_island_to_move_i">Long-press and drag the island to move it. On the inner screen the camera sits under the display, so drag it onto the camera once.</string>
     <string name="put_the_island_back_at_the_camera">Put the island back at the camera</string>
     <string name="brief_pop_ups">Brief pop-ups</string>
-    <string name="reads_only_music_calls_timers_navigation">Reads only music, calls, timers, navigation and progress. Nothing leaves your phone.</string>
+    <string name="reads_only_music_calls_timers_navigation">Reads music, calls, timers, navigation, progress, messages and the notifications you choose. Nothing leaves your phone.</string>
     <string name="your_fold_timing">Your fold timing</string>
     <string name="learned_from_your_last_folds_and_used_to">Learned from your last folds and used to pace the animation. Reset if someone else has been using the phone.</string>
     <string name="reset_fold_timing">Reset fold timing</string>

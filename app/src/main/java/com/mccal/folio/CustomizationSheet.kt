@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.alpha
@@ -48,13 +49,14 @@ internal object SettingsMemory {
     var sidebarScroll = 0
 }
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK;
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK, ISLAND_APPS;
 
     /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
     val parent: CustomizationPage get() = when (this) {
         TWEAK, TWEAK_LIBRARY -> TWEAKS
         LIBRARY_TWEAK -> TWEAK_LIBRARY // a tweak opened from the Tweak Library goes back there
         FOCUS_MODE -> FOCUS
+        ISLAND_APPS -> ISLAND
         else -> OVERVIEW
     }
 
@@ -104,6 +106,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.SEARCH -> "Search & App Library"
         CustomizationPage.TODAY -> "Today View"
         CustomizationPage.ISLAND -> "Dynamic Island"
+        CustomizationPage.ISLAND_APPS -> "Other Notifications"
         CustomizationPage.PERMISSIONS -> "Privacy & Permissions"
         CustomizationPage.COMING_SOON -> "Roadmap"
         CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"
@@ -118,7 +121,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
     val onBack = { onPage(page.parent) }
-    val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"; CustomizationPage.FOCUS -> "Focus"; else -> null }
+    val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"; CustomizationPage.FOCUS -> "Focus"; CustomizationPage.ISLAND -> "Dynamic Island"; else -> null }
 
     // The settings list. On the phone it's the first page; in the split view it's the sidebar, with the open page highlighted.
     val overviewRows: @Composable ColumnScope.(selected: CustomizationPage?, sidebar: Boolean) -> Unit = { selected, sidebar ->
@@ -456,6 +459,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                                 SettingsSwitch(label, kind !in state.islandEventsOff, { model.setIslandEvent(kind, it) }, "island-event-${kind.lowercase()}")
                             }
                             if ("MESSAGE" !in state.islandEventsOff) MessageBannerSettings(state.messagesAvoidDouble, model::setMessagesAvoidDouble)
+                            IslandAlertSettings(state.islandAlerts, state.islandAlertAppsOff, model::setIslandAlerts) { onPage(CustomizationPage.ISLAND_APPS) }
                         } else {
                             SettingsSwitch("Headphones & speakers", "BLUETOOTH" !in state.islandEventsOff, { model.setIslandEvent("BLUETOOTH", it) }, "island-event-bluetooth")
                             if (state.messagesAvoidDouble) {
@@ -528,6 +532,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                 }
                 CustomizationPage.CREDITS -> CreditsPage()
+                CustomizationPage.ISLAND_APPS -> IslandAlertApps(state.islandAlertAppsOff, state.messagesAvoidDouble, model::setIslandAlertApp)
                 CustomizationPage.HELP -> {
                     // Getting help lives here rather than as more rows in the main list (fewer choices there).
                     val helpContext = androidx.compose.ui.platform.LocalContext.current
@@ -845,6 +850,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Live Clock and Calendar icons", "live clock calendar", CustomizationPage.STATUS),
     Triple("Side Bar & Status Bar", "side bar rail status bar battery wifi time left-handed labels app names", CustomizationPage.STATUS),
     Triple("Dynamic Island", "island pill camera pop-ups calls messages charging bluetooth", CustomizationPage.ISLAND),
+    Triple("Other notifications in the island", "island pop-ups banners notifications apps alerts permission warning", CustomizationPage.ISLAND_APPS),
     Triple("Island and dock in every app", "overlay everywhere other apps handle", CustomizationPage.ISLAND),
     Triple("Notification Center", "notifications clock stack group split blur panels iphone style", CustomizationPage.NOTIFICATIONS),
     Triple("Control Center", "control center size centered toggles", CustomizationPage.NOTIFICATIONS),
@@ -1436,11 +1442,61 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     MessageChannelList()
 }
 
+/** Brief pop-ups › Other notifications: any app's new notifications in the island, like messages. Off until turned on. */
+@Composable private fun IslandAlertSettings(on: Boolean, appsOff: Set<String>, onOn: (Boolean) -> Unit, onChooseApps: () -> Unit) {
+    SettingsSwitch("Other notifications", on, onOn, "island-alerts-switch")
+    if (on) {
+        val channels by IslandListenerService.messageChannels.collectAsState()
+        val seen = channels.values.filter { !it.isMessage }.map { it.packageName }.toSet() + appsOff
+        IosNavRow("Apps", if (seen.isEmpty()) null else "${(seen - appsOff).size} of ${seen.size}", onChooseApps, "island-alert-apps")
+    }
+    Text(if (on) "New notifications from the apps you choose show in the island for a moment. Swipe one up to hide it; it stays in Notification Center."
+        else "Show new notifications from other apps in the island too, and choose which apps.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Dynamic Island › Other Notifications: which apps' notifications pop up in the island (apps appear once they've sent one). */
+@Composable private fun IslandAlertApps(appsOff: Set<String>, avoidDouble: Boolean, onApp: (String, Boolean) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val channels by IslandListenerService.messageChannels.collectAsState()
+    val seen = channels.values.filter { !it.isMessage }.groupBy { it.packageName }
+    val pm = context.packageManager
+    fun label(pkg: String) = seen[pkg]?.first()?.appLabel
+        ?: runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+    val apps = remember(seen.keys, appsOff) { (seen.keys + appsOff).map { it to label(it) }.sortedBy { it.second.lowercase() } }
+    SettingsCard("Show in the Island") {
+        if (apps.isEmpty()) Text("Apps show up here after they send a notification.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
+        apps.forEach { (pkg, name) -> key(pkg) {
+            val enabled = pkg !in appsOff
+            // With "don't double up" on, a channel Android pops up itself stays with Android; offer the same way over.
+            val android = seen[pkg].orEmpty().firstOrNull { it.popsUp }?.takeIf { avoidDouble && enabled }
+            val icon = remember(pkg) { runCatching { pm.getApplicationIcon(pkg).toBitmap(84, 84).asImageBitmap() }.getOrNull() }
+            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
+                icon?.let { Image(it, null, Modifier.size(29.dp).clip(RoundedCornerShape(7.dp))) }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    if (android != null) Text("Android shows its own pop-up", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (android != null) TextButton(onClick = { runCatching { context.startActivity(android.settingsIntent()) } }) {
+                    Text(stringResource(R.string.use_island))
+                }
+                IosSwitch(enabled, { onApp(pkg, it) }, Modifier.testTag("island-alert-$pkg"))
+            }
+        } }
+    }
+    Text(if (avoidDouble) "Apps that Android already pops up stay with Android so you don't get two banners. Use Island turns off Android's pop-up for that app, and its notifications show here instead."
+        else "The island shows these apps' new notifications even when Android shows its own pop-up too.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
+}
+
 /** Messaging apps Folio has seen, and whether each one pops up through Android or the island. */
 @Composable private fun MessageChannelList() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val channels by IslandListenerService.messageChannels.collectAsState()
-    val list = channels.values.sortedWith(compareBy({ !it.popsUp }, { it.appLabel }))
+    val list = channels.values.filter { it.isMessage }.sortedWith(compareBy({ !it.popsUp }, { it.appLabel }))
     if (list.isEmpty()) Text(stringResource(R.string.messaging_apps_appear_here_after_they_po),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     list.forEach { channel ->

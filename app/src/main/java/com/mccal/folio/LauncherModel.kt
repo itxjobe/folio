@@ -107,6 +107,8 @@ data class LauncherState(
     /** App for messaging contacts from Spotlight: null = default texting app, or OpenBubbles/BlueBubbles. */
     val messagesApp: String? = null,
     val messagesAvoidDouble: Boolean = true,
+    val islandAlerts: Boolean = false,
+    val islandAlertAppsOff: Set<String> = emptySet(),
     /** Control Center's small controls, in order (names of [CcControl]). */
     val ccControls: List<String> = CcControl.DEFAULTS,
     val ccSize: PanelSize = PanelSize.STANDARD,
@@ -829,6 +831,9 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setSwipeDownSearch(value: Boolean) = updateSettings(soon = false) { it.copy(swipeDownSearch = value) }
     fun setMessagesApp(pkg: String?) = updateSettings(soon = false) { it.copy(messagesApp = pkg) }
     fun setMessagesAvoidDouble(value: Boolean) = updateSettings(soon = false) { it.copy(messagesAvoidDouble = value) }
+    fun setIslandAlerts(value: Boolean) = updateSettings(soon = false) { it.copy(islandAlerts = value) }
+    fun setIslandAlertApp(packageName: String, enabled: Boolean) = updateSettings(soon = false) {
+        it.copy(islandAlertAppsOff = if (enabled) it.islandAlertAppsOff - packageName else it.islandAlertAppsOff + packageName) }
     fun setCcControls(controls: List<String>) = updateSettings(soon = false) { it.copy(ccControls = controls.distinct()) }
     fun setCcSize(size: PanelSize) = updateSettings(soon = false) { it.copy(ccSize = size) }
     fun setCcCentered(value: Boolean) = updateSettings(soon = false) { it.copy(ccCentered = value) }
@@ -940,7 +945,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("panelBlur", s.panelBlur.toDouble()).put("notificationClock", s.notificationClock).put("groupNotifications", s.groupNotifications)
             .put("standBy", s.standBy).put("spotlightHidden", JSONArray(s.spotlightHidden.toList())).put("searchEngine", s.searchEngine)
             .put(SettingKeys.ISLAND_EVENTS_OFF, JSONArray(s.islandEventsOff.toList())).put("libraryCategories", s.libraryCategories).put("libraryWork", s.libraryWork).put("iconStyle", s.iconStyle.name).put("iconTint", s.iconTint)
-            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("badgeLook", s.badgeLook.name).put("badgeSize", s.badgeSize.name).put("searchPill", s.searchPill).put("swipeDownSearch", s.swipeDownSearch).put("messagesApp", s.messagesApp ?: JSONObject.NULL).put(SettingKeys.MESSAGES_AVOID_DOUBLE, s.messagesAvoidDouble).put("ccControls", JSONArray(s.ccControls))
+            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("badgeLook", s.badgeLook.name).put("badgeSize", s.badgeSize.name).put("searchPill", s.searchPill).put("swipeDownSearch", s.swipeDownSearch).put("messagesApp", s.messagesApp ?: JSONObject.NULL).put(SettingKeys.MESSAGES_AVOID_DOUBLE, s.messagesAvoidDouble)
+            .put(SettingKeys.ISLAND_ALERTS, s.islandAlerts).put(SettingKeys.ISLAND_ALERT_APPS_OFF, JSONArray(s.islandAlertAppsOff.toList())).put("ccControls", JSONArray(s.ccControls))
             .put("ccSize", s.ccSize.name).put("ccCentered", s.ccCentered).put("ncSplit", s.ncSplit)
             .put("widgetStacks", JSONObject().apply { s.widgetStacks.forEach { (slot, ids) -> put(slot.toString(), JSONArray(ids)) } })
             .put("stackRotate", s.stackRotate).put("railActivitiesUnderStatus", s.railActivities).put("addNewAppsToHome", s.addNewAppsToHome)
@@ -1127,6 +1133,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             searchPill = j.optBoolean("searchPill", true), swipeDownSearch = j.optBoolean("swipeDownSearch", true),
             messagesApp = j.optString("messagesApp").takeIf { it.isNotBlank() && it != "null" },
             messagesAvoidDouble = j.optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true),
+            islandAlerts = j.optBoolean(SettingKeys.ISLAND_ALERTS, false),
+            islandAlertAppsOff = j.optJSONArray(SettingKeys.ISLAND_ALERT_APPS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
             ccControls = j.optJSONArray("ccControls")?.let { a -> (0 until a.length()).map(a::getString).filter { name -> CcControl.entries.any { it.name == name } } }
                 ?: CcControl.DEFAULTS,
             ccSize = runCatching { PanelSize.valueOf(j.optString("ccSize")) }.getOrDefault(PanelSize.STANDARD),

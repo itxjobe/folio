@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,6 +116,17 @@ internal fun IosActionRow(text: String, tag: String? = null, destructive: Boolea
     androidx.compose.material3.Text(text, color = if (enabled) color else Color.White.copy(alpha = .3f), fontSize = 17.sp,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier))
+}
+
+/** A row that opens another page, like iOS Settings: label, current value and a chevron. */
+@Composable
+internal fun IosNavRow(text: String, value: String?, onClick: () -> Unit, tag: String? = null) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = onClick)
+        .then(if (tag != null) Modifier.testTag(tag) else Modifier), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.Text(text, color = Color.White, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        value?.let { androidx.compose.material3.Text(it, color = Color.White.copy(alpha = .55f), fontSize = 17.sp) }
+        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.ChevronRight, null, tint = Color.White.copy(alpha = .3f))
+    }
 }
 
 /** Used when haptic feedback is turned off in settings. */

@@ -24,7 +24,7 @@ internal val IslandEvent.kind: String get() = when (this) {
     is IslandEvent.Silent -> "SILENT"
     is IslandEvent.Focus -> "FOCUS"
     is IslandEvent.Bluetooth -> "BLUETOOTH"
-    is IslandEvent.Message -> "MESSAGE"
+    is IslandEvent.Message -> if (alert) "ALERT" else "MESSAGE"
 }
 
 /** Listens for brief system moments (charging, silent, focus, Bluetooth) and publishes them for the island. */
@@ -114,7 +114,9 @@ class IslandEvents private constructor(private val context: Context) {
         const val SHOW_MS = 2_600L
         const val MESSAGE_SHOW_MS = 6_000L
         fun showMs(event: IslandEvent) = if (event is IslandEvent.Message) MESSAGE_SHOW_MS else SHOW_MS
-        /** Posted by the notification listener for new messages. */
+        /** Hides the pop-up now (swiped away); the notification itself stays in Notification Center. */
+        fun dismiss() { mutable.value = null }
+        /** Posted by the notification listener for new messages and notifications. */
         internal fun post(event: IslandEvent) {
             // Messages and device names are personal; Screenshot Mode keeps them off screen.
             if (ScreenshotMode.on.value && (event is IslandEvent.Message || event is IslandEvent.Bluetooth)) return

@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import kotlinx.coroutines.flow.first
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** What the compact pill currently shows: a live activity, or a brief system event on top of it. */
@@ -182,7 +184,8 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
                 transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(90)) }) { showCard ->
                 if (showCard && message != null) MessageCardContent(message, replying, onReply = { replying = true },
                     onOpen = { replying = false; eventVisible = null; IslandListenerService.openKey(context, message.key, message.packageName) },
-                    onDone = { replying = false; eventVisible = null })
+                    onDone = { replying = false; eventVisible = null },
+                    onDismiss = { replying = false; eventVisible = null; IslandEvents.dismiss() })
                 else if (showCard && live != null) ExpandedCardContent(live, onOpen = { expanded = false; onOpen(live) })
                 else Box(Modifier.width(geometry.widthFor(content).dp).height(pillH)) { IslandPillContent(content, camW, pillH) }
             }
@@ -278,7 +281,7 @@ internal fun describe(content: IslandContent): String = when (content) {
         is IslandEvent.Silent -> if (e.on) "Silent mode on" else "Silent mode off"
         is IslandEvent.Focus -> if (e.on) "Do Not Disturb on" else "Do Not Disturb off"
         is IslandEvent.Bluetooth -> "Connected${e.name?.let { " to $it" } ?: ""}"
-        is IslandEvent.Message -> "Message from ${e.sender}${e.text?.let { ": $it" } ?: ""}"
+        is IslandEvent.Message -> (if (e.alert) "${e.appLabel}: ${e.sender}" else "Message from ${e.sender}") + (e.text?.let { ": $it" } ?: "")
     }
     is IslandContent.Live -> content.activity.title + ". Tap for details"
 }
@@ -339,20 +342,43 @@ internal fun TrailingGlyph(content: IslandContent, size: Dp) {
     }
 }
 
-/** Sender photo, or the app icon when the app didn't include one. */
+/** Sender photo (a notification's own picture for other apps), or the app icon when there isn't one. */
 @Composable
 private fun MessageAvatar(message: IslandEvent.Message, size: Dp) {
     val bitmap = message.avatar ?: message.appIcon
-    if (bitmap != null) Image(bitmap.asImageBitmap(), null, Modifier.size(size).clip(if (message.avatar != null) CircleShape else RoundedCornerShape(size * .24f)))
+    // People are round, like iOS; other apps' pictures (album covers, photos, logos) keep a rounded square.
+    val person = message.avatar != null && !message.alert
+    if (bitmap != null) Image(bitmap.asImageBitmap(), null, Modifier.size(size).clip(if (person) CircleShape else RoundedCornerShape(size * .24f)),
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop)
     else Box(Modifier.size(size).clip(CircleShape).background(Color(0xFF3A3A3C)), contentAlignment = Alignment.Center) {
         Text(message.sender.take(1).uppercase(), color = Color.White, fontSize = (size.value * .42f).sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-private fun MessageCardContent(message: IslandEvent.Message, replying: Boolean, onReply: () -> Unit, onOpen: () -> Unit, onDone: () -> Unit) {
+private fun MessageCardContent(message: IslandEvent.Message, replying: Boolean, onReply: () -> Unit, onOpen: () -> Unit, onDone: () -> Unit,
+    onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
+    // Swipe up to put it away, like an iPhone banner: it follows the finger with some resistance and springs back
+    // if let go early. The notification stays in Notification Center.
+    val pull = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val dismissAt = with(LocalDensity.current) { 24.dp.toPx() }
+    Column(Modifier.fillMaxWidth()
+        .pointerInput(replying) {
+            if (replying) return@pointerInput
+            var travel = 0f
+            detectVerticalDragGestures(
+                onDragStart = { travel = 0f },
+                onDragEnd = { if (travel < -dismissAt) onDismiss() else scope.launch { pull.animateTo(0f, spring(dampingRatio = .7f)) } },
+                onDragCancel = { scope.launch { pull.animateTo(0f) } },
+            ) { change, dy ->
+                change.consume(); travel += dy
+                scope.launch { pull.snapTo((travel * .5f).coerceIn(-dismissAt * 3f, 0f)) }
+            }
+        }
+        .graphicsLayer { translationY = pull.value; alpha = 1f - (-pull.value / (dismissAt * 6f)) }
+        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.Top, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)) {
             Box {

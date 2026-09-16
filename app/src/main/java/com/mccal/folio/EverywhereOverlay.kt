@@ -2,6 +2,7 @@
 
 package com.mccal.folio
 
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
@@ -37,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -279,7 +281,17 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
                 val w by animateDpAsState(content?.let { g.widthFor(it).dp } ?: 0.dp,
                     spring(dampingRatio = .72f, stiffness = Spring.StiffnessMediumLow), label = "overlay-island")
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val popUp = (content as? IslandContent.Event)?.event is IslandEvent.Message
                     if (content != null && w > 1.dp) Box(Modifier.size(w, g.pillH.dp).clip(RoundedCornerShape((g.pillH / 2).dp)).background(Color.Black)
+                        // Swipe a message or notification up to put it away early, like an iPhone banner.
+                        .pointerInput(popUp) {
+                            if (!popUp) return@pointerInput
+                            var pulled = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { pulled = 0f },
+                                onDragEnd = { if (pulled < -12.dp.toPx()) IslandEvents.dismiss() },
+                            ) { change, dy -> change.consume(); pulled += dy }
+                        }
                         .clickable {
                             (content as? IslandContent.Live)?.let { IslandListenerService.open(service, it.activity) }
                             ((content as? IslandContent.Event)?.event as? IslandEvent.Message)?.let { IslandListenerService.openKey(service, it.key, it.packageName) }

@@ -67,7 +67,9 @@ data class NotificationItem(val key: String, val packageName: String, val appLab
     val canReply: Boolean = false, val canMarkRead: Boolean = false, val channelId: String? = null)
 
 /** A messaging app's notification channel and whether Android pops it up itself (importance HIGH or above). */
-data class MessageChannel(val packageName: String, val appLabel: String, val channelId: String, val channelName: String?, val importance: Int) {
+data class MessageChannel(val packageName: String, val appLabel: String, val channelId: String, val channelName: String?, val importance: Int,
+    /** False for other apps' notification channels (Brief pop-ups › Other Notifications). */
+    val isMessage: Boolean = true) {
     val popsUp get() = importance >= android.app.NotificationManager.IMPORTANCE_HIGH
     fun settingsIntent(): Intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
         .putExtra(Settings.EXTRA_APP_PACKAGE, packageName).putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
@@ -117,14 +119,18 @@ sealed interface IslandEvent {
     data class Focus(val on: Boolean) : IslandEvent
     /** Bluetooth headphones or a speaker connected; [name] is the device's own name. */
     data class Bluetooth(val name: String?, val speaker: Boolean = false) : IslandEvent
-    /** A new message from any messaging app (OpenBubbles, WhatsApp, Signal, Messages...). */
+    /**
+     * A new message from any messaging app (OpenBubbles, WhatsApp, Signal, Messages...). With [alert], any other app's
+     * notification shown the same way: [sender] is its title (or the app's name) and [avatar] its large icon.
+     */
     data class Message(val key: String, val packageName: String, val appLabel: String, val sender: String, val text: String?,
-        val avatar: Bitmap?, val appIcon: Bitmap?, val canReply: Boolean) : IslandEvent
+        val avatar: Bitmap?, val appIcon: Bitmap?, val canReply: Boolean, val alert: Boolean = false) : IslandEvent
 }
 
 /**
- * Reads only ongoing progress notifications and the active media session. Nothing is stored or
- * sent anywhere; the island simply mirrors what the system already shows in the shade.
+ * Reads ongoing activities (calls, timers, navigation, progress), the active media session, new messages and, when
+ * turned on, other apps' new notifications. Nothing is stored or sent anywhere; the island simply mirrors what the
+ * system already shows in the shade.
  */
 class IslandListenerService : NotificationListenerService() {
     private var sessions: MediaSessionManager? = null
@@ -163,6 +169,7 @@ class IslandListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap?) {
         publish()
         if (Messaging.isMessage(sbn.notification)) workerHandler.post { runCatching { announceMessage(sbn, rankingMap) } }
+        else if (isAlert(sbn)) workerHandler.post { runCatching { announceAlert(sbn, rankingMap) } }
     }
 
     /** Last alerting post time per notification key, so updates that don't alert don't pop up again. */
@@ -170,19 +177,29 @@ class IslandListenerService : NotificationListenerService() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?) = size > 64
     }
 
+    /**
+     * The rules every island pop-up follows: the app's own alert settings, Do Not Disturb, nothing old or repeated,
+     * and (when [avoidDouble]) no second banner on top of Android's own pop-up.
+     */
+    private fun shouldPopUp(sbn: StatusBarNotification, rankingMap: RankingMap?, avoidDouble: Boolean): Boolean {
+        val n = sbn.notification
+        if (sbn.packageName == packageName || sbn.isOngoing || n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return false
+        if (System.currentTimeMillis() - sbn.postTime > 10_000) return false
+        val ranking = Ranking().takeIf { rankingMap?.getRanking(sbn.key, it) == true }
+        if (ranking != null && (!ranking.matchesInterruptionFilter() || ranking.isSuspended ||
+                ranking.importance < android.app.NotificationManager.IMPORTANCE_DEFAULT)) return false
+        // Android shows its own pop-up for high-importance channels; don't stack a second banner on it.
+        if (ranking != null && ranking.importance >= android.app.NotificationManager.IMPORTANCE_HIGH && avoidDouble) return false
+        val previous = announced[sbn.key]
+        if (previous == sbn.postTime || (previous != null && n.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)) return false
+        announced[sbn.key] = sbn.postTime
+        return true
+    }
+
     /** Pops a new message into the island, following the app's own alert settings and Do Not Disturb. */
     private fun announceMessage(sbn: StatusBarNotification, rankingMap: RankingMap?) {
         val n = sbn.notification
-        if (sbn.packageName == packageName || sbn.isOngoing || n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-        if (System.currentTimeMillis() - sbn.postTime > 10_000) return
-        val ranking = Ranking().takeIf { rankingMap?.getRanking(sbn.key, it) == true }
-        if (ranking != null && (!ranking.matchesInterruptionFilter() || ranking.isSuspended ||
-                ranking.importance < android.app.NotificationManager.IMPORTANCE_DEFAULT)) return
-        // Android shows its own pop-up for high-importance channels; don't stack a second banner on it.
-        if (ranking != null && ranking.importance >= android.app.NotificationManager.IMPORTANCE_HIGH && avoidDoubleBanners()) return
-        val previous = announced[sbn.key]
-        if (previous == sbn.postTime || (previous != null && n.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)) return
-        announced[sbn.key] = sbn.postTime
+        if (!shouldPopUp(sbn, rankingMap, popUpSettings().avoidDouble)) return
         val style = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
         val last = style?.messages?.lastOrNull()
         // Our own reply echoed back into the conversation isn't news.
@@ -197,6 +214,33 @@ class IslandListenerService : NotificationListenerService() {
         IslandEvents.post(IslandEvent.Message(sbn.key, sbn.packageName, appLabel(sbn.packageName), sender, text, avatar,
             appIcon(sbn.packageName), Messaging.replyAction(n) != null))
     }
+    /** Pops any other app's new notification into the island, when Other Notifications is on for that app. */
+    private fun announceAlert(sbn: StatusBarNotification, rankingMap: RankingMap?) {
+        val settings = popUpSettings()
+        if (!settings.alerts || sbn.packageName in settings.alertAppsOff) return
+        if (!shouldPopUp(sbn, rankingMap, settings.avoidDouble)) return
+        val n = sbn.notification
+        val extras = n.extras
+        val label = appLabel(sbn.packageName)
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.takeIf { it.isNotBlank() }
+        val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))
+            ?.toString()?.takeIf { it.isNotBlank() }
+        if (title == null && text == null) return
+        val picture = runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(96, 96) }.getOrNull()
+        IslandEvents.post(IslandEvent.Message(sbn.key, sbn.packageName, label, title ?: label, text, picture,
+            appIcon(sbn.packageName), Messaging.replyAction(n) != null, alert = true))
+    }
+
+    /** A notification someone would want to see pop up: not media, a call, progress or a background service. */
+    private fun isAlert(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification
+        if (sbn.packageName == packageName || sbn.isOngoing || !sbn.isClearable) return false
+        if (n.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_FOREGROUND_SERVICE) != 0) return false
+        if (n.category in QUIET_CATEGORIES || CallControls.isCall(n) || hasProgress(n)) return false
+        if (n.extras.getString(Notification.EXTRA_TEMPLATE)?.endsWith("MediaStyle") == true) return false
+        return n.extras.getCharSequence(Notification.EXTRA_TITLE) != null || n.extras.getCharSequence(Notification.EXTRA_TEXT) != null
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification) = publish()
     // Fires when a channel's importance changes (e.g. its pop-up was turned off), so the settings list updates.
     override fun onNotificationRankingUpdate(rankingMap: RankingMap?) = publish()
@@ -214,20 +258,28 @@ class IslandListenerService : NotificationListenerService() {
         runCatching { rememberMessageChannels() }
     }
 
-    private fun avoidDoubleBanners(): Boolean = runCatching {
-        org.json.JSONObject(getSharedPreferences(SettingKeys.PREFS, 0).getString(SettingKeys.STATE, "{}") ?: "{}")
-            .optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true)
-    }.getOrDefault(true)
+    private data class PopUpSettings(val avoidDouble: Boolean, val alerts: Boolean, val alertAppsOff: Set<String>)
 
-    /** Which messaging apps' channels pop up on their own, for the "turn off Android pop-ups" helper in Settings. */
+    private fun popUpSettings(): PopUpSettings = runCatching {
+        val j = org.json.JSONObject(getSharedPreferences(SettingKeys.PREFS, 0).getString(SettingKeys.STATE, "{}") ?: "{}")
+        PopUpSettings(j.optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true), j.optBoolean(SettingKeys.ISLAND_ALERTS, false),
+            j.optJSONArray(SettingKeys.ISLAND_ALERT_APPS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() }.orEmpty())
+    }.getOrDefault(PopUpSettings(avoidDouble = true, alerts = false, alertAppsOff = emptySet()))
+
+    /**
+     * Which apps' channels Folio has seen, and whether Android pops each up on its own: for the "turn off Android
+     * pop-ups" helper and the Other Notifications app list in Settings.
+     */
     private fun rememberMessageChannels() {
         val ranking = Ranking()
         val map = currentRanking ?: return
-        val seen = activeNotifications.orEmpty().filter { it.packageName != packageName && Messaging.isMessage(it.notification) }
+        val seen = activeNotifications.orEmpty().filter { it.packageName != packageName }
             .mapNotNull { sbn ->
+                val message = Messaging.isMessage(sbn.notification)
+                if (!message && !isAlert(sbn)) return@mapNotNull null
                 if (!map.getRanking(sbn.key, ranking)) return@mapNotNull null
                 val channel = ranking.channel ?: return@mapNotNull null
-                MessageChannel(sbn.packageName, appLabel(sbn.packageName), channel.id, channel.name?.toString(), ranking.importance)
+                MessageChannel(sbn.packageName, appLabel(sbn.packageName), channel.id, channel.name?.toString(), ranking.importance, message)
             }
         if (seen.isEmpty()) return
         messageChannelsMutable.value = messageChannelsMutable.value + seen.associateBy { "${it.packageName}|${it.channelId}" }
@@ -409,6 +461,8 @@ class IslandListenerService : NotificationListenerService() {
         private const val PUBLISH_COALESCE_MS = 120L
         private val iconCache = android.util.LruCache<String, Bitmap>(64)
         private val artCache = android.util.LruCache<String, Bitmap>(8)
+        private val QUIET_CATEGORIES = setOf(Notification.CATEGORY_CALL, Notification.CATEGORY_TRANSPORT, Notification.CATEGORY_PROGRESS,
+            Notification.CATEGORY_SERVICE, Notification.CATEGORY_NAVIGATION, Notification.CATEGORY_STATUS, "stopwatch", "location_sharing", "workout")
         private val OVERFLOW_TITLE = Regex("^\\d+ more notifications?$", RegexOption.IGNORE_CASE)
         private val labelCache = android.util.LruCache<String, String>(128)
 
