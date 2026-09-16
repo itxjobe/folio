@@ -159,7 +159,7 @@ private fun TodayWidgetTile(widget: TodayWidget, widgets: WidgetController, widt
             }
         }
         if (edit.active) {
-            JiggleRemoveButton("Remove widget", onRemove)
+            JiggleRemoveButton("Remove widget", onRemove = onRemove)
             Row(Modifier.align(Alignment.BottomEnd).padding(8.dp).clip(CircleShape).background(Color.Black.copy(alpha = .45f))) {
                 if (canMoveUp) TodayArrow(Icons.Rounded.KeyboardArrowUp, "Move up") { onMove(-1) }
                 if (canMoveDown) TodayArrow(Icons.Rounded.KeyboardArrowDown, "Move down") { onMove(1) }

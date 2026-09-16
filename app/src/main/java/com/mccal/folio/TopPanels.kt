@@ -686,7 +686,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
 private fun EditableControl(control: CcControl, on: Boolean, accent: Color, cell: Dp, edit: HomeEditMode, onRemove: () -> Unit, onRun: () -> Unit) {
     Box(Modifier.jiggle(control.name, .6f)) {
         SquareToggle(control.icon(), control.label, on, accent, cell) { if (!edit.active) onRun() }
-        if (edit.active) JiggleRemoveButton("Remove ${control.label}", onRemove)
+        if (edit.active) JiggleRemoveButton("Remove ${control.label}", onRemove = onRemove)
     }
 }
 

@@ -707,9 +707,8 @@ fun LauncherScreen(
             if (state.verticalStatus) StatusRail(deviceStatus,
                 Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.contentTop.dp)
                     .width(preset.dockWidth.dp).onSizeChanged {
-                        // The normal rail's 20dp location slot and 3dp gap do not move the dock.
-                        statusHeight = (with(density) { it.height.toDp().value } -
-                            if (contentHeight < 500.dp) 0f else 23f).coerceAtLeast(0f)
+                        // The whole rail, location slot included: the dock goes below all of it.
+                        statusHeight = with(density) { it.height.toDp().value }
                     },
                 compact = contentHeight < 500.dp, iconSize = dockIconSize(geometry.iconSize).dp, style = state.statusStyle,
                 focus = state.focusModes.firstOrNull { it.id == state.activeFocus },

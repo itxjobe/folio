@@ -211,7 +211,7 @@ internal fun DockAppColumn(
                             transformOrigin = if (horizontal) androidx.compose.ui.graphics.TransformOrigin(.5f, 1f)
                                 else androidx.compose.ui.graphics.TransformOrigin(if (leftHanded) 0f else 1f, .5f)
                         }, shape = RoundedCornerShape(11.dp))
-                        if (edit.active && savedIndex >= 0) JiggleRemoveButton("Remove ${app.label} from dock") { edit.onRemove(DropTarget.Dock(savedIndex)) }
+                        if (edit.active && savedIndex >= 0) JiggleRemoveButton("Remove ${app.label} from dock", inset = 6.dp) { edit.onRemove(DropTarget.Dock(savedIndex)) }
                     }
                     // Recent-app dot (Beta): below the icon in a horizontal dock, on the screen side of a side dock.
                     if (!edit.active && app.packageName in LocalRecentPackages.current) Box(Modifier
@@ -277,7 +277,7 @@ internal fun AppTile(app: AppEntry, size: Float, labels: Boolean, modifier: Modi
             if (app.id in LocalStackedApps.current) StackPeek(iconSize)
             AppIcon(app, null, Modifier.fillMaxSize()
                 .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (pressed) .82f else 1f }, shape = RoundedCornerShape((size * .24f).dp))
-            if (onRemove != null) JiggleRemoveButton("Remove ${app.label} from Home", onRemove)
+            if (onRemove != null) JiggleRemoveButton("Remove ${app.label} from Home", onRemove = onRemove)
         }
         val ink = LocalHomeInk.current
         if (labels) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -397,9 +397,8 @@ private fun DiscoverDock(state: LauncherState, status: DeviceStatus, fullSize: S
             if (state.verticalStatus) StatusRail(status, Modifier.align(Alignment.TopEnd).padding(end = 12.dp)
                 .offset(y = geometry.contentTop.dp).width(preset.dockWidth.dp)
                 .onSizeChanged {
-                    // The normal rail's 20dp location slot and 3dp gap do not move the dock.
-                    statusHeight = (it.height / density.density -
-                        if (maxHeight < 500.dp) 0f else 23f).coerceAtLeast(0f)
+                    // The whole rail, location slot included: the dock goes below all of it.
+                    statusHeight = it.height / density.density
                 },
                 compact = maxHeight < 500.dp, iconSize = dockIconSize(geometry.iconSize).dp)
             Surface(Modifier.align(Alignment.TopEnd).padding(end = 12.dp).offset(y = geometry.dockTop.dp)

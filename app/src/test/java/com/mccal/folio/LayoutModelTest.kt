@@ -183,4 +183,13 @@ class LayoutModelTest {
             assertEquals(width - 2f * (p.dockWidth + 56f), g.gridWidth, .5f)
         }
     }
+
+    @Test fun `the dock starts below the whole status rail, however tall it grows`() {
+        // Inner screen, one page per side: a rail with Focus, Silent, time, date, ring and percent is about 190dp tall.
+        for (rail in listOf(120f, 160f, 190f, 230f)) {
+            val g = homeGeometry(933f, 704f, LayoutPreset(), true, statusHeight = rail + 22f)
+            assertTrue("rail $rail: dock ${g.dockTop} vs status bottom ${g.contentTop + rail}", g.dockTop >= g.contentTop + rail + 9.9f)
+            assertTrue(g.dockTop + g.dockHeight <= 704f)
+        }
+    }
 }

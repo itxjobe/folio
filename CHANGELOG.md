@@ -38,6 +38,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folio no longer asks for the Nearby devices (Bluetooth) permission: headphone and speaker names now come from Android's audio device list.
 
 ### Fixed
+- The dock no longer overlaps the Side Bar's status when it grows (Focus or Silent icons, the Rings styles); it always starts just below it, including in Discover.
+- In jiggle mode, the dock's remove buttons stay inside the Side Bar instead of hanging off its edge.
 - Spotlight's Suggestions show whole rows only, so the unfolded screen shows one clean row above the keyboard instead of a cut-off second row.
 - Unfolded in portrait, Home's four columns spread across the screen at every Screen zoom instead of sitting in a narrow block with a wide gap (issue #10).
 - On phones without Samsung's "Continue apps on cover screen" setting, setup no longer lists it as a required step that can never be done.

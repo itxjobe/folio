@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -88,10 +89,11 @@ internal fun Modifier.jiggle(key: Any, amount: Float = 1f): Modifier {
 
 /** The gray "–" in an icon's corner while jiggling. */
 @Composable
-internal fun BoxScope.JiggleRemoveButton(label: String, onRemove: () -> Unit) {
+internal fun BoxScope.JiggleRemoveButton(label: String, inset: Dp = 0.dp, onRemove: () -> Unit) {
     val haptic = LocalHapticFeedback.current
-    // 44dp touch target (accessibility minimum) around a 22dp visual, centered on the corner.
-    Box(Modifier.align(Alignment.TopStart).offset((-11).dp, (-11).dp).size(44.dp)
+    // 44dp touch target (accessibility minimum) around a 22dp visual, centered on the corner; [inset] pulls it in so it
+    // stays inside a tight container like the side dock, as iPhone keeps it inside the dock.
+    Box(Modifier.align(Alignment.TopStart).offset((-11).dp + inset, (-11).dp + inset).size(44.dp)
         .clickable(role = Role.Button, onClickLabel = label, interactionSource = null, indication = null) {
             haptic.performHapticFeedback(HapticFeedbackType.ContextClick); onRemove()
         }.semantics { contentDescription = label }, contentAlignment = Alignment.Center) {

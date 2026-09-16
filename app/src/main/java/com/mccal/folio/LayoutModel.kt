@@ -148,9 +148,12 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     // The status rail sits at the content top; in two columns the dock shares its edge with it, so it starts below.
     val homeReserve = if (railControls) 124f else 28f
     val bottomReserve = if (inLibrary) 12f else homeReserve
-    val belowStatus = contentTop + statusHeight
-    val topLimit = if (splitColumns && statusHeight > 0f && height - belowStatus - bottomReserve >= 4f * 48f + 16f) belowStatus
-        else maxOf(8f, statusHeight)
+    // [statusHeight] is the rail's full height (its location slot included) plus a 22dp margin, and the rail sits at
+    // [contentTop], so the dock starts 10dp under the status capsule whatever the capsule holds (Focus, Silent, Rings…).
+    // In very short windows the gap gives way first, never the capsule itself.
+    val statusBottom = if (statusHeight > 0f) contentTop + statusHeight - 22f else 0f
+    val belowStatus = if (statusHeight > 0f) maxOf(statusBottom, minOf(statusBottom + 10f, height - homeReserve - 76f)) else 0f
+    val topLimit = maxOf(8f, belowStatus)
     // Outer dock edges span the first through third icon images, excluding the last label.
     // Never shorter than four 48dp dock targets, even when a short window has shrunk the rows.
     val desiredHeight = maxOf(4f * 48f + 16f, if (p.dockAlignToGrid) 2f * row + icon else 256f)
