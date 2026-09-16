@@ -82,6 +82,16 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 
 ## Screenshots
 
+<p align="center">
+  <img src="docs/images/folio-060-home.gif" width="720" alt="Folio 0.6.0 on the unfolded Galaxy Z Fold8, one feature at a time: Home and the Side Bar, Spotlight, the App Library, Control Center, jiggle mode, the widget gallery, Dock Magnification and App Panels"><br>
+  <sub>Home, Spotlight, App Library, Control Center, jiggle mode, widgets and tweaks</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/folio-060-personalize.gif" width="720" alt="Folio 0.6.0 personalization: tinted icons in several colors, left-handed mode, the Classic, Dark, Tinted and Clear themes, the Tweak Library, the Roadmap and the Fold Effect preview"><br>
+  <sub>Tinted icons, left-handed mode, themes, the Tweak Library, the Roadmap and the fold effect</sub>
+</p>
+
 <table>
   <tr>
     <th colspan="3">Cover screen</th>
