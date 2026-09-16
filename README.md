@@ -4,8 +4,6 @@
 
 <h1 align="center">Folio</h1>
 
-<!-- Folio Launcher: an iOS-style Android launcher for foldables (Galaxy Z Fold), phones and tablets. -->
-
 <p align="center">
   <b>Folio Launcher: a clean, iPhone-style Home Screen for Android</b><br>
   with the jailbreak tweaks I always wanted, and none of the lockdown.
