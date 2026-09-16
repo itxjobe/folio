@@ -310,7 +310,7 @@ private val IconFace = Color(0xFF2C2C2E)
 private val IconRed = Color(0xFFFF453A)
 private val IconOrange = Color(0xFFFF9F0A)
 
-private val BadgeRed = Color(0xFFFF3B30)
+internal val BadgeRed = Color(0xFFFF3B30)
 private val SoftNeutral = Color(0xFFE5E5EA)
 
 /** iOS-style badge: sits over the icon's top-right corner, a dot or a pill that widens for 2+ digits. */

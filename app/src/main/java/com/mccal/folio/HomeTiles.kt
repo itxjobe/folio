@@ -230,17 +230,25 @@ internal fun <T> List<T>.slicePage(range: IntRange): List<T> =
 @Composable
 internal fun FolderTile(folder: FolderEntry, apps: Map<String, AppEntry>, size: Float, labels: Boolean,
     drag: HomeDragState, page: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val counts0 = LocalBadgeCounts.current
     Column(modifier.clickable(onClick = onClick).semantics(mergeDescendants = true) {
-        contentDescription = "Folder ${folder.title}, ${folder.appIds.size} apps"
+        val unread = folder.appIds.mapNotNull { apps[it]?.packageName }.distinct().sumOf { counts0[it] ?: 0 }
+        contentDescription = "Folder ${folder.title}, ${folder.appIds.size} apps" + if (unread > 0) ", $unread notifications" else ""
     }, horizontalAlignment = Alignment.CenterHorizontally) {
         val tint = LocalFolderColors.current[folder.id]?.let { Color(it) }
         val bounds = remember { android.graphics.Rect() }
         Box(Modifier.size(size.dp)
             .dropRegion(drag, DropTarget.Folder(folder.id), page = page, folderId = folder.id)
             .onGloballyPositioned { bounds.set(it.boundsInWindow().toAndroidBounds()); IconBounds.update(folder.id, bounds) }
-            .jiggle(folder.id).clip(RoundedCornerShape((size * .24f).dp))
-            .background(tint?.copy(alpha = .78f) ?: Glass.copy(alpha = .72f)).border(1.dp, Color.White.copy(alpha = .55f), RoundedCornerShape((size * .24f).dp))
-            .testTag("folder-drop-${folder.id}")) {
+            .jiggle(folder.id)) {
+            // Like iOS: a folder's badge is the total of its apps' badges (each app counted once).
+            val look = LocalIconLook.current
+            val counts = LocalBadgeCounts.current
+            val total = if (look.badges == BadgeStyle.OFF) 0
+                else folder.appIds.mapNotNull { apps[it]?.packageName }.distinct().sumOf { counts[it] ?: 0 }
+            Box(Modifier.fillMaxSize().clip(RoundedCornerShape((size * .24f).dp))
+                .background(tint?.copy(alpha = .78f) ?: Glass.copy(alpha = .72f)).border(1.dp, Color.White.copy(alpha = .55f), RoundedCornerShape((size * .24f).dp))
+                .testTag("folder-drop-${folder.id}")) {
             folder.appIds.take(4).forEachIndexed { index, id ->
                 apps[id]?.let { app ->
                     AppIcon(app, null, Modifier.align(when (index) {
@@ -248,6 +256,8 @@ internal fun FolderTile(folder: FolderEntry, apps: Map<String, AppEntry>, size: 
                     }).padding(5.dp).size((size * .38f).dp).clip(RoundedCornerShape(6.dp)))
                 }
             }
+            }
+            if (total > 0) IconBadge(total, look.badges, look.badgeColor.fixed?.let { Color(it) } ?: BadgeRed, look.badgeLook, look.badgeSize.scale)
         }
         if (labels) Text(folder.title, color = LocalHomeInk.current.primary, fontSize = LocalLabelSize.current.sp.sp, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))

@@ -63,6 +63,24 @@ internal fun rememberEntrance(stiffness: Float, dampingRatio: Float = 1f, from: 
 private const val ENTRANCE_TIMEOUT_MS = 900L
 
 /**
+ * A 0–1 overlay progress that springs to [target] and, like [rememberEntrance], snaps there if frames stall (Folio in
+ * the background, a stuck window), so a closed panel can never stay on screen or leave Home blurred.
+ */
+@Composable
+internal fun rememberSettlingProgress(target: Float, spec: androidx.compose.animation.core.AnimationSpec<Float>,
+    /** Longer than the slowest Animation Speed takes to settle, so a normal close never jumps. */
+    timeoutMs: Long = 1_500L): androidx.compose.runtime.State<Float> {
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(target) }
+    androidx.compose.runtime.LaunchedEffect(target) { progress.animateTo(target, spec) }
+    DisposableEffect(target) {
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main.immediate)
+        scope.launch { kotlinx.coroutines.delay(timeoutMs); if (progress.value != target) progress.snapTo(target) }
+        onDispose { scope.cancel() }
+    }
+    return progress.asState()
+}
+
+/**
  * Folio's sheet: same API as Material's ModalBottomSheet (this package-level function shadows the
  * star-imported one in launcher files), but dark iOS-style glass, a slim handle, and Home blurred behind.
  */

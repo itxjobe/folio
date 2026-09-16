@@ -154,8 +154,8 @@ class MainActivity : ComponentActivity() {
                     while (true) { kotlinx.coroutines.delay(30_000); Diagnostics.checkpoint(this@MainActivity, visible = true) }
                 }
             }
-            val overlayProgress by androidx.compose.animation.core.animateFloatAsState(if (overlayOpen) 1f else 0f,
-                MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "overlay")
+            val overlayProgress by rememberSettlingProgress(if (overlayOpen) 1f else 0f,
+                MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
             val backdropBlurPx = with(androidx.compose.ui.platform.LocalDensity.current) { (state.panelBlur * 32).dp.toPx() }
             val backdropBlur = androidx.compose.runtime.remember(backdropBlurPx) {
                 androidx.compose.ui.graphics.BlurEffect(backdropBlurPx, backdropBlurPx, androidx.compose.ui.graphics.TileMode.Clamp)
@@ -392,8 +392,9 @@ class MainActivity : ComponentActivity() {
             .setTitle("Turn On Folio Gestures")
             .setMessage("Android asks you to turn this on yourself:\n\n" +
                 "1. Tap Open Settings, find “Folio gestures & overlays” (often under Installed apps) and turn it on.\n" +
-                "2. If it's greyed out or Android calls it a restricted setting, tap App Info, open the ⋮ menu, choose " +
-                "“Allow restricted settings”, then come back and try again. Android does this for apps installed from a file.\n\n" +
+                "2. If it's greyed out, or you see “App was denied access” or “Restricted setting”, tap App Info below, open the ⋮ menu " +
+                "(top right), choose “Allow restricted settings” and confirm, then come back and turn it on. Android does this for apps " +
+                "installed from a browser or file; it's a one-time step.\n\n" +
                 "Folio uses it to open Notification Center and Control Center, and for the dock and island over other apps. " +
                 "It can't read what's on your screen.")
             .setNegativeButton("Not Now", null)
