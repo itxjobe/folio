@@ -33,6 +33,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - The App Library on the unfolded screen shows more, phone-sized category tiles (five across in landscape) instead of two giant columns (issue #9), and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
 - Friendlier setup: Folio's own icon on the welcome page, Skip on every step, setup moves on by itself after you allow something, clearer tips at the end, and choosing a wallpaper no longer restarts the screen.
+- Phone-sized screens keep the phone layout when Developer options' Smallest width or Display size is changed (a Fold8 cover set to 600dp got the unfolded layout, with the dock at the bottom and wide margins).
 - Folders take more than two apps from the app menu: Create Folder becomes Add to Folder once you have one, listing your folders first.
 - Scrolling lists fade at their edges more softly, and the fade grows in as you scroll instead of popping in.
 - App Library folders open without building every app at once, and holding an app there opens its menu.

@@ -196,7 +196,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     // iPad Settings / One UI on the unfolded screen: sidebar and page side by side, in either orientation.
     // Regular size class (both dimensions roomy), not a device check: the inner screen in either orientation.
     val fullWidth = maxWidth
-    val split = maxWidth >= 600.dp && maxHeight >= 560.dp
+    val split = isRegularSize(maxWidth.value, maxHeight.value, androidx.compose.ui.platform.LocalConfiguration.current.classScale)
     val pageContent: @Composable ColumnScope.() -> Unit = {
             when (page) {
                 CustomizationPage.OVERVIEW -> if (split) {
@@ -1498,6 +1498,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.NotificationsActive, 0xFFFF3B30, "Notification Rules", "Choose per app where notifications show.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Dock, 0xFF30D158, "Dock Drawer", "Swipe in on the dock for recent apps and Now Playing.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.Lock, 0xFF30D158, "More privacy controls", "More ways to keep what's on your screen private, planned for 0.7.0.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Newspaper, 0xFFFF9F0A, "Custom Today View", "Arrange Today View your way, with a news feed like the page left of Android's Home.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
         ),
