@@ -37,6 +37,17 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
+/**
+ * Where Settings was when it closed, so opening it again picks up there, like iPhone Settings. The page itself is
+ * kept by Home; this holds the rest. In memory only, so a restart opens at the top.
+ */
+internal object SettingsMemory {
+    var tweakId = ""
+    var focusId = ""
+    var bodyScroll = 0
+    var sidebarScroll = 0
+}
+
 internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK;
 
     /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
@@ -65,8 +76,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     onShowWhatsNew: () -> Unit = {},
 ) {
     var wide by rememberSaveable { mutableStateOf(initiallyWide) }
-    var tweakId by rememberSaveable { mutableStateOf("") }
-    var focusId by rememberSaveable { mutableStateOf("") }
+    var tweakId by rememberSaveable { mutableStateOf(SettingsMemory.tweakId) }
+    var focusId by rememberSaveable { mutableStateOf(SettingsMemory.focusId) }
+    SideEffect { SettingsMemory.tweakId = tweakId; SettingsMemory.focusId = focusId }
     var settingsQuery by rememberSaveable { mutableStateOf("") }
     var namingBackup by remember { mutableStateOf(false) }
     val title = when (page) {
@@ -97,8 +109,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"
         CustomizationPage.SOFTWARE_UPDATE -> "Software Update"
     }
-    val bodyScroll = rememberScrollState()
-    LaunchedEffect(page) { bodyScroll.scrollTo(0) }
+    // Reopening Settings lands where it was, scrolled the same; opening another page starts at its top.
+    val bodyScroll = rememberScrollState(SettingsMemory.bodyScroll)
+    val sidebarScroll = rememberScrollState(SettingsMemory.sidebarScroll)
+    var scrolledPage by remember { mutableStateOf(page) }
+    LaunchedEffect(page) { if (page != scrolledPage) { scrolledPage = page; bodyScroll.scrollTo(0) } }
+    DisposableEffect(Unit) { onDispose { SettingsMemory.bodyScroll = bodyScroll.value; SettingsMemory.sidebarScroll = sidebarScroll.value } }
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
     val onBack = { onPage(page.parent) }
@@ -582,12 +598,11 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         val tiled = maxWidth > maxHeight
         // Tiled it shares the width; as an overlay it can be a little wider so rows don't wrap.
         val sidebarWidth = if (tiled) (fullWidth * .4f).coerceIn(280.dp, 380.dp) else minOf(360.dp, fullWidth * .6f)
-        var sidebarOpen by rememberSaveable { mutableStateOf(true) }
+        var sidebarOpen by rememberSaveable { mutableStateOf(tiled || page == CustomizationPage.OVERVIEW) }
         var shownPage by remember { mutableStateOf(page) }
         // Opening a page slides the list away; coming back to the top brings it back, since the list is all that page has.
         SideEffect { if (page != shownPage) { shownPage = page; if (!tiled) sidebarOpen = page == CustomizationPage.OVERVIEW } }
         val sidebar: @Composable () -> Unit = {
-            val sidebarScroll = rememberScrollState()
             Column(Modifier.width(sidebarWidth).fillMaxHeight().edgeFade(sidebarScroll).verticalScroll(sidebarScroll)
                 .padding(horizontal = 16.dp).padding(top = 44.dp, bottom = 20.dp).testTag("settings-sidebar"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsLargeTitle(stringResource(R.string.folio))

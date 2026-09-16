@@ -161,7 +161,6 @@ fun LauncherScreen(
     var stackEditId by rememberSaveable { mutableStateOf<String?>(null) }
     var customizationPage by rememberSaveable { mutableStateOf(CustomizationPage.OVERVIEW) }
     LaunchedEffect(sheet) {
-        if (sheet.isEmpty()) customizationPage = CustomizationPage.OVERVIEW
         if (sheet != "widgets") { stackTargetSlot = null; todayAdd = false }
     }
     var openFolderId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -833,7 +832,6 @@ fun LauncherScreen(
             if (sheet.isNotEmpty() && sheet != "widgets") OwnMethod {
                 val activeCustomizationPage = if (sheet == "settings:wallpaper") CustomizationPage.WALLPAPER else customizationPage
                 ModalBottomSheet(onDismissRequest = {
-                    customizationPage = CustomizationPage.OVERVIEW
                     sheet = ""; widgetPackage = null; widgetExactTarget = false
                 }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
@@ -844,7 +842,6 @@ fun LauncherScreen(
                             customizationPage = activeCustomizationPage.parent
                             sheet = "settings"
                         } else {
-                            customizationPage = CustomizationPage.OVERVIEW
                             sheet = ""; widgetPackage = null; widgetExactTarget = false
                         }
                     }
@@ -870,7 +867,7 @@ fun LauncherScreen(
                         "settings", "settings:wallpaper" -> CustomizationSheet(state, wide, model, isDefaultHome,
                             page = activeCustomizationPage, onPage = { customizationPage = it; sheet = "settings" },
                             onMakeDefault = { sheet = ""; onMakeDefault() },
-                            onClose = { customizationPage = CustomizationPage.OVERVIEW; sheet = "" }, onEditPins = { sheet = "pins" },
+                            onClose = { sheet = "" }, onEditPins = { sheet = "pins" },
                             onWidget = { widgetSlot = it; widgetPackage = null; widgetProfileSerial = null; widgetExactTarget = false; sheet = "widgets" },
                             onAddWidget = { page -> widgetSlot = model.nextWidgetSlot(); widgetTargetIndex = page * HOME_CELLS; widgetPackage = null; widgetProfileSerial = null; widgetExactTarget = false; sheet = "widgets" },
                             onRemoveWidget = widgets::remove,
