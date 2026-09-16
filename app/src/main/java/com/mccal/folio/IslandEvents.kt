@@ -25,6 +25,7 @@ internal val IslandEvent.kind: String get() = when (this) {
     is IslandEvent.Focus -> "FOCUS"
     is IslandEvent.Bluetooth -> "BLUETOOTH"
     is IslandEvent.Message -> if (alert) "ALERT" else "MESSAGE"
+    is IslandEvent.Notice -> "NOTICE"
 }
 
 /** Listens for brief system moments (charging, silent, focus, Bluetooth) and publishes them for the island. */
@@ -113,7 +114,24 @@ class IslandEvents private constructor(private val context: Context) {
         private val BLUETOOTH_OUTPUTS = setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER)
         const val SHOW_MS = 2_600L
         const val MESSAGE_SHOW_MS = 6_000L
-        fun showMs(event: IslandEvent) = if (event is IslandEvent.Message) MESSAGE_SHOW_MS else SHOW_MS
+        const val NOTICE_SHOW_MS = 3_500L
+        fun showMs(event: IslandEvent) = when (event) {
+            is IslandEvent.Message -> MESSAGE_SHOW_MS
+            is IslandEvent.Notice -> NOTICE_SHOW_MS
+            else -> SHOW_MS
+        }
+
+        /** Home islands on screen that can show a notice card (not the upright one beside a side camera). */
+        @Volatile internal var noticeIslands = 0
+
+        /**
+         * Folio's own brief feedback, shown next to where you are instead of as a toast: in Home's island when it's on
+         * screen, and as a toast otherwise (island off, another app in front).
+         */
+        fun notice(context: Context, text: String, appIcon: android.graphics.Bitmap? = null) {
+            if (noticeIslands > 0 && FolioForeground.visible.value) post(IslandEvent.Notice(text, appIcon))
+            else android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+        }
         /** Hides the pop-up now (swiped away); the notification itself stays in Notification Center. */
         fun dismiss() { mutable.value = null }
         /** Posted by the notification listener for new messages and notifications. */

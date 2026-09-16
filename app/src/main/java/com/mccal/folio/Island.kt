@@ -125,6 +125,8 @@ sealed interface IslandEvent {
      */
     data class Message(val key: String, val packageName: String, val appLabel: String, val sender: String, val text: String?,
         val avatar: Bitmap?, val appIcon: Bitmap?, val canReply: Boolean, val alert: Boolean = false) : IslandEvent
+    /** Brief feedback from Folio itself ("Calendar is unavailable"), with the app's icon when it's about an app. */
+    data class Notice(val text: String, val appIcon: Bitmap? = null) : IslandEvent
 }
 
 /**

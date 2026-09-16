@@ -42,6 +42,9 @@ import kotlinx.coroutines.launch
  * Where Settings was when it closed, so opening it again picks up there, like iPhone Settings. The page itself is
  * kept by Home; this holds the rest. In memory only, so a restart opens at the top.
  */
+/** A page to open Settings on, set by something outside Settings (the setup reminder on Home). */
+internal object SettingsLink { var page: CustomizationPage? = null }
+
 internal object SettingsMemory {
     var tweakId = ""
     var focusId = ""
@@ -198,8 +201,14 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         if (!isDefaultHome && state.canUndoEdit) MenuDivider()
                         if (state.canUndoEdit) IosActionRow(stringResource(R.string.undo_last_layout_change), onClick = { model.undoEdit(); onClose() })
                     }
-                    if (setupLeft > 0) CustomizationDestination(Icons.Rounded.Checklist, "Finish setting up Folio",
-                        "$setupLeft step${if (setupLeft > 1) "s" else ""} left for the full experience", "customization-setup") { onPage(CustomizationPage.PERMISSIONS) }
+                    if (setupLeft > 0) {
+                        val required = setupSteps.count { it.required }
+                        CustomizationDestination(Icons.Rounded.Checklist, "Finish Setting Up Folio",
+                            "$setupLeft step${if (setupLeft > 1) "s" else ""} left for the full experience", "customization-setup",
+                            leading = { SetupRing(required - setupLeft, required, 40.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .15f)) }) {
+                            onPage(CustomizationPage.PERMISSIONS)
+                        }
+                    }
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -1189,11 +1198,13 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
 }
 
-@Composable private fun CustomizationDestination(icon: ImageVector, title: String, detail: String, tag: String, onClick: () -> Unit) {
+@Composable private fun CustomizationDestination(icon: ImageVector, title: String, detail: String, tag: String,
+    leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(tag),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .52f), shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(14.dp))
+            if (leading != null) leading() else Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(detail,
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Icon(Icons.Rounded.ChevronRight, null)

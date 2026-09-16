@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.input.pointer.pointerInput
@@ -113,18 +114,25 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
     val message = eventVisible as? IslandEvent.Message
     // Only a reply in progress owns Back; a passing message card must not swallow Back for the rest of Home.
     androidx.activity.compose.BackHandler(message != null && replying) { replying = false; eventVisible = null }
+    val notice = eventVisible as? IslandEvent.Notice
     val content: IslandContent? = eventVisible?.let { IslandContent.Event(it) } ?: activity?.let { IslandContent.Live(it) }
     var expanded by remember(activity?.packageName) { mutableStateOf(false) }
     androidx.activity.compose.BackHandler(expanded) { expanded = false }
-    if (content == null || windowWidth <= 0) return
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val wide = with(density) { windowWidth.toDp() }.value * androidx.compose.ui.platform.LocalConfiguration.current.classScale >= 600f
     val landscape = windowWidth > windowHeight
     // Camera on a side edge (a screen turned sideways): the island stands upright around it, like iPhone Duo's.
     val side = cameraSideEdge(cutout, windowWidth, windowHeight)
-    if (side != null && IslandPosition.load(context, wide, landscape) == null) {
-        VerticalIsland(content, cutout!!, side, windowWidth, windowHeight, onOpen = onOpen,
+    val upright = side != null && IslandPosition.load(context, wide, landscape) == null
+    // Folio's own notices come here instead of a toast while this island can show them.
+    DisposableEffect(upright) {
+        if (!upright) IslandEvents.noticeIslands++
+        onDispose { if (!upright) IslandEvents.noticeIslands-- }
+    }
+    if (content == null || windowWidth <= 0) return
+    if (upright) {
+        VerticalIsland(content, cutout!!, side!!, windowWidth, windowHeight, onOpen = onOpen,
             onMessage = { m -> eventVisible = null; IslandListenerService.openKey(context, m.key, m.packageName) })
         return
     }
@@ -144,8 +152,8 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
         val live = (content as? IslandContent.Live)?.activity
         // A new message opens straight into a small card (like an iPhone banner coming out of the island).
         val ringing = (live as? IslandActivity.Call)?.takeIf { it.incoming }
-        val open = (expanded && live != null) || message != null || ringing != null
-        val cardW = 340.dp.coerceAtMost(windowWidth.toDp() - 16.dp)
+        val open = (expanded && live != null) || message != null || notice != null || ringing != null
+        val cardW = (if (notice != null) 300.dp else 340.dp).coerceAtMost(windowWidth.toDp() - 16.dp)
         // One shape morphs between pill and card: width, corner radius and height all spring together,
         // anchored to the camera like the real Dynamic Island.
         val morph = spring<Dp>(dampingRatio = .74f, stiffness = Spring.StiffnessMediumLow)
@@ -182,7 +190,8 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
             .testTag("cutout-island")) {
             androidx.compose.animation.AnimatedContent(open, label = "island-content",
                 transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(90)) }) { showCard ->
-                if (showCard && message != null) MessageCardContent(message, replying, onReply = { replying = true },
+                if (showCard && notice != null) NoticeCardContent(notice) { eventVisible = null; IslandEvents.dismiss() }
+                else if (showCard && message != null) MessageCardContent(message, replying, onReply = { replying = true },
                     onOpen = { replying = false; eventVisible = null; IslandListenerService.openKey(context, message.key, message.packageName) },
                     onDone = { replying = false; eventVisible = null },
                     onDismiss = { replying = false; eventVisible = null; IslandEvents.dismiss() })
@@ -281,6 +290,7 @@ internal fun describe(content: IslandContent): String = when (content) {
         is IslandEvent.Silent -> if (e.on) "Silent mode on" else "Silent mode off"
         is IslandEvent.Focus -> if (e.on) "Do Not Disturb on" else "Do Not Disturb off"
         is IslandEvent.Bluetooth -> "Connected${e.name?.let { " to $it" } ?: ""}"
+        is IslandEvent.Notice -> e.text
         is IslandEvent.Message -> (if (e.alert) "${e.appLabel}: ${e.sender}" else "Message from ${e.sender}") + (e.text?.let { ": $it" } ?: "")
     }
     is IslandContent.Live -> content.activity.title + ". Tap for details"
@@ -307,6 +317,8 @@ internal fun LeadingGlyph(content: IslandContent, size: Dp) {
             }
             is IslandEvent.Bluetooth -> Icon(if (e.speaker) Icons.Rounded.Speaker else Icons.Rounded.Headphones, null, tint = IslandBlue, modifier = Modifier.size(size * .8f))
             is IslandEvent.Message -> MessageAvatar(e, size)
+            is IslandEvent.Notice -> e.appIcon?.let { Image(it.asImageBitmap(), null, Modifier.size(size).clip(RoundedCornerShape(size * .24f))) }
+                ?: CircleGlyph(Icons.Rounded.Info, Color.White, size)
         }
         is IslandContent.Live -> when (val a = content.activity) {
             is IslandActivity.Call -> if (a.incoming) CallAvatar(a, size) else Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,7 +342,9 @@ internal fun TrailingGlyph(content: IslandContent, size: Dp) {
             is IslandEvent.Silent -> Text(if (e.on) "On" else "Off", color = if (e.on) Red else Color.White.copy(alpha = .7f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             is IslandEvent.Focus -> Text(if (e.on) "On" else "Off", color = if (e.on) Purple else Color.White.copy(alpha = .7f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             is IslandEvent.Bluetooth -> Text(e.name ?: "Connected", color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            is IslandEvent.Message -> e.appIcon?.let { Image(it.asImageBitmap(), null, Modifier.size(size * .8f).clip(RoundedCornerShape(size * .22f))) }
+            // The app's icon beside the sender's photo; without a photo the icon is already on the left.
+            is IslandEvent.Message -> e.appIcon?.takeIf { e.avatar != null }?.let { Image(it.asImageBitmap(), null, Modifier.size(size * .8f).clip(RoundedCornerShape(size * .22f))) }
+            is IslandEvent.Notice -> Unit
         }
         is IslandContent.Live -> when (val a = content.activity) {
             is IslandActivity.Media -> Bars(a.playing, if (LocalTintOptions.current.media) rememberAccent(a.art)?.let { mixColor(it, Color.White, .25f) } ?: IslandGreen else IslandGreen)
@@ -339,6 +353,41 @@ internal fun TrailingGlyph(content: IslandContent, size: Dp) {
             is IslandActivity.Timer -> Chronometer(a.base, a.countDown, IslandOrange)
             is IslandActivity.Navigation -> Text(a.subtitle ?: a.title, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/**
+ * Swipe up to put an island card away, like an iPhone banner: it follows the finger with some resistance and springs
+ * back if let go early. The notification itself stays in Notification Center.
+ */
+private fun Modifier.swipeUpToHide(enabled: Boolean, onHide: () -> Unit): Modifier = composed {
+    val pull = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val hideAt = with(LocalDensity.current) { 24.dp.toPx() }
+    val latestOnHide by rememberUpdatedState(onHide)
+    pointerInput(enabled) {
+        if (!enabled) return@pointerInput
+        var travel = 0f
+        detectVerticalDragGestures(
+            onDragStart = { travel = 0f },
+            onDragEnd = { if (travel < -hideAt) latestOnHide() else scope.launch { pull.animateTo(0f, spring(dampingRatio = .7f)) } },
+            onDragCancel = { scope.launch { pull.animateTo(0f) } },
+        ) { change, dy ->
+            change.consume(); travel += dy
+            scope.launch { pull.snapTo((travel * .5f).coerceIn(-hideAt * 3f, 0f)) }
+        }
+    }.graphicsLayer { translationY = pull.value; alpha = 1f - (-pull.value / (hideAt * 6f)) }
+}
+
+/** Folio's own brief feedback: the app's icon (or an info symbol) and one or two lines. Tap or swipe up to hide. */
+@Composable
+private fun NoticeCardContent(notice: IslandEvent.Notice, onHide: () -> Unit) {
+    Row(Modifier.fillMaxWidth().swipeUpToHide(true, onHide).clickable(onClick = onHide)
+        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        notice.appIcon?.let { Image(it.asImageBitmap(), null, Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))) }
+            ?: Icon(Icons.Rounded.Info, null, tint = IslandBlue, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(notice.text, color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp)
     }
 }
 
@@ -359,25 +408,7 @@ private fun MessageAvatar(message: IslandEvent.Message, size: Dp) {
 private fun MessageCardContent(message: IslandEvent.Message, replying: Boolean, onReply: () -> Unit, onOpen: () -> Unit, onDone: () -> Unit,
     onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    // Swipe up to put it away, like an iPhone banner: it follows the finger with some resistance and springs back
-    // if let go early. The notification stays in Notification Center.
-    val pull = remember { androidx.compose.animation.core.Animatable(0f) }
-    val scope = rememberCoroutineScope()
-    val dismissAt = with(LocalDensity.current) { 24.dp.toPx() }
-    Column(Modifier.fillMaxWidth()
-        .pointerInput(replying) {
-            if (replying) return@pointerInput
-            var travel = 0f
-            detectVerticalDragGestures(
-                onDragStart = { travel = 0f },
-                onDragEnd = { if (travel < -dismissAt) onDismiss() else scope.launch { pull.animateTo(0f, spring(dampingRatio = .7f)) } },
-                onDragCancel = { scope.launch { pull.animateTo(0f) } },
-            ) { change, dy ->
-                change.consume(); travel += dy
-                scope.launch { pull.snapTo((travel * .5f).coerceIn(-dismissAt * 3f, 0f)) }
-            }
-        }
-        .graphicsLayer { translationY = pull.value; alpha = 1f - (-pull.value / (dismissAt * 6f)) }
+    Column(Modifier.fillMaxWidth().swipeUpToHide(!replying, onDismiss)
         .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.Top, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)) {

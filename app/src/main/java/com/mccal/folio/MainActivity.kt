@@ -14,7 +14,6 @@ import android.content.pm.LauncherApps
 import android.os.Bundle
 import android.os.UserManager
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -237,6 +236,8 @@ class MainActivity : ComponentActivity() {
                 StandByOverlay(rememberHalfOpenPose(this@MainActivity), state.standBy, blocked = overlayOpen, status = deviceStatus)
                 LockCover(lockCoverVisible.value && state.lockCover) { lockCoverVisible.value = false }
                 AudioDeviceCard("BLUETOOTH" !in state.islandEventsOff, blocked = overlayOpen)
+                SetupReminderCard(defaultHome.value, blocked = overlayOpen || showFirstRun.value, onMakeDefault = ::makeDefault,
+                    onShadeSetup = ::showShadeSetup) { SettingsLink.page = CustomizationPage.PERMISSIONS; settingsRequests.intValue++ }
                 sharedTheme.value?.let { theme ->
                     AlertDialog(onDismissRequest = { sharedTheme.value = null },
                         title = { androidx.compose.material3.Text("Apply \u201c${theme.name}\u201d?") },
@@ -358,10 +359,8 @@ class MainActivity : ComponentActivity() {
         when (SystemShadeAccessibilityService.open(this, panel)) {
             ShadeOpenResult.OPENED -> Unit
             ShadeOpenResult.SERVICE_DISABLED -> showShadeSetup()
-            ShadeOpenResult.SERVICE_STARTING -> Toast.makeText(this,
-                "Shade gestures are starting. Swipe down again.", Toast.LENGTH_SHORT).show()
-            ShadeOpenResult.ACTION_REJECTED -> Toast.makeText(this,
-                "Android couldn’t open the system panel.", Toast.LENGTH_SHORT).show()
+            ShadeOpenResult.SERVICE_STARTING -> IslandEvents.notice(this, "Folio gestures are starting. Swipe down again.")
+            ShadeOpenResult.ACTION_REJECTED -> IslandEvents.notice(this, "Android couldn’t open the system panel.")
         }
     }
 
@@ -388,7 +387,7 @@ class MainActivity : ComponentActivity() {
                 if (!opened) {
                     returningFromShadeSettings = false
                     releaseShadeSetupOwnership()
-                    Toast.makeText(this, "Accessibility settings are unavailable.", Toast.LENGTH_LONG).show()
+                    IslandEvents.notice(this, "Accessibility settings are unavailable.")
                 }
             }
             .also { dialog -> dialog.setOnDismissListener {
@@ -465,7 +464,7 @@ class MainActivity : ComponentActivity() {
             val shortcut = app.shortcutId
             if (shortcut != null) launcherApps.startShortcut(app.packageName, shortcut, screenBounds(bounds), launchOptions(bounds), user)
             else launcherApps.startMainActivity(app.component, user, screenBounds(bounds), launchOptions(bounds))
-        } catch (_: Exception) { Toast.makeText(this, "${app.label} is unavailable.", Toast.LENGTH_SHORT).show(); model.refresh() }
+        } catch (_: Exception) { IslandEvents.notice(this, "${app.label} is unavailable.", app.icon); model.refresh() }
     }
 
     private fun screenBounds(bounds: android.graphics.Rect?): android.graphics.Rect? = bounds?.takeUnless { it.isEmpty }?.let {
@@ -603,7 +602,7 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
                 .putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(this, DuneWallpaperService::class.java)))
         } catch (_: android.content.ActivityNotFoundException) {
-            Toast.makeText(this, "The system wallpaper preview is unavailable.", Toast.LENGTH_LONG).show()
+            IslandEvents.notice(this, "The system wallpaper preview is unavailable.")
         }
     }
 
@@ -613,7 +612,7 @@ class MainActivity : ComponentActivity() {
                 ?: throw IllegalStateException("Profile is unavailable")
             getSystemService(LauncherApps::class.java).startAppDetailsActivity(app.component, user, null, null)
         } catch (_: Exception) {
-            Toast.makeText(this, "${app.label} is unavailable.", Toast.LENGTH_SHORT).show()
+            IslandEvents.notice(this, "${app.label} is unavailable.", app.icon)
             model.refresh()
         }
     }

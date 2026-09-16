@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DarkMode
@@ -255,6 +256,7 @@ internal fun VerticalIsland(content: IslandContent, camera: android.graphics.Rec
                         is IslandEvent.Silent -> CircleGlyph(if (e.on) Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsActive,
                             if (e.on) Color(0xFFFF453A) else Color.White, glyph)
                         is IslandEvent.Focus -> CircleGlyph(Icons.Rounded.DarkMode, Color(0xFF5E5CE6), glyph)
+                        is IslandEvent.Notice -> CircleGlyph(Icons.Rounded.Info, Color.White, glyph)
                         else -> CircleGlyph(Icons.Rounded.Headphones, IslandBlue, glyph)
                     }
                     else -> LeadingGlyph(content, glyph)
@@ -273,7 +275,7 @@ internal fun VerticalIsland(content: IslandContent, camera: android.graphics.Rec
                         is IslandEvent.Charging -> Text("${e.level ?: ""}%", color = IslandGreen, fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                         is IslandEvent.Silent -> Text(if (e.on) "On" else "Off", color = Color.White, fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                         is IslandEvent.Focus -> Text(if (e.on) "On" else "Off", color = Color.White, fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                        is IslandEvent.Message -> e.appIcon?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null, Modifier.size(18.dp).clip(RoundedCornerShape(5.dp))) }
+                        is IslandEvent.Message -> e.appIcon?.takeIf { e.avatar != null }?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null, Modifier.size(18.dp).clip(RoundedCornerShape(5.dp))) }
                         else -> Unit
                     }
                 }

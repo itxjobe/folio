@@ -22,6 +22,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - Beta Updates in Software Update: choose Folio Beta to get GitHub pre-releases too. Turning it off keeps your beta until a newer public release.
 - Other notifications in the Dynamic Island (off by default): new notifications from apps you choose pop up in the island like messages, following each app's alert settings, Do Not Disturb and "Don't double up with Android pop-ups". Choose apps in Dynamic Island › Other Notifications.
 - Swipe an island pop-up up to hide it early, on Home and over other apps; it stays in Notification Center.
+- Finish Setting Up: if required setup is left, a card on Home brings you back (not on the first day; Not Now waits three days; never again once setup is finished), and Settings shows a progress ring.
+- Folio's own short messages (an app that won't open, a panel Android couldn't open) show in the Dynamic Island instead of a toast when the island is on screen.
 - Settings opens where you left it, on the same page and scrolled the same, like iPhone Settings.
 - Report a Bug and Show Welcome Again moved into Settings › Help, so the main list is shorter; searching Settings for "bug" or "welcome" finds them.
 - Screenshot Mode (Advanced): Folio shows 9:41 with full battery and signal and hides notifications, music, messages, device names, calendar events and alarms, for sharing your setup. Turns off by itself after 30 minutes.
@@ -33,6 +35,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folio no longer asks for the Nearby devices (Bluetooth) permission: headphone and speaker names now come from Android's audio device list.
 
 ### Fixed
+- On phones without Samsung's "Continue apps on cover screen" setting, setup no longer lists it as a required step that can never be done.
 - Scrolling lists and grids fade softly at their edges instead of being cut off.
 - The App Library on the unfolded screen shows more, phone-sized category tiles (five across in landscape) instead of two giant columns (issue #9), and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
