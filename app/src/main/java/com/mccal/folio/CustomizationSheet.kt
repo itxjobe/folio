@@ -177,17 +177,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         MenuDivider()
                         TweakRow(Icons.Rounded.Map, 0xFF5E5CE6, "Roadmap", "customization-coming-soon", selected = selected == CustomizationPage.COMING_SOON, chevron = !sidebar) { onPage(CustomizationPage.COMING_SOON) }
                         MenuDivider()
-                        val bugContext = androidx.compose.ui.platform.LocalContext.current
-                        TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug", chevron = !sidebar) {
-                            runCatching { bugContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(bugContext)))) }
-                        }
-                        MenuDivider()
-                        TweakRow(Icons.Rounded.WavingHand, 0xFFFF9F0A, "Show Welcome Again", "customization-onboarding", chevron = !sidebar) { onClose(); onShowWelcome() }
-                        MenuDivider()
                         TweakRow(Icons.Rounded.Favorite, 0xFFFF453A, "Credits", "customization-credits", selected = selected == CustomizationPage.CREDITS, chevron = !sidebar) { onPage(CustomizationPage.CREDITS) }
                     }
-                    Text("Report a Bug opens GitHub in your browser with your Folio version and phone filled in. Nothing is sent until you submit it.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
                     SheetGroup {
                         val supportContext = androidx.compose.ui.platform.LocalContext.current
                         TweakRow(Icons.Rounded.LocalCafe, 0xFFFF5E5B, "Support Folio", "customization-support", "Ko-fi", chevron = !sidebar) {
@@ -538,6 +529,17 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 }
                 CustomizationPage.CREDITS -> CreditsPage()
                 CustomizationPage.HELP -> {
+                    // Getting help lives here rather than as more rows in the main list (fewer choices there).
+                    val helpContext = androidx.compose.ui.platform.LocalContext.current
+                    SheetGroup {
+                        TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug") {
+                            runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) }
+                        }
+                        MenuDivider()
+                        TweakRow(Icons.Rounded.WavingHand, 0xFFFF9F0A, "Show Welcome Again", "customization-onboarding") { onClose(); onShowWelcome() }
+                    }
+                    Text("Report a Bug opens GitHub in your browser with your Folio version and phone filled in. Nothing is sent until you submit it.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
                     LauncherHelp(
                         isDefaultHome = isDefaultHome,
                         onHomeSettings = onMakeDefault,
@@ -864,6 +866,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Screenshot Mode", "screenshot 9:41 demo clean share setup hide notifications privacy", CustomizationPage.ADVANCED),
     Triple("Backup & restore", "backup restore export import layout", CustomizationPage.BACKUP),
     Triple("Roadmap", "roadmap coming soon planned future features next later lock designer keyboard", CustomizationPage.COMING_SOON),
+    Triple("Help", "help report bug issue problem broken welcome setup again onboarding tips email developer", CustomizationPage.HELP),
     Triple("Credits", "credits thanks duolauncher jakesgoodapps license", CustomizationPage.CREDITS),
 )
 

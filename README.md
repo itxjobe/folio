@@ -224,7 +224,7 @@ pre-releases, signed with the same key, and may have bugs.
 **How do I go back to my old launcher?** Settings › Apps › Default apps › Home app on your phone (the exact path can
 vary by phone). Your Folio layout stays saved if you switch back later.
 
-**Something broke. What do I do?** Settings › Report a Bug in Folio opens the bug form with your details filled
+**Something broke. What do I do?** Settings › Help › Report a Bug in Folio opens the bug form with your details filled
 in. If Folio crashes a few times in a row, it opens in Safe Mode with tweaks paused. More in
 [troubleshooting](docs/troubleshooting.md).
 
@@ -248,7 +248,7 @@ in. If Folio crashes a few times in a row, it opens in Safe Mode with tweaks pau
 something for whoever finds the most). Themes and code can come later. I'm one person doing this, but anyone who's
 interested is welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. No GPL code and nothing that needs root.
 
-- Found a bug? In Folio, go to Settings › **Report a Bug**, or use the [bug form](https://github.com/McCal-Codes/folio/issues/new/choose).
+- Found a bug? In Folio, go to Settings › Help › **Report a Bug**, or use the [bug form](https://github.com/McCal-Codes/folio/issues/new/choose).
 - Questions or want to show off your setup? [Discussions](https://github.com/McCal-Codes/folio/discussions).
 - Security problem? Report it privately, see [SECURITY.md](SECURITY.md).
 - Everyone here follows the [Code of Conduct](CODE_OF_CONDUCT.md).

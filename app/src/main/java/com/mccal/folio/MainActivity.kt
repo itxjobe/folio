@@ -345,7 +345,7 @@ class MainActivity : ComponentActivity() {
     private fun closeOverlays() { topPanel.value = null; spotlightVisible.value = false }
 
     /**
-     * The Home button is the way out of anything. Setup is shown again next time (or from Settings › Show Welcome
+     * The Home button is the way out of anything. Setup is shown again next time (or from Settings › Help › Show Welcome
      * Again), so an overlay can never leave Home stuck behind it with no way back.
      */
     private fun closeEverything() { closeOverlays(); showFirstRun.value = false; lockCoverVisible.value = false }
