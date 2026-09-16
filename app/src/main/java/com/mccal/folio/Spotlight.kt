@@ -280,7 +280,7 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                 contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (q.isEmpty()) {
                     if (shows(SpotlightSection.SUGGESTIONS) && recent.isNotEmpty()) item("suggestions") {
-                        Section("Suggestions") { AppGrid(recent, launch) }
+                        Section("Suggestions") { AppGrid(recent, launch, fullRows = true) }
                     }
                 } else {
                     math?.takeIf { shows(SpotlightSection.CALCULATOR) }?.let { result -> item("math") {
@@ -354,12 +354,14 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
 }
 
 @Composable
-private fun AppGrid(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit) {
+private fun AppGrid(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit, fullRows: Boolean = false) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         // As many ~84dp app cells as fit (four on a phone, up to eight on a wide column).
         val columns = evenColumnsOnHinge((maxWidth / 84.dp).toInt().coerceIn(4, 8), 4)
+        // Suggestions show whole rows only, like iOS, so a wide column doesn't end in a lonely pair.
+        val shown = if (fullRows && apps.size > columns) apps.take(apps.size / columns * columns) else apps
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            apps.chunked(columns).forEach { row ->
+            shown.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach { app ->
                         val view = androidx.compose.ui.platform.LocalView.current

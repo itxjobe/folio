@@ -1582,6 +1582,9 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.Notifications, 0xFFFF3B30, "Badge styles", "iOS, Classic or Glass badges in three sizes.", RoadmapStatus.DONE),
             RoadmapItem(Icons.Rounded.Folder, 0xFF0A84FF, "Folder options", "Columns and glass, solid or clear folders.", RoadmapStatus.DONE),
             RoadmapItem(Icons.Rounded.Headphones, 0xFF0A84FF, "Headphones card", "An iPhone-style card when headphones or a speaker connects.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.Circle, 0xFF1C1C1E, "Island notifications", "Other apps' notifications in the Dynamic Island, for the apps you choose.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.DonutLarge, 0xFF30D158, "Status styles", "Rings and Ring with Percentage in the Side Bar, and a Silent mode icon.", RoadmapStatus.DONE),
+            RoadmapItem(Icons.Rounded.RoundedCorner, 0xFF8E8E93, "Rounded corners", "Optional iPhone Duo-style corners on Home.", RoadmapStatus.DONE),
         ),
         "Next" to listOf(
             RoadmapItem(Icons.Rounded.Storefront, 0xFF0A84FF, "The Folio app", "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.", RoadmapStatus.PLANNED),
@@ -1596,6 +1599,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Lock, 0xFF30D158, "More privacy controls", "More ways to keep what's on your screen private, planned for 0.7.0.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Newspaper, 0xFFFF9F0A, "Custom Today View", "Arrange Today View your way, with a news feed like the page left of Android's Home.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.RoundedCorner, 0xFF8E8E93, "Corners everywhere", "Rounded screen corners over every app, not just Home.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
         ),
         "Exploring" to listOf(
