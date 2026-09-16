@@ -5,56 +5,243 @@
     {
       "release": "0.6.1",
       "items": [
-        { "icon": "bug", "color": "#FF453A", "title": "Better bug reports", "detail": "Folio notes freezes and unexpected restarts, and Report a Bug can copy diagnostics for you.", "status": "done" },
-        { "icon": "tune", "color": "#5E5CE6", "title": "Status spacing", "detail": "Bring the time and date closer, and turn off the status background.", "status": "done" },
-        { "icon": "folder", "color": "#0A84FF", "title": "Folder fixes", "detail": "No duplicate folders when unfolded, and folders move again.", "status": "done" },
-        { "icon": "apps", "color": "#8E8E93", "title": "Clear icons", "detail": "Frosted glass icons with white symbols, like iOS.", "status": "building" },
-        { "icon": "clock", "color": "#FF9F0A", "title": "Big Clock", "detail": "A large clock on Home with the date, next event and alarm.", "status": "building" },
-        { "icon": "badge", "color": "#FF3B30", "title": "Folder badges", "detail": "Folders show how many notifications their apps have.", "status": "building" }
+        {
+          "icon": "bug",
+          "color": "#FF453A",
+          "title": "Better bug reports",
+          "detail": "Folio notes freezes and unexpected restarts, and Report a Bug can copy diagnostics for you.",
+          "status": "done"
+        },
+        {
+          "icon": "tune",
+          "color": "#5E5CE6",
+          "title": "Status spacing",
+          "detail": "Bring the time and date closer, and turn off the status background.",
+          "status": "done"
+        },
+        {
+          "icon": "folder",
+          "color": "#0A84FF",
+          "title": "Folder fixes",
+          "detail": "No duplicate folders when unfolded, and folders move again.",
+          "status": "done"
+        },
+        {
+          "icon": "update",
+          "color": "#8E8E93",
+          "title": "Automatic updates",
+          "detail": "Updates install while your phone is idle, with release notes, Update Now and Update Tonight.",
+          "status": "done"
+        },
+        {
+          "icon": "apps",
+          "color": "#8E8E93",
+          "title": "Clear icons",
+          "detail": "Frosted glass icons with white symbols, like iOS.",
+          "status": "done"
+        },
+        {
+          "icon": "clock",
+          "color": "#FF9F0A",
+          "title": "Big Clock",
+          "detail": "A large clock on Home with the date, next event and alarm.",
+          "status": "done"
+        },
+        {
+          "icon": "badge",
+          "color": "#FF3B30",
+          "title": "Folder badges",
+          "detail": "Folders show how many notifications their apps have.",
+          "status": "done"
+        }
       ]
     },
     {
       "release": "0.6.0",
       "items": [
-        { "icon": "extension", "color": "#BF5AF2", "title": "Tweak Library", "detail": "Get the tweaks you want; only those show in Settings.", "status": "done" },
-        { "icon": "update", "color": "#8E8E93", "title": "Software Update", "detail": "Update Folio from GitHub, with optional notifications.", "status": "done" },
-        { "icon": "circle", "color": "#1C1C1E", "title": "Island notifications", "detail": "Other apps' notifications in the Dynamic Island, for the apps you choose.", "status": "done" },
-        { "icon": "rings", "color": "#30D158", "title": "Status styles", "detail": "Rings and Ring with Percentage in the Side Bar, and a Silent mode icon.", "status": "done" },
-        { "icon": "corner", "color": "#8E8E93", "title": "Rounded corners", "detail": "Optional iPhone Duo-style corners on Home.", "status": "done" },
-        { "icon": "notifications", "color": "#FF3B30", "title": "Badge styles", "detail": "iOS, Classic or Glass badges in three sizes.", "status": "done" },
-        { "icon": "headphones", "color": "#0A84FF", "title": "Headphones card", "detail": "An iPhone-style card when headphones or a speaker connects.", "status": "done" }
+        {
+          "icon": "extension",
+          "color": "#BF5AF2",
+          "title": "Tweak Library",
+          "detail": "Get the tweaks you want; only those show in Settings.",
+          "status": "done"
+        },
+        {
+          "icon": "update",
+          "color": "#8E8E93",
+          "title": "Software Update",
+          "detail": "Update Folio from GitHub, with optional notifications.",
+          "status": "done"
+        },
+        {
+          "icon": "circle",
+          "color": "#1C1C1E",
+          "title": "Island notifications",
+          "detail": "Other apps' notifications in the Dynamic Island, for the apps you choose.",
+          "status": "done"
+        },
+        {
+          "icon": "rings",
+          "color": "#30D158",
+          "title": "Status styles",
+          "detail": "Rings and Ring with Percentage in the Side Bar, and a Silent mode icon.",
+          "status": "done"
+        },
+        {
+          "icon": "corner",
+          "color": "#8E8E93",
+          "title": "Rounded corners",
+          "detail": "Optional iPhone Duo-style corners on Home.",
+          "status": "done"
+        },
+        {
+          "icon": "notifications",
+          "color": "#FF3B30",
+          "title": "Badge styles",
+          "detail": "iOS, Classic or Glass badges in three sizes.",
+          "status": "done"
+        },
+        {
+          "icon": "headphones",
+          "color": "#0A84FF",
+          "title": "Headphones card",
+          "detail": "An iPhone-style card when headphones or a speaker connects.",
+          "status": "done"
+        }
       ]
     },
     {
       "title": "Next",
       "items": [
-        { "icon": "weather", "color": "#32ADE6", "title": "Weather widget", "detail": "A glass widget with the hourly forecast. Off until you turn it on, since it needs a weather service.", "status": "planned" },
-        { "icon": "store", "color": "#0A84FF", "title": "The Folio app", "detail": "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.", "status": "planned" },
-        { "icon": "grid", "color": "#30D158", "title": "Home grid columns", "detail": "Four, five or six columns on Home.", "status": "planned" },
-        { "icon": "history", "color": "#8E8E93", "title": "Layout History", "detail": "Out of beta: go back to how Home looked before a big change.", "status": "planned" },
-        { "icon": "tap", "color": "#30D158", "title": "Back Tap", "detail": "Double or triple tap the back of your phone to run an action. Inspired by RegiStar.", "status": "planned" },
-        { "icon": "pages", "color": "#32ADE6", "title": "Page Effects", "detail": "3D effects when you swipe between Home pages. Inspired by Barrel.", "status": "planned" }
+        {
+          "icon": "weather",
+          "color": "#32ADE6",
+          "title": "Weather widget",
+          "detail": "A glass widget with the hourly forecast. Off until you turn it on, since it needs a weather service.",
+          "status": "planned"
+        },
+        {
+          "icon": "store",
+          "color": "#0A84FF",
+          "title": "The Folio app",
+          "detail": "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.",
+          "status": "planned"
+        },
+        {
+          "icon": "grid",
+          "color": "#30D158",
+          "title": "Home grid columns",
+          "detail": "Four, five or six columns on Home.",
+          "status": "planned"
+        },
+        {
+          "icon": "history",
+          "color": "#8E8E93",
+          "title": "Layout History",
+          "detail": "Out of beta: go back to how Home looked before a big change.",
+          "status": "planned"
+        },
+        {
+          "icon": "tap",
+          "color": "#30D158",
+          "title": "Back Tap",
+          "detail": "Double or triple tap the back of your phone to run an action. Inspired by RegiStar.",
+          "status": "planned"
+        },
+        {
+          "icon": "pages",
+          "color": "#32ADE6",
+          "title": "Page Effects",
+          "detail": "3D effects when you swipe between Home pages. Inspired by Barrel.",
+          "status": "planned"
+        }
       ]
     },
     {
       "title": "Later",
       "items": [
-        { "icon": "notifications", "color": "#FF3B30", "title": "Notification Rules", "detail": "Choose per app where notifications show.", "status": "planned" },
-        { "icon": "dock", "color": "#30D158", "title": "Dock Drawer", "detail": "Swipe in on the dock for recent apps and Now Playing.", "status": "planned" },
-        { "icon": "clock", "color": "#FF9F0A", "title": "Complications", "detail": "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", "status": "planned" },
-        { "icon": "lock", "color": "#30D158", "title": "More privacy controls", "detail": "More ways to keep what's on your screen private, planned for 0.7.0.", "status": "planned" },
-        { "icon": "news", "color": "#FF9F0A", "title": "Custom Today View", "detail": "Arrange Today View your way, with a news feed like the page left of Android's Home.", "status": "planned" },
-        { "icon": "corner", "color": "#8E8E93", "title": "Corners everywhere", "detail": "Rounded screen corners over every app, not just Home.", "status": "planned" },
-        { "icon": "brush", "color": "#FF375F", "title": "Lock Designer", "detail": "Design your own Lock Cover and StandBy for each screen.", "status": "planned" }
+        {
+          "icon": "notifications",
+          "color": "#FF3B30",
+          "title": "Notification Rules",
+          "detail": "Choose per app where notifications show.",
+          "status": "planned"
+        },
+        {
+          "icon": "dock",
+          "color": "#30D158",
+          "title": "Dock Drawer",
+          "detail": "Swipe in on the dock for recent apps and Now Playing.",
+          "status": "planned"
+        },
+        {
+          "icon": "clock",
+          "color": "#FF9F0A",
+          "title": "Complications",
+          "detail": "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.",
+          "status": "planned"
+        },
+        {
+          "icon": "lock",
+          "color": "#30D158",
+          "title": "More privacy controls",
+          "detail": "More ways to keep what's on your screen private, planned for 0.7.0.",
+          "status": "planned"
+        },
+        {
+          "icon": "news",
+          "color": "#FF9F0A",
+          "title": "Custom Today View",
+          "detail": "Arrange Today View your way, with a news feed like the page left of Android's Home.",
+          "status": "planned"
+        },
+        {
+          "icon": "corner",
+          "color": "#8E8E93",
+          "title": "Corners everywhere",
+          "detail": "Rounded screen corners over every app, not just Home.",
+          "status": "planned"
+        },
+        {
+          "icon": "brush",
+          "color": "#FF375F",
+          "title": "Lock Designer",
+          "detail": "Design your own Lock Cover and StandBy for each screen.",
+          "status": "planned"
+        }
       ]
     },
     {
       "title": "Exploring",
       "items": [
-        { "icon": "sensor", "color": "#32ADE6", "title": "Enhanced Fold Tracking", "detail": "Samsung's precise hinge angle for a smoother fold, set up once with Wireless Debugging. Based on research by ZFoldDuo.", "status": "exploring" },
-        { "icon": "keyboard", "color": "#8E8E93", "title": "Folio Keyboard", "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.", "status": "exploring" },
-        { "icon": "palette", "color": "#FF375F", "title": "Community themes", "detail": "Browse and add themes shared on GitHub, right from Folio.", "status": "exploring" },
-        { "icon": "extension", "color": "#BF5AF2", "title": "Folio Tweaks", "detail": "Tweaks made by the community, if it can be done safely.", "status": "exploring" }
+        {
+          "icon": "sensor",
+          "color": "#32ADE6",
+          "title": "Enhanced Fold Tracking",
+          "detail": "Samsung's precise hinge angle for a smoother fold, set up once with Wireless Debugging. Based on research by ZFoldDuo.",
+          "status": "exploring"
+        },
+        {
+          "icon": "keyboard",
+          "color": "#8E8E93",
+          "title": "Folio Keyboard",
+          "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.",
+          "status": "exploring"
+        },
+        {
+          "icon": "palette",
+          "color": "#FF375F",
+          "title": "Community themes",
+          "detail": "Browse and add themes shared on GitHub, right from Folio.",
+          "status": "exploring"
+        },
+        {
+          "icon": "extension",
+          "color": "#BF5AF2",
+          "title": "Folio Tweaks",
+          "detail": "Tweaks made by the community, if it can be done safely.",
+          "status": "exploring"
+        }
       ]
     }
   ]
