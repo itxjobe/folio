@@ -5,7 +5,7 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
-## [0.6.0] - 2026-09-15
+## [0.6.0] - 2026-09-16
 
 ### Added
 - Badge options: an iOS, Classic or Glass look, three sizes, and blue, green, orange and purple colors, with a live preview (Icons & Side Bar).
@@ -62,6 +62,29 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folio's own screens always show its real icon; only the Folio Dev launcher icon is amber.
 - Back in Settings returns to the page you came from, such as Tweaks or Focus, instead of the top of Settings.
 - Unfolded in portrait, going back to the top of Settings opens the settings list again instead of a mostly empty page.
+
+## [0.5.1] - 2026-09-16
+
+### Added
+- Software Update (Settings › Software Update): check GitHub for a new Folio, download and install it after verifying its checksum and signing key, with optional daily checks, update notifications and automatic installs. Beta Updates lets you try pre-releases.
+- Support Folio in Settings, for buying me a coffee on Ko-fi.
+- Hidden Apps and Work Apps in Settings › Search & App Library.
+
+### Changed
+- Friendlier setup: Folio's icon on the welcome page, Skip on every step, setup moves on by itself after you allow something, and clearer tips at the end.
+- Turning on Folio gestures explains Android's "Allow restricted settings" step for apps installed from a file, with a button to App Info.
+- Hidden apps no longer appear in the App Library; they're listed in Settings after you unlock with your fingerprint, face or PIN.
+- Choosing a wallpaper no longer restarts the screen.
+
+### Fixed
+- Setup no longer leaves the screen blurry and frozen until you restart the phone. The Home button now also closes anything Folio has open.
+- Setup and full-screen Settings pages are smoother.
+- Apps you switched to the Dynamic Island can go back to Android's own pop-ups: Settings › Dynamic Island lists each messaging app with a button to change it, even while the island is off.
+- The App Library on the unfolded screen shows phone-sized category tiles instead of two giant columns (issue #9).
+- Phone-sized screens keep the phone layout when Developer options' Smallest width or Display size is changed.
+- Folders take more than two apps: Create Folder becomes Add to Folder once you have one.
+- App Library folders open without building every app at once, and holding an app there opens its menu.
+- With Dock Magnification on, sliding along the side dock no longer opens Spotlight.
 
 ## [0.5.0] - 2026-09-15
 
