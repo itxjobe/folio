@@ -173,4 +173,14 @@ class LayoutModelTest {
         assertTrue(isRegularSize(932f, 704f, classScale(420, 420)))
         assertEquals(1f, classScale(0, 420))
     }
+
+    @Test fun `unfolded portrait fills the width between the side margins at a zoomed-out Screen zoom (issue 10)`() {
+        val p = LayoutPreset()
+        // Fold8 inner screen in portrait: 1848 px wide at the stock 420 dpi (704 dp), and at a zoomed-out 360 dpi (821 dp).
+        for (width in listOf(704f, 821f)) {
+            val g = homeGeometry(width, width * 2448f / 1848f, p, true)
+            assertTrue(g.horizontalDock)
+            assertEquals(width - 2f * (p.dockWidth + 56f), g.gridWidth, .5f)
+        }
+    }
 }

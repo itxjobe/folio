@@ -53,7 +53,7 @@ internal fun IosSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, mod
             haptic.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff); onCheckedChange(it)
         }), contentAlignment = Alignment.Center) {
         Box(Modifier.size(51.dp, 31.dp).clip(CircleShape).background(track).padding(2.dp)) {
-            Box(Modifier.offset(x = offset).size(27.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+            Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.roundToPx(), 0) }.size(27.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
         }
     }
 }

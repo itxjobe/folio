@@ -80,7 +80,7 @@ abstract class FolioToggleTile(private val key: String, private val default: Boo
     private fun refresh(value: Boolean = current()) {
         qsTile?.apply {
             state = if (value) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-            if (Build.VERSION.SDK_INT >= 30) stateDescription = if (value) "On" else "Off"
+            stateDescription = if (value) "On" else "Off"
             updateTile()
         }
     }

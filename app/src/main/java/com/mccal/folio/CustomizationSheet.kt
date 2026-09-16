@@ -252,6 +252,13 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         }, modifier = Modifier.testTag("background-change-system")) { Text(stringResource(R.string.change_android_wallpaper)) }
                     }
                     GlassCardSettings(state, model)
+                    SettingsCard("Screen Corners") {
+                        SettingsSwitch("Rounded corners", state.roundedCorners, model::setRoundedCorners, "rounded-corners-switch")
+                        if (state.roundedCorners) CustomizationSlider("Size", "${state.cornerRadius.toInt()} dp", state.cornerRadius, 16f..72f,
+                            model::setCornerRadius)
+                        Text("Draws iPhone-style rounded corners over Home on both screens, like the iPhone Duo. Other apps aren’t changed.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     SettingsCard(stringResource(R.string.text_on_home)) {
                         IosMenuRow("Text Color", listOf("AUTO" to "Automatic", "LIGHT" to "Light", "DARK" to "Dark"), state.homeInk, model::setHomeInk, tag = "home-ink")
                         Text(stringResource(R.string.labels_status_page_dots_and_widget_text),
@@ -842,6 +849,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
 private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = listOf(
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
+    Triple("Rounded screen corners", "corners rounded iphone duo screen round edges", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
     Triple("Folders", "folder columns grid background glass solid clear", CustomizationPage.HOME),
     Triple("Software Update", "software update upgrade new version download install github automatic", CustomizationPage.SOFTWARE_UPDATE),

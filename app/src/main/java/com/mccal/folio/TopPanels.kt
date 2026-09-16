@@ -378,7 +378,7 @@ private fun NotificationOptions(item: NotificationItem, bounds: android.graphics
                     hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 }
                 w.attributes = w.attributes.apply { layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }
-                if (android.os.Build.VERSION.SDK_INT >= 31) { w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND); w.attributes = w.attributes.apply { blurBehindRadius = 40 } }
+                w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND); w.attributes = w.attributes.apply { blurBehindRadius = 40 }
             }
         }
         var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }

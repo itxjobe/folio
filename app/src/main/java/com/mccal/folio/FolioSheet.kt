@@ -233,7 +233,7 @@ internal fun FolioDialogWindow(dim: Float, blurRadiusDp: Int = 0) {
         (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.let { w ->
             w.setDimAmount(dim)
             w.setWindowAnimations(0)
-            if (blurRadiusDp > 0 && android.os.Build.VERSION.SDK_INT >= 31) {
+            if (blurRadiusDp > 0) {
                 w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 w.attributes = w.attributes.apply { blurBehindRadius = with(density) { blurRadiusDp.dp.roundToPx() } }
             }

@@ -109,7 +109,9 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     val homeBottomSpace = homeBottomSpace + if (horizontalDock) dockBarHeight + 16f else 0f
     // Columns about as wide as an icon and its breathing room, centered, instead of stretching across a big screen.
     // Status sits in the top-right corner, so the same margin is kept on both sides and the grid stays centered.
-    var gridWidth = if (horizontalDock) minOf(width - 2f * (p.dockWidth + 56f), 4f * p.iconSize * 1.9f).coerceAtLeast(4f * (p.iconSize + 16f))
+    // Portrait (horizontal dock): the four columns spread across the screen between equal margins, like iPad mini's
+    // Home, rather than sitting in a narrow block when Display size / Screen zoom gives the screen more room (issue #10).
+    var gridWidth = if (horizontalDock) minOf(width - 2f * (p.dockWidth + 56f), 4f * p.iconSize * 2.6f).coerceAtLeast(4f * (p.iconSize + 16f))
         else (homeWidth - p.dockWidth - 44f).coerceAtLeast(192f)
     // Keep the same icon rhythm when labels are hidden; allow larger system text to fit.
     val labelSpace = if (labels) maxOf(20f, labelHeight) else 20f

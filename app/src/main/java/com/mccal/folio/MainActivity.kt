@@ -261,6 +261,8 @@ class MainActivity : ComponentActivity() {
                     focusModes = state.focusModes, activeFocus = state.activeFocus, onFocus = model::setFocus)
                 SpotlightOverlay(spotlightVisible.value, { overlayProgress }, state, onClose = { spotlightVisible.value = false },
                     onLaunch = { launchApp(it) })
+                // Last, so the corners sit above everything in Home's window.
+                if (state.roundedCorners) RoundedScreenCorners(state.cornerRadius.dp)
             } } }
         }
         FoldRenderExperiment.attach(this)
