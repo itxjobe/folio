@@ -318,6 +318,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        SoftwareUpdate.afterUpdate(this)
         SoftwareUpdate.startCheckIfDue(this)
         FolioForeground.visible.value = true
         Diagnostics.event("Home shown (${Diagnostics.screenSummary(this).substringBefore(',')})")

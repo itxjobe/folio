@@ -1847,64 +1847,129 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
 /** Settings › Software Update, laid out like iOS: the version, one clear action, and automatic updates. */
 @Composable private fun SoftwareUpdatePage() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = rememberCoroutineScope()
     val status by SoftwareUpdate.status.collectAsState()
-    var auto by remember { mutableStateOf(SoftwareUpdate.autoCheck(context)) }
     val installed = remember { SoftwareUpdate.installedVersion(context) }
-    SettingsCard("Folio $installed") {
-        if (!SoftwareUpdate.supported(context)) {
-            Text("This is Folio Dev, a test build. Updates for it come from new builds, not GitHub.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            return@SettingsCard
-        }
-        when (val s = status) {
-            SoftwareUpdate.Status.Idle -> Text("Check GitHub for a newer version of Folio.", style = MaterialTheme.typography.bodySmall)
-            SoftwareUpdate.Status.Checking -> Text("Checking for updates…", style = MaterialTheme.typography.bodySmall)
-            SoftwareUpdate.Status.UpToDate -> Text("Folio is up to date.", style = MaterialTheme.typography.bodySmall)
-            is SoftwareUpdate.Status.Available -> Text("Folio ${s.release.version} is available.", fontWeight = FontWeight.SemiBold)
-            is SoftwareUpdate.Status.Downloading -> Text("Downloading Folio ${s.release.version}…", style = MaterialTheme.typography.bodySmall)
-            SoftwareUpdate.Status.Installing -> Text("Installing… Android may ask you to confirm.", style = MaterialTheme.typography.bodySmall)
-            is SoftwareUpdate.Status.Failed -> Text(s.message, style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFF453A))
+    val supported = SoftwareUpdate.supported(context)
+    // Like iOS: the page checks when you open it, unless a check already ran this session.
+    LaunchedEffect(Unit) { if (supported && status == SoftwareUpdate.Status.Idle) SoftwareUpdate.startCheck(context) }
+    val icon = remember { folioIconBitmap(context) }
+    SheetGroup {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            icon?.let { Image(it, null, Modifier.size(56.dp).clip(RoundedCornerShape(13.dp))) }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Folio $installed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(when {
+                    !supported -> "Folio Dev, a test build. It updates from new builds, not GitHub."
+                    status == SoftwareUpdate.Status.Checking -> "Checking for updates…"
+                    status == SoftwareUpdate.Status.UpToDate -> "Folio is up to date"
+                    status is SoftwareUpdate.Status.Failed -> (status as SoftwareUpdate.Status.Failed).message
+                    else -> SoftwareUpdate.lastChecked(context).takeIf { it > 0 }?.let { "Last checked " +
+                        android.text.format.DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS) }
+                        ?: "Updates come from Folio's GitHub releases"
+                }, style = MaterialTheme.typography.bodySmall,
+                    color = if (status is SoftwareUpdate.Status.Failed) androidx.compose.ui.graphics.Color(0xFFFF453A) else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
-    if (SoftwareUpdate.supported(context)) {
-        SheetGroup {
-            val available = status as? SoftwareUpdate.Status.Available
-            if (available != null) {
-                IosActionRow("Download and Install", "update-install") { SoftwareUpdate.startInstall(context, available.release) }
-                MenuDivider()
-                IosActionRow("Release Notes", "update-notes") {
-                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(available.release.notesUrl))) }
+    if (!supported) return
+    val release = when (val s = status) {
+        is SoftwareUpdate.Status.Available -> s.release
+        is SoftwareUpdate.Status.Downloading -> s.release
+        is SoftwareUpdate.Status.Ready -> s.release
+        else -> null
+    }
+    if (release != null) UpdateCard(release, status)
+    else SheetGroup {
+        IosActionRow("Check for Updates", "update-check", enabled = status !is SoftwareUpdate.Status.Checking && status != SoftwareUpdate.Status.Installing) {
+            SoftwareUpdate.startCheck(context)
+        }
+    }
+    var mode by remember { mutableStateOf(SoftwareUpdate.mode(context)) }
+    val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    var beta by remember { mutableStateOf(SoftwareUpdate.beta(context)) }
+    SettingsCard("Updates") {
+        IosMenuRow("Automatic Updates", SoftwareUpdate.Mode.entries.map { it to it.label }, mode, {
+            mode = it; SoftwareUpdate.setMode(context, it)
+            if (it != SoftwareUpdate.Mode.MANUAL && !SoftwareUpdate.canPostNotifications(context))
+                notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }, tag = "update-mode")
+        Text(when (mode) {
+            SoftwareUpdate.Mode.AUTOMATIC -> "Folio checks once a day, downloads new versions and installs them while your phone is idle, then lets you know what's new."
+            SoftwareUpdate.Mode.NOTIFY -> "Folio checks once a day and sends a notification when a new version is ready to install."
+            SoftwareUpdate.Mode.MANUAL -> "Folio only checks when you open this page or tap Check for Updates."
+        }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        IosMenuRow("Beta Updates", listOf(false to "Off", true to "Folio Beta"), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
+        Text(if (beta) "You'll get Folio betas as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
+            else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Text("Every update is checked against its published checksum and Folio's signing key before it installs.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
+}
+
+/** The available update, like iOS's: version, size, the release notes, progress, and Update Now / Update Tonight. */
+@Composable private fun UpdateCard(release: SoftwareUpdate.Release, status: SoftwareUpdate.Status) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var expanded by remember(release.version) { mutableStateOf(false) }
+    val notes = remember(release.notes) { releaseNoteLines(release.notes) }
+    SheetGroup {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val icon = remember { folioIconBitmap(context) }
+                icon?.let { Image(it, null, Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))) }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Folio ${release.version}" + if (release.prerelease) " Beta" else "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(listOfNotNull("McCal-Codes", release.size.takeIf { it > 0 }?.let { android.text.format.Formatter.formatShortFileSize(context, it) })
+                        .joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else IosActionRow("Check for Updates", "update-check",
-                enabled = status !is SoftwareUpdate.Status.Checking && status !is SoftwareUpdate.Status.Downloading) { SoftwareUpdate.startCheck(context) }
-        }
-        var beta by remember { mutableStateOf(SoftwareUpdate.beta(context)) }
-        SettingsCard("Beta Updates") {
-            IosMenuRow("Beta Updates", listOf(false to "Off", true to "Folio Beta"), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
-            Text(if (beta) "You'll get Folio betas from GitHub as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
-                else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        SettingsCard("Automatic Updates") {
-            SettingsSwitch("Check for Updates Daily", auto, { auto = it; SoftwareUpdate.setAutoCheck(context, it) }, "update-auto")
-            var notify by remember { mutableStateOf(SoftwareUpdate.notify(context)) }
-            val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted -> notify = granted; SoftwareUpdate.setNotify(context, granted) }
-            if (auto) SettingsSwitch("Notify Me About Updates", notify, { on ->
-                if (on && !SoftwareUpdate.canPostNotifications(context)) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                else { notify = on; SoftwareUpdate.setNotify(context, on) }
-            }, "update-notify")
-            var autoInstall by remember { mutableStateOf(SoftwareUpdate.autoInstall(context)) }
-            // Android may still ask to confirm an install, and when Folio isn't open that request arrives as a notification.
-            val autoInstallPermission = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { autoInstall = true; SoftwareUpdate.setAutoInstall(context, true) }
-            if (auto) SettingsSwitch("Install Updates Automatically", autoInstall, { on ->
-                if (on && !SoftwareUpdate.canPostNotifications(context)) autoInstallPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                else { autoInstall = on; SoftwareUpdate.setAutoInstall(context, on) }
-            }, "update-auto-install")
-            Text("Folio checks GitHub Releases at most once a day and shows the update here. Installing always verifies the download and that it's signed with Folio's key.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (notes.isNotEmpty()) {
+                (if (expanded) notes else notes.take(6)).forEach { line -> Text(line, style = MaterialTheme.typography.bodyMedium) }
+                if (notes.size > 6 || release.notesUrl.isNotBlank()) Text(if (!expanded && notes.size > 6) "More" else "Full Release Notes",
+                    color = androidx.compose.ui.graphics.Color(0xFF0A84FF), style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                        if (!expanded && notes.size > 6) expanded = true
+                        else runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(release.notesUrl))) }
+                    }.padding(vertical = 4.dp))
+            }
+            when (status) {
+                is SoftwareUpdate.Status.Downloading -> {
+                    val fraction = status.fraction
+                    if (fraction != null) LinearProgressIndicator({ fraction }, Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text("Downloading" + (fraction?.let { " · ${(it * 100).toInt()}%" } ?: "…"),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                is SoftwareUpdate.Status.Ready -> Text(if (status.tonight) "Downloaded and verified. It installs tonight while your phone is idle and charging."
+                    else "Downloaded and verified. It installs when your phone isn't in use, or now.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else -> Unit
+            }
+            if (status !is SoftwareUpdate.Status.Downloading) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = {
+                    if (status is SoftwareUpdate.Status.Ready) SoftwareUpdate.installReadyNow(context) else SoftwareUpdate.startInstall(context, release)
+                }, modifier = Modifier.weight(1f).testTag("update-install")) { Text("Update Now") }
+                if (!(status is SoftwareUpdate.Status.Ready && status.tonight)) OutlinedButton(onClick = { SoftwareUpdate.startUpdateTonight(context, release) },
+                    modifier = Modifier.weight(1f).testTag("update-tonight")) { Text("Update Tonight") }
+            }
+            Text("Updating restarts Home for a moment.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
+/** GitHub release notes as plain lines: headings and emphasis markers dropped, bullets kept. */
+internal fun releaseNoteLines(markdown: String): List<String> = markdown.lines()
+    .map { it.trim() }
+    // Folio's notes open with install and verify steps; the part worth reading here starts at "What's new".
+    .let { lines -> lines.indexOfFirst { Regex("""^#+\s*What.s new""", RegexOption.IGNORE_CASE).containsMatchIn(it) }
+        .takeIf { it >= 0 }?.let { lines.drop(it + 1) } ?: lines }
+    .filter { it.isNotEmpty() && !it.startsWith("![") && !it.startsWith("<") && !it.startsWith("```") && !it.startsWith("> ") }
+    .map { line ->
+        line.removePrefix("### ").removePrefix("## ").removePrefix("# ")
+            .replace(Regex("""\*\*|__|`"""), "")
+            .replace(Regex("""\[([^\]]+)]\([^)]+\)"""), "$1")
+            .let { if (it.startsWith("- ") || it.startsWith("* ")) "• " + it.drop(2) else it }
+    }

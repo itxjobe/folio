@@ -20,31 +20,43 @@ import java.security.MessageDigest
 /**
  * Software Update (like iOS Settings › General › Software Update): checks GitHub Releases for a newer Folio, downloads
  * the APK, verifies its SHA-256 and that it's signed with the same key as the installed app, then hands it to Android's
- * package installer. Nothing is sent anywhere until you check (or turn on automatic checks); the only request is to
- * GitHub's public releases API. Folio Dev builds update from Android Studio instead, so this is off for them.
+ * package installer. The only requests are to GitHub's public releases API and download server: about once a day unless
+ * updates are set to Manual, and when you check. Folio Dev builds update from new builds instead, so this is off for them.
  */
 internal object SoftwareUpdate {
     private const val LATEST = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
     // GitHub's "latest" skips pre-releases, so the beta channel reads the recent list and takes the newest.
     private const val RECENT = "https://api.github.com/repos/McCal-Codes/folio/releases?per_page=15"
     private const val PREFS = "software_update"
+    // Legacy switches (0.5.1–0.6.0), read once to carry a choice over to [Mode].
     private const val AUTO = "auto"
     private const val LAST_CHECK = "lastCheck"
     private const val AUTO_INSTALL = "autoInstall"
-    private const val NOTIFY = "notify"
     private const val BETA = "beta"
     private const val NOTIFIED_VERSION = "notifiedVersion"
+    private const val MODE = "mode"
+    private const val AUTO_UPDATED_FROM = "autoUpdatedFrom"
     private const val CHANNEL = "software_update"
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
-    data class Release(val version: String, val apkUrl: String, val sumsUrl: String?, val notesUrl: String)
+    data class Release(val version: String, val apkUrl: String, val sumsUrl: String?, val notesUrl: String,
+        /** The release notes from GitHub (Markdown), and the APK's size in bytes. */
+        val notes: String = "", val size: Long = 0L, val prerelease: Boolean = false)
+
+    /**
+     * Like iOS Automatic Updates. Automatic (the default) checks daily, downloads, and installs when the phone is idle,
+     * since installing restarts Home. Notify only tells you. Manual only checks when you ask.
+     */
+    enum class Mode(val label: String) { AUTOMATIC("Automatic"), NOTIFY("Notify Me"), MANUAL("Manual") }
 
     sealed interface Status {
         data object Idle : Status
         data object Checking : Status
         data object UpToDate : Status
         data class Available(val release: Release) : Status
-        data class Downloading(val release: Release) : Status
+        data class Downloading(val release: Release, val fraction: Float? = null) : Status
+        /** Downloaded and verified; installs when the phone is idle (or tonight), or now if you tap. */
+        data class Ready(val release: Release, val tonight: Boolean) : Status
         data object Installing : Status
         data class Failed(val message: String) : Status
     }
@@ -65,12 +77,24 @@ internal object SoftwareUpdate {
     }
 
     fun supported(context: Context) = context.packageName == FOLIO_CLASSES
-    fun autoCheck(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(AUTO, false)
-    fun setAutoCheck(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(AUTO, on).apply()
-    /** Like iOS "Install iOS Updates": after a daily check finds one, download and install it too. */
-    /** Post a notification when a daily check finds an update (off until the user turns it on). */
-    fun notify(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(NOTIFY, false)
-    fun setNotify(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(NOTIFY, on).apply()
+
+    /** The chosen mode. Earlier versions stored separate switches; a choice made there carries over. */
+    fun mode(context: Context): Mode {
+        val prefs = context.getSharedPreferences(PREFS, 0)
+        prefs.getString(MODE, null)?.let { saved -> Mode.entries.firstOrNull { it.name == saved }?.let { return it } }
+        return modeFromLegacy(prefs.takeIf { it.contains(AUTO) }?.getBoolean(AUTO, false), prefs.getBoolean(AUTO_INSTALL, false))
+    }
+    internal fun modeFromLegacy(autoCheck: Boolean?, autoInstall: Boolean): Mode = when {
+        autoCheck == null -> Mode.AUTOMATIC
+        !autoCheck -> Mode.MANUAL
+        autoInstall -> Mode.AUTOMATIC
+        else -> Mode.NOTIFY
+    }
+    fun setMode(context: Context, mode: Mode) {
+        context.getSharedPreferences(PREFS, 0).edit().putString(MODE, mode.name).apply()
+        SoftwareUpdateJob.schedule(context)
+    }
+    fun lastChecked(context: Context): Long = context.getSharedPreferences(PREFS, 0).getLong(LAST_CHECK, 0L)
 
     /** Like iOS Beta Updates: also offer GitHub pre-releases. Leaving keeps the installed beta until a newer public release. */
     fun beta(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(BETA, false)
@@ -85,10 +109,9 @@ internal object SoftwareUpdate {
     /** One notification per new version, in its own "Software updates" channel the user can mute in Android settings. */
     private fun postAvailable(context: Context, release: Release) {
         val prefs = context.getSharedPreferences(PREFS, 0)
-        if (!notify(context) || !canPostNotifications(context) || prefs.getString(NOTIFIED_VERSION, null) == release.version) return
+        if (mode(context) == Mode.MANUAL || !canPostNotifications(context) || prefs.getString(NOTIFIED_VERSION, null) == release.version) return
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
-        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT)
-            .apply { description = "When a new version of Folio is available" })
+        createChannel(manager)
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java)
             .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -105,7 +128,7 @@ internal object SoftwareUpdate {
     fun postConfirm(context: Context, confirm: Intent): Boolean {
         if (!canPostNotifications(context)) return false
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
-        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+        createChannel(manager)
         val tap = PendingIntent.getActivity(context, 1, confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle("Finish updating Folio").setContentText("Tap to install the update.").setContentIntent(tap).setAutoCancel(true).build()) }
@@ -117,8 +140,28 @@ internal object SoftwareUpdate {
     @Volatile var openRequested = false
     private const val NOTIFICATION_ID = 4101
 
-    fun autoInstall(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(AUTO_INSTALL, false)
-    fun setAutoInstall(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, 0).edit().putBoolean(AUTO_INSTALL, on).apply()
+    /** After an automatic update: one quiet "Folio was updated" notification, opening What's New. */
+    fun afterUpdate(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS, 0)
+        val from = prefs.getString(AUTO_UPDATED_FROM, null) ?: return
+        val now = installedVersion(context)
+        if (!isNewer(now, from)) return
+        prefs.edit().remove(AUTO_UPDATED_FROM).apply()
+        File(context.cacheDir, "updates").deleteRecursively()
+        if (!canPostNotifications(context)) return
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        createChannel(manager)
+        val open = PendingIntent.getActivity(context, 2, Intent(context, MainActivity::class.java)
+            .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES).putExtra(EXTRA_OPEN_UPDATE, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle("Folio was updated to $now").setContentText("Tap to see what's new.")
+            .setContentIntent(open).setAutoCancel(true).build()) }
+    }
+
+    private fun createChannel(manager: android.app.NotificationManager) =
+        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { description = "New versions of Folio" })
 
     fun installedVersion(context: Context): String =
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "0"
@@ -152,52 +195,116 @@ internal object SoftwareUpdate {
         fun asset(predicate: (String) -> Boolean) = (0 until assets.length()).map { assets.getJSONObject(it) }
             .firstOrNull { predicate(it.getString("name")) }?.getString("browser_download_url")
         val apk = asset { it.endsWith(".apk") } ?: return null
-        return Release(json.getString("tag_name").removePrefix("v"), apk, asset { it == "SHA256SUMS.txt" }, json.optString("html_url"))
+        val size = (0 until assets.length()).map { assets.getJSONObject(it) }.firstOrNull { it.getString("name").endsWith(".apk") }?.optLong("size") ?: 0L
+        return Release(json.getString("tag_name").removePrefix("v"), apk, asset { it == "SHA256SUMS.txt" }, json.optString("html_url"),
+            notes = json.optString("body").take(20_000), size = size, prerelease = json.optBoolean("prerelease"))
     }
 
-    /** Called when Folio comes to the front: checks at most once a day, only if automatic checks are on. */
+    /** Called when Folio comes to the front and by the daily job: checks at most once a day unless Manual. */
     private suspend fun checkIfDue(context: Context) {
-        if (!supported(context) || !autoCheck(context)) return
+        SoftwareUpdateJob.schedule(context)
+        if (!supported(context) || mode(context) == Mode.MANUAL) return
         val prefs = context.getSharedPreferences(PREFS, 0)
         if (System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0) < DAY_MS) return
-        // Recorded before the request, so being offline doesn't retry on every trip Home.
-        prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         check(context)
         val available = (status.value as? Status.Available)?.release ?: return
-        if (autoInstall(context)) downloadAndInstall(context, available) else postAvailable(context, available)
+        if (mode(context) == Mode.AUTOMATIC) { if (download(context, available)) SoftwareUpdateJob.scheduleInstall(context, tonight = false) }
+        else postAvailable(context, available)
+    }
+
+    /** Run by the daily job, off the main thread. */
+    internal suspend fun backgroundCheck(context: Context) {
+        if (busy.compareAndSet(false, true)) try { checkIfDue(context) } finally { busy.set(false) }
+    }
+
+    /** Run by the install job when the phone is idle: installs a verified download. */
+    internal suspend fun backgroundInstall(context: Context) {
+        if (!busy.compareAndSet(false, true)) return
+        try {
+            val ready = readyApk(context) ?: return
+            installReady(context, ready.first, ready.second)
+        } finally { busy.set(false) }
+    }
+
+    /** Download now; install when the phone is idle and charging (like iOS "Update Tonight"). */
+    fun startUpdateTonight(context: Context, release: Release) = launchExclusive {
+        val app = context.applicationContext
+        if (download(app, release)) { SoftwareUpdateJob.scheduleInstall(app, tonight = true); status.value = Status.Ready(release, tonight = true) }
     }
 
     private suspend fun check(context: Context) {
         if (!supported(context)) return
         status.value = Status.Checking
+        context.getSharedPreferences(PREFS, 0).edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         status.value = withContext(Dispatchers.IO) {
             runCatching {
                 val candidates = if (beta(context)) org.json.JSONArray(get(RECENT)).let { list -> (0 until list.length()).map(list::getJSONObject) }
                     else listOf(JSONObject(get(LATEST)))
                 val newest = candidates.filter { !it.optBoolean("draft") }.mapNotNull(::releaseOf)
                     .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error("No release has an APK.")
-                if (isNewer(newest.version, installedVersion(context))) Status.Available(newest) else Status.UpToDate
+                if (!isNewer(newest.version, installedVersion(context))) Status.UpToDate
+                else readyApk(context)?.takeIf { it.first.version == newest.version }?.let { Status.Ready(newest, tonight = false) }
+                    ?: Status.Available(newest)
             }.getOrElse { Status.Failed("Couldn't check for updates. Check your connection and try again.") }
         }
     }
 
-    /** Downloads, verifies and installs [release]. Android shows its own confirmation when it needs one. */
+    /** Downloads, verifies and installs [release] now. Android shows its own confirmation when it needs one. */
     private suspend fun downloadAndInstall(context: Context, release: Release) {
+        if (!download(context, release)) return
+        readyApk(context)?.let { installReady(context, it.first, it.second) }
+    }
+
+    private fun updatesDir(context: Context) = File(context.filesDir, "updates")
+
+    /** Downloads and verifies [release] into the updates folder. False (with Failed status) if anything's wrong. */
+    private suspend fun download(context: Context, release: Release): Boolean {
+        readyApk(context)?.takeIf { it.first.version == release.version }?.let { status.value = Status.Ready(release, tonight = false); return true }
         status.value = Status.Downloading(release)
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                val dir = File(context.cacheDir, "updates").apply { deleteRecursively(); mkdirs() }
-                val apk = File(dir, "Folio-${release.version}.apk")
-                download(release.apkUrl, apk)
+                val dir = updatesDir(context).apply { deleteRecursively(); mkdirs() }
+                val apk = File(dir, "Folio-${release.version}.apk.part")
+                download(release.apkUrl, apk, release.size) { status.value = Status.Downloading(release, it) }
                 release.sumsUrl?.let { url ->
                     val expected = get(url).lines().firstOrNull { it.trim().endsWith(".apk") }?.substringBefore(' ')?.trim()
                     require(expected != null && expected.equals(sha256(apk), ignoreCase = true)) { "The download didn't match its checksum." }
                 }
                 require(sameSigner(context, apk)) { "The update isn't signed with Folio's key, so it wasn't installed." }
+                apk.renameTo(File(dir, "Folio-${release.version}.apk"))
+                File(dir, "release.json").writeText(JSONObject().put("version", release.version).put("notes", release.notes.take(4000))
+                    .put("notesUrl", release.notesUrl).toString())
+            }
+        }
+        return result.fold({ status.value = Status.Ready(release, tonight = false); true },
+            { updatesDir(context).deleteRecursively(); status.value = Status.Failed(it.message ?: "The update couldn't be downloaded."); false })
+    }
+
+    /** A verified download that's newer than what's installed, with its release info. */
+    private fun readyApk(context: Context): Pair<Release, File>? = runCatching {
+        val dir = updatesDir(context)
+        val info = JSONObject(File(dir, "release.json").readText())
+        val version = info.getString("version")
+        val apk = File(dir, "Folio-$version.apk").takeIf { it.exists() } ?: return null
+        if (!isNewer(version, installedVersion(context))) { dir.deleteRecursively(); return null }
+        Release(version, "", null, info.optString("notesUrl"), info.optString("notes")) to apk
+    }.getOrNull()
+
+    fun installReadyNow(context: Context) = launchExclusive {
+        val app = context.applicationContext
+        readyApk(app)?.let { installReady(app, it.first, it.second) }
+    }
+
+    private suspend fun installReady(context: Context, release: Release, apk: File) {
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                require(sameSigner(context, apk)) { "The update isn't signed with Folio's key, so it wasn't installed." }
+                context.getSharedPreferences(PREFS, 0).edit().putString(AUTO_UPDATED_FROM, installedVersion(context)).apply()
                 install(context, apk)
             }
         }
         status.value = result.fold({ Status.Installing }, { Status.Failed(it.message ?: "The update couldn't be installed.") })
+        SoftwareUpdateJob.cancelInstall(context)
     }
 
     private fun get(url: String): String {
@@ -208,12 +315,23 @@ internal object SoftwareUpdate {
         return c.inputStream.bufferedReader().use { it.readText() }.also { c.disconnect() }
     }
 
-    private fun download(url: String, target: File) {
+    private fun download(url: String, target: File, expectedSize: Long, onProgress: (Float?) -> Unit) {
         val c = URL(url).openConnection() as HttpURLConnection
         c.setRequestProperty("User-Agent", "Folio")
         c.connectTimeout = 10_000; c.readTimeout = 60_000; c.instanceFollowRedirects = true
-        c.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
-        c.disconnect()
+        try {
+            val total = c.contentLengthLong.takeIf { it > 0 } ?: expectedSize
+            var done = 0L; var reported = -1
+            c.inputStream.use { input -> target.outputStream().use { out ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val n = input.read(buffer); if (n < 0) break
+                    out.write(buffer, 0, n); done += n
+                    val percent = if (total > 0) (done * 100 / total).toInt() else -1
+                    if (percent != reported) { reported = percent; onProgress(if (total > 0) done.toFloat() / total else null) }
+                }
+            } }
+        } finally { c.disconnect() }
     }
 
     private fun sha256(file: File): String {
@@ -271,5 +389,52 @@ class SoftwareUpdateReceiver : BroadcastReceiver() {
             else -> SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed(
                 intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)?.let { "The update wasn't installed: $it" } ?: "The update wasn't installed.")
         }
+    }
+}
+
+/**
+ * Background work for Software Update, through JobScheduler so Android picks a good moment: a daily check when there's
+ * a network, and installing a downloaded update when the phone is idle (and charging, for Update Tonight).
+ */
+class SoftwareUpdateJob : android.app.job.JobService() {
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
+    override fun onStartJob(params: android.app.job.JobParameters): Boolean {
+        scope.launch {
+            try {
+                if (params.jobId == INSTALL) SoftwareUpdate.backgroundInstall(applicationContext) else SoftwareUpdate.backgroundCheck(applicationContext)
+            } finally { jobFinished(params, false) }
+        }
+        return true
+    }
+
+    override fun onStopJob(params: android.app.job.JobParameters) = true
+
+    companion object {
+        private const val CHECK = 4102
+        private const val INSTALL = 4103
+
+        private fun scheduler(context: Context) = context.getSystemService(android.app.job.JobScheduler::class.java)
+        private fun component(context: Context) = android.content.ComponentName(context, SoftwareUpdateJob::class.java)
+
+        /** The daily check, unless updates are Manual or this build doesn't use them. */
+        fun schedule(context: Context) {
+            val jobs = scheduler(context) ?: return
+            if (!SoftwareUpdate.supported(context) || SoftwareUpdate.mode(context) == SoftwareUpdate.Mode.MANUAL) {
+                jobs.cancel(CHECK); jobs.cancel(INSTALL); return
+            }
+            if (jobs.getPendingJob(CHECK) != null) return
+            runCatching { jobs.schedule(android.app.job.JobInfo.Builder(CHECK, component(context))
+                .setRequiredNetworkType(android.app.job.JobInfo.NETWORK_TYPE_ANY)
+                .setPeriodic(24L * 60 * 60 * 1000, 6L * 60 * 60 * 1000).build()) }
+        }
+
+        /** Installs the downloaded update once the phone is idle (and charging, when [tonight]). */
+        fun scheduleInstall(context: Context, tonight: Boolean) {
+            runCatching { scheduler(context)?.schedule(android.app.job.JobInfo.Builder(INSTALL, component(context))
+                .setRequiresDeviceIdle(true).setRequiresCharging(tonight).build()) }
+        }
+
+        fun cancelInstall(context: Context) { scheduler(context)?.cancel(INSTALL) }
     }
 }

@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,5 +22,18 @@ class SoftwareUpdateTest {
         assertFalse(SoftwareUpdate.isNewer("0.7.0-beta.1", "0.7.0"))
         assertFalse(SoftwareUpdate.isNewer("0.6.0", "0.7.0-beta.1"))
         assertFalse(SoftwareUpdate.isNewer("0.7.0-beta.1", "0.7.0-beta.1"))
+    }
+
+    @Test fun `updates default to Automatic, and a choice made with the old switches carries over`() {
+        assertEquals(SoftwareUpdate.Mode.AUTOMATIC, SoftwareUpdate.modeFromLegacy(null, false))
+        assertEquals(SoftwareUpdate.Mode.MANUAL, SoftwareUpdate.modeFromLegacy(false, true))
+        assertEquals(SoftwareUpdate.Mode.NOTIFY, SoftwareUpdate.modeFromLegacy(true, false))
+        assertEquals(SoftwareUpdate.Mode.AUTOMATIC, SoftwareUpdate.modeFromLegacy(true, true))
+    }
+
+    @Test fun `release notes show what's new as plain lines`() {
+        val notes = "Intro\n\n## Install\n- Download it\n\n## What's new in 0.6.1\n### Added\n- **Status** options, see [docs](https://x)\n![gif](a.gif)"
+        assertEquals(listOf("Added", "• Status options, see docs"), releaseNoteLines(notes))
+        assertEquals(listOf("• one", "two"), releaseNoteLines("* one\ntwo"))
     }
 }

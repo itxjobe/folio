@@ -146,6 +146,8 @@
         </activity-alias>
         <receiver android:name=".FocusScheduleReceiver" android:exported="false" />
         <receiver android:name=".SoftwareUpdateReceiver" android:exported="false" />
+        <service android:name=".SoftwareUpdateJob" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- Share a theme file to Folio: it's validated here, then Home asks before applying it. SEND only, so Folio
              doesn't show up under "Open with" for every JSON file. -->
         <activity android:name=".ThemeImportActivity" android:exported="true" android:excludeFromRecents="true"
