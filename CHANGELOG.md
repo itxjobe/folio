@@ -9,6 +9,7 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Added
 - Status options in Icons & Side Bar: Compact spacing brings the time and date closer together, and Background turns off the frosted capsule behind the status (the dock keeps its own).
+- The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
 
 ### Fixed

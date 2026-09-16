@@ -1585,46 +1585,47 @@ internal fun folioIconBitmap(context: android.content.Context, size: Int = 216):
 private enum class RoadmapStatus(val label: String, val color: Long) {
     DONE("In this update", 0xFF30D158), BUILDING("In progress", 0xFF0A84FF), PLANNED("Planned", 0xFFFF9F0A), EXPLORING("Exploring", 0xFFBF5AF2)
 }
-private data class RoadmapItem(val icon: ImageVector, val color: Long, val title: String, val detail: String, val status: RoadmapStatus)
+private data class RoadmapItem(val icon: ImageVector, val color: Long, val title: String, val detail: String, val status: RoadmapStatus,
+    /** Overrides the status label, e.g. "Coming in 0.6.1" for a release that isn't installed yet. */
+    val label: String? = null)
+
+/** Icons a roadmap file can name; anything else shows a star. */
+private fun roadmapIcon(name: String): ImageVector = when (name) {
+    "bug" -> Icons.Rounded.BugReport; "tune" -> Icons.Rounded.Tune; "folder" -> Icons.Rounded.Folder; "apps" -> Icons.Rounded.Apps
+    "clock" -> Icons.Rounded.Schedule; "badge" -> Icons.Rounded.Notifications; "notifications" -> Icons.Rounded.NotificationsActive
+    "extension" -> Icons.Rounded.Extension; "update" -> Icons.Rounded.SystemUpdate; "circle" -> Icons.Rounded.Circle
+    "rings" -> Icons.Rounded.DonutLarge; "corner" -> Icons.Rounded.RoundedCorner; "headphones" -> Icons.Rounded.Headphones
+    "weather" -> Icons.Rounded.WbSunny; "store" -> Icons.Rounded.Storefront; "grid" -> Icons.Rounded.GridView
+    "history" -> Icons.Rounded.History; "tap" -> Icons.Rounded.TouchApp; "pages" -> Icons.Rounded.ViewCarousel
+    "dock" -> Icons.Rounded.Dock; "lock" -> Icons.Rounded.Lock; "news" -> Icons.Rounded.Newspaper; "brush" -> Icons.Rounded.Brush
+    "sensor" -> Icons.Rounded.Sensors; "keyboard" -> Icons.Rounded.Keyboard; "palette" -> Icons.Rounded.Palette
+    else -> Icons.Rounded.Star
+}
 
 @Composable private fun ComingSoonPage() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val version = remember { SoftwareUpdate.installedVersion(context) }
-    val sections = listOf(
-        "Folio $version" to listOf(
-            RoadmapItem(Icons.Rounded.Extension, 0xFFBF5AF2, "Tweak Library", "Get the tweaks you want; only those show in Settings.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.SystemUpdate, 0xFF8E8E93, "Software Update", "Update Folio from GitHub, with optional notifications.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.Notifications, 0xFFFF3B30, "Badge styles", "iOS, Classic or Glass badges in three sizes.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.Folder, 0xFF0A84FF, "Folder options", "Columns and glass, solid or clear folders.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.Headphones, 0xFF0A84FF, "Headphones card", "An iPhone-style card when headphones or a speaker connects.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.Circle, 0xFF1C1C1E, "Island notifications", "Other apps' notifications in the Dynamic Island, for the apps you choose.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.DonutLarge, 0xFF30D158, "Status styles", "Rings and Ring with Percentage in the Side Bar, and a Silent mode icon.", RoadmapStatus.DONE),
-            RoadmapItem(Icons.Rounded.RoundedCorner, 0xFF8E8E93, "Rounded corners", "Optional iPhone Duo-style corners on Home.", RoadmapStatus.DONE),
-        ),
-        "Next" to listOf(
-            RoadmapItem(Icons.Rounded.Storefront, 0xFF0A84FF, "The Folio app", "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.GridView, 0xFF30D158, "Home grid columns", "Four, five or six columns on Home.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.History, 0xFF8E8E93, "Layout History", "Out of beta: go back to how Home looked before a big change.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.TouchApp, 0xFF30D158, "Back Tap", "Double or triple tap the back of your phone to run an action. Inspired by RegiStar.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.ViewCarousel, 0xFF32ADE6, "Page Effects", "3D effects when you swipe between Home pages. Inspired by Barrel.", RoadmapStatus.PLANNED),
-        ),
-        "Later" to listOf(
-            RoadmapItem(Icons.Rounded.NotificationsActive, 0xFFFF3B30, "Notification Rules", "Choose per app where notifications show.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.Dock, 0xFF30D158, "Dock Drawer", "Swipe in on the dock for recent apps and Now Playing.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.Lock, 0xFF30D158, "More privacy controls", "More ways to keep what's on your screen private, planned for 0.7.0.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.Newspaper, 0xFFFF9F0A, "Custom Today View", "Arrange Today View your way, with a news feed like the page left of Android's Home.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.RoundedCorner, 0xFF8E8E93, "Corners everywhere", "Rounded screen corners over every app, not just Home.", RoadmapStatus.PLANNED),
-            RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
-        ),
-        "Exploring" to listOf(
-            RoadmapItem(Icons.Rounded.Sensors, 0xFF32ADE6, "Enhanced Fold Tracking", "Samsung's precise hinge angle for a smoother fold, set up once with Wireless Debugging. Based on research by ZFoldDuo.", RoadmapStatus.EXPLORING),
-            RoadmapItem(Icons.Rounded.Keyboard, 0xFF8E8E93, "Folio Keyboard", "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.", RoadmapStatus.EXPLORING),
-            RoadmapItem(Icons.Rounded.Palette, 0xFFFF375F, "Community themes", "Browse and add themes shared on GitHub, right from Folio.", RoadmapStatus.EXPLORING),
-            RoadmapItem(Icons.Rounded.Extension, 0xFFBF5AF2, "Folio Tweaks", "Tweaks made by the community, if it can be done safely.", RoadmapStatus.EXPLORING),
-        ),
-    )
-    Text("Where Folio is headed. Plans can change with feedback, and Android doesn't allow everything iOS does.",
+    var content by remember { mutableStateOf(Roadmap.local(context)) }
+    // Opening the Roadmap is when it checks GitHub for a newer one (at most every few hours).
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Roadmap.refresh(context) }?.let { content = it }
+    }
+    val sections = content?.sections.orEmpty().map { section ->
+        val release = section.release
+        val shipped = release == null || !SoftwareUpdate.isNewer(release, version)
+        val title = release?.let { "Folio $it" + if (shipped) "" else " · Coming" } ?: section.title.orEmpty()
+        title to section.items.map { item ->
+            val status = RoadmapStatus.valueOf(item.status.name)
+            RoadmapItem(roadmapIcon(item.icon), item.color, item.title, item.detail, status,
+                label = when {
+                    release == null || status != RoadmapStatus.DONE -> null
+                    release == version -> null
+                    shipped -> "Released"
+                    else -> "Coming in $release"
+                })
+        }
+    }
+    Text(content?.note ?: "Where Folio is headed.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
     sections.forEach { (title, items) ->
         SettingsCard(title) {
@@ -1658,7 +1659,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(item.title, color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
-                    Text(item.status.label, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
+                    Text(item.label ?: item.status.label, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
                         modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(50)).background(statusColor.copy(alpha = .16f)).padding(horizontal = 7.dp, vertical = 2.dp))
                 }
                 Text(item.detail, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .62f), fontSize = 14.sp, lineHeight = 19.sp)
