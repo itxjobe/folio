@@ -14,6 +14,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Software Update: check GitHub for a new Folio, download and install it after verifying its checksum and signing key; optional daily checks, update notifications and automatic installs.
 - Roadmap in Settings (replaces Coming Soon): what's in this update, what's next, later and being explored.
 - Tweak Library: tweaks are packages you Get (Sileo-style) and only the ones you get show in Settings › Tweaks. New installs start with none; updating keeps the tweaks you already use.
+- Hidden apps stay out of the App Library, like iOS: they're listed in Settings › Search & App Library after you unlock with your fingerprint, face or PIN. A Work Apps switch hides the Personal and Work toggle.
 - Left of Home can be None (Settings › Today View), alongside Today View and Google Discover.
 - Support Folio in Settings, for buying me a coffee on Ko-fi.
 - Save Backup and Save Theme go straight to Download/Folio; backups can be named (the default is dated).
@@ -32,6 +33,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - The App Library on the unfolded screen shows more, phone-sized category tiles (five across in landscape) instead of two giant columns (issue #9), and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
 - Friendlier setup: Folio's own icon on the welcome page, Skip on every step, setup moves on by itself after you allow something, clearer tips at the end, and choosing a wallpaper no longer restarts the screen.
+- Folders take more than two apps from the app menu: Create Folder becomes Add to Folder once you have one, listing your folders first.
+- Scrolling lists fade at their edges more softly, and the fade grows in as you scroll instead of popping in.
 - App Library folders open without building every app at once, and holding an app there opens its menu.
 - Setting Folio up no longer leaves the screen blurred and unresponsive. A sheet opened while Folio was behind a system permission screen could stay invisible and still take every tap, so Home sat blurred with no way out but a restart. Sheets now always appear, and the Home button closes anything that's open.
 - Setup and full-screen Settings pages are smoother: Home no longer blurs behind a page that covers it, which was work nobody could see.

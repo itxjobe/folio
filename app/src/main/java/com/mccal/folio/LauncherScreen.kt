@@ -1338,7 +1338,7 @@ fun LauncherScreen(
                 lockedBy = focusLock?.mode?.name,
                 onDismiss = { selectedId = null }, onMove = { selectedId = null; homeEdit.start() },
                 onAddOrRemove = { if (app.isShortcut) model.deleteShortcut(app) else model.setPinned(app.id, !pinned); selectedId = null },
-                onCreateFolder = { createFolderFirstId = app.id; selectedId = null },
+                onCreateFolder = { createFolderFirstId = app.id; selectedId = null }, hasFolders = state.folders.any { app.id !in it.appIds },
                 onWidgets = openWidgetsFor,
                 onToggleHidden = { model.setHidden(app.id, app.id !in state.hiddenApps); selectedId = null },
                 onInfo = { onAppInfo(app); selectedId = null },
@@ -1358,8 +1358,22 @@ fun LauncherScreen(
         }
         createFolderFirstId?.let { firstId ->
             val first = appsById[firstId]
-            AlertDialog(onDismissRequest = { createFolderFirstId = null }, title = { Text("Create folder with ${first?.label ?: "app"}") },
+            // Existing folders first (the only other way in is dragging onto one), then a new folder with another app.
+            val folders = state.folders.filter { firstId !in it.appIds }
+            AlertDialog(onDismissRequest = { createFolderFirstId = null },
+                title = { Text(if (folders.isEmpty()) "Create folder with ${first?.label ?: "app"}" else "Add ${first?.label ?: "app"} to a folder") },
                 text = { LazyColumn(Modifier.heightIn(max = 420.dp).testTag("folder-app-picker")) {
+                    items(folders, key = { it.id }) { folder ->
+                        TextButton(onClick = { model.addAppToFolder(folder.id, firstId); createFolderFirstId = null },
+                            modifier = Modifier.fillMaxWidth().testTag("folder-add-${folder.id}")) {
+                            Icon(Icons.Rounded.Folder, null, Modifier.size(20.dp)); Spacer(Modifier.width(10.dp))
+                            Text("${folder.title} (${folder.appIds.size})", Modifier.weight(1f))
+                        }
+                    }
+                    if (folders.isNotEmpty()) item("new-folder-header") {
+                        Text("New folder with…", style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 4.dp))
+                    }
                     items(state.apps.filter { it.id != firstId && it.available }, key = { it.id }) { second ->
                         TextButton(onClick = {
                             val preferredPage = state.layout.indexOfShortcut(firstId)?.let(::homeCellPage)

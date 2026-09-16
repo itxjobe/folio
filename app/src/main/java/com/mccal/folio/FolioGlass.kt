@@ -95,32 +95,59 @@ enum class MotionSpeed(val label: String, val factor: Float) {
 }
 
 /**
- * Soft edges on scrolling content, like iOS: instead of rows being chopped off at the edge of a list, they fade out
- * over [size] — but only on a side where there's more to scroll, so the first and last rows stay crisp.
+ * Soft edges on scrolling content, like iOS: rows fade out toward an edge where there's more to scroll. The fade
+ * follows an eased curve rather than a straight ramp, and grows in over the first [size] of scrolling instead of
+ * popping in, so a list at rest (or barely nudged) keeps crisp first and last rows. [top] and [bottom] return how much
+ * of each fade to show, from 0 to 1, given the fade depth in pixels.
  */
-internal fun androidx.compose.ui.Modifier.edgeFade(canScrollUp: () -> Boolean, canScrollDown: () -> Boolean,
-    size: androidx.compose.ui.unit.Dp = 20.dp): androidx.compose.ui.Modifier =
+internal fun androidx.compose.ui.Modifier.edgeFade(top: (Float) -> Float, bottom: (Float) -> Float,
+    size: androidx.compose.ui.unit.Dp = 28.dp): androidx.compose.ui.Modifier =
     // An offscreen layer only while an edge is actually fading, so a list at rest draws normally.
-    graphicsLayer { compositingStrategy = if (canScrollUp() || canScrollDown()) androidx.compose.ui.graphics.CompositingStrategy.Offscreen
-        else androidx.compose.ui.graphics.CompositingStrategy.Auto }
-        .drawWithContent {
-            drawContent()
-            val px = size.toPx().coerceAtMost(this.size.height / 3f)
-            if (canScrollUp()) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
-                listOf(Color.Transparent, Color.Black), startY = 0f, endY = px),
-                size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
-            if (canScrollDown()) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
-                listOf(Color.Black, Color.Transparent), startY = this.size.height - px, endY = this.size.height),
-                topLeft = androidx.compose.ui.geometry.Offset(0f, this.size.height - px),
-                size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
-        }
+    graphicsLayer {
+        val px = size.toPx()
+        compositingStrategy = if (top(px) > 0f || bottom(px) > 0f) androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+            else androidx.compose.ui.graphics.CompositingStrategy.Auto
+    }.drawWithContent {
+        drawContent()
+        val px = size.toPx().coerceAtMost(this.size.height / 3f)
+        val t = top(px).coerceIn(0f, 1f)
+        val b = bottom(px).coerceIn(0f, 1f)
+        if (t > 0f) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(*fadeStops(t, towardEnd = false), startY = 0f, endY = px),
+            size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+        if (b > 0f) drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(*fadeStops(b, towardEnd = true),
+            startY = this.size.height - px, endY = this.size.height),
+            topLeft = androidx.compose.ui.geometry.Offset(0f, this.size.height - px),
+            size = androidx.compose.ui.geometry.Size(this.size.width, px), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+    }
+
+/** Mask stops for one fade: fully kept away from the edge, easing (smoothstep) down to 1 − [amount] at the edge. */
+private fun fadeStops(amount: Float, towardEnd: Boolean): Array<Pair<Float, Color>> = Array(FADE_STEPS + 1) { i ->
+    val s = i / FADE_STEPS.toFloat()
+    val fromEdge = if (towardEnd) 1f - s else s
+    val eased = fromEdge * fromEdge * (3f - 2f * fromEdge)
+    s to Color.Black.copy(alpha = (1f - amount) + amount * eased)
+}
+
+private const val FADE_STEPS = 6
 
 internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.ScrollState) =
-    edgeFade({ state.value > 0 }, { state.value < state.maxValue })
+    edgeFade({ px -> state.value / px }, { px -> if (state.maxValue == Int.MAX_VALUE) 0f else (state.maxValue - state.value) / px })
+
 internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.lazy.LazyListState) =
-    edgeFade({ state.canScrollBackward }, { state.canScrollForward })
+    edgeFade({ px -> if (state.firstVisibleItemIndex > 0) 1f else state.firstVisibleItemScrollOffset / px }, { px ->
+        val info = state.layoutInfo
+        val last = info.visibleItemsInfo.lastOrNull() ?: return@edgeFade 0f
+        if (last.index < info.totalItemsCount - 1) 1f
+        else (last.offset + last.size + info.afterContentPadding - info.viewportEndOffset) / px
+    })
+
 internal fun androidx.compose.ui.Modifier.edgeFade(state: androidx.compose.foundation.lazy.grid.LazyGridState) =
-    edgeFade({ state.canScrollBackward }, { state.canScrollForward })
+    edgeFade({ px -> if (state.firstVisibleItemIndex > 0) 1f else state.firstVisibleItemScrollOffset / px }, { px ->
+        val info = state.layoutInfo
+        val last = info.visibleItemsInfo.lastOrNull() ?: return@edgeFade 0f
+        if (last.index < info.totalItemsCount - 1) 1f
+        else (last.offset.y + last.size.height + info.afterContentPadding - info.viewportEndOffset) / px
+    })
 
 /** verticalScroll with soft edges (see edgeFade). */
 internal fun androidx.compose.ui.Modifier.fadingVerticalScroll() = composed {
