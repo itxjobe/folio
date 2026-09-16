@@ -75,7 +75,7 @@ internal object LiveIcons {
     }
 }
 
-enum class IconStyle(val label: String) { DEFAULT("Default"), DARK("Dark"), TINTED("Tinted") }
+enum class IconStyle(val label: String) { DEFAULT("Default"), DARK("Dark"), TINTED("Tinted"), CLEAR("Clear") }
 
 enum class IconShape(val label: String) { DEFAULT("Default"), SQUIRCLE("Squircle"), CIRCLE("Circle"), ROUNDED("Rounded square") }
 enum class BadgeStyle(val label: String) { OFF("Off"), DOT("Dot"), COUNT("Count") }
@@ -129,6 +129,12 @@ private fun filterFor(look: IconLook): androidx.compose.ui.graphics.ColorFilter?
         .05f, .08f, .62f, 0f, -6f,
         0f, 0f, 0f, 1f, 0f)))
     // Luminance mapped onto one tint color, like iOS tinted icons.
+    // Clear, for apps without their own one-color symbol: a light, colorless version of the icon.
+    IconStyle.CLEAR -> androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(
+        .17f, .34f, .07f, 0f, 125f,
+        .17f, .34f, .07f, 0f, 125f,
+        .17f, .34f, .07f, 0f, 125f,
+        0f, 0f, 0f, .88f, 0f)))
     IconStyle.TINTED -> {
         val r = look.tint.red; val g = look.tint.green; val b = look.tint.blue
         androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(
@@ -171,6 +177,7 @@ internal fun AppIcon(app: AppEntry, contentDescription: String?, modifier: Modif
     val darkSource = iconsAreDark ?: remember(app.icon) { kind != null && isDarkIcon(app.icon) }
     val palette = when {
         look.style == IconStyle.TINTED -> LivePalette.of(IconStyle.TINTED, accent)
+        look.style == IconStyle.CLEAR -> LivePalette.of(IconStyle.CLEAR, null)
         look.liveLook == "LIGHT" -> LivePalette.of(IconStyle.DEFAULT, null)
         look.liveLook == "DARK" -> LivePalette.of(IconStyle.DARK, null)
         else -> LivePalette.of(if (look.style == IconStyle.DEFAULT && darkSource) IconStyle.DARK else look.style, accent)
@@ -182,6 +189,7 @@ internal fun AppIcon(app: AppEntry, contentDescription: String?, modifier: Modif
         when {
             liveKind == LiveIcons.Kind.CALENDAR -> BoxWithConstraints(Modifier.fillMaxSize()) { CalendarIcon(Modifier.fillMaxSize().padding(maxWidth * .035f).then(if (clipShape != null) Modifier.clip(clipShape) else Modifier), palette) }
             liveKind == LiveIcons.Kind.CLOCK -> BoxWithConstraints(Modifier.fillMaxSize()) { ClockIcon(Modifier.fillMaxSize().padding(maxWidth * .035f).then(if (clipShape != null) Modifier.clip(clipShape) else Modifier), palette) }
+            look.style == IconStyle.CLEAR -> ClearIcon(app, packIcon, fill)
             else -> {
                 val source = packIcon ?: app.icon
                 val bitmap = remember(source) { source.asImageBitmap() }
@@ -209,6 +217,54 @@ internal fun AppIcon(app: AppEntry, contentDescription: String?, modifier: Modif
         }
         // Updating: the icon dims under an iOS-style progress ring until the installer finishes.
         LocalInstallProgress.current[app.component.packageName]?.let { progress -> InstallRing(progress, fill) }
+    }
+}
+
+/**
+ * iOS-style Clear icon: a frosted tile with the app's own one-color symbol in white. That symbol is the monochrome
+ * layer apps provide for Android 13's themed icons; apps (and icon packs) without one get a light, colorless icon.
+ */
+@Composable
+private fun ClearIcon(app: AppEntry, packIcon: android.graphics.Bitmap?, modifier: Modifier) {
+    val context = LocalContext.current
+    val glyph by produceState(if (packIcon == null) ClearGlyphs.cached(app.id) else null, app.id, packIcon) {
+        if (packIcon == null && value == null)
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ClearGlyphs.load(context, app) }
+    }
+    Box(modifier.background(ClearTile).border(1.dp, Color.White.copy(alpha = .3f), RoundedCornerShape(22)), contentAlignment = Alignment.Center) {
+        val symbol = glyph
+        if (symbol != null) Image(remember(symbol) { symbol.asImageBitmap() }, null, Modifier.fillMaxSize())
+        else {
+            val source = packIcon ?: app.icon
+            val bitmap = remember(source) { source.asImageBitmap() }
+            Image(bitmap, null, Modifier.fillMaxSize(.78f), colorFilter = remember { filterFor(IconLook(style = IconStyle.CLEAR)) })
+        }
+    }
+}
+
+/** White symbols for Clear icons, from the monochrome layer of adaptive icons (Android 13+), cached per app. */
+internal object ClearGlyphs {
+    private val cache = android.util.LruCache<String, android.graphics.Bitmap>(96)
+    private val missing = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+    fun cached(id: String): android.graphics.Bitmap? = cache.get(id)
+
+    fun load(context: android.content.Context, app: AppEntry, size: Int = 192): android.graphics.Bitmap? {
+        cache.get(app.id)?.let { return it }
+        if (android.os.Build.VERSION.SDK_INT < 33 || app.id in missing || app.isShortcut) return null
+        val icon = runCatching {
+            context.getSystemService(android.content.pm.LauncherApps::class.java)
+                .getActivityList(app.packageName, app.user).firstOrNull { it.componentName == app.component }?.getIcon(0)
+        }.getOrNull() as? android.graphics.drawable.AdaptiveIconDrawable
+        val mono = icon?.monochrome ?: run { missing.add(app.id); return null }
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        // The layer is 108dp with the symbol inside the middle 72dp, the same framing as the icon itself.
+        val bleed = (size * .25f).toInt()
+        mono.mutate().setBounds(-bleed, -bleed, size + bleed, size + bleed)
+        mono.setTint(android.graphics.Color.WHITE)
+        mono.draw(canvas)
+        cache.put(app.id, bitmap)
+        return bitmap
     }
 }
 
@@ -299,12 +355,16 @@ internal data class LivePalette(val calendarBackground: Color, val calendarNumbe
         fun of(style: IconStyle, tint: Color?): LivePalette = when {
             style == IconStyle.TINTED && tint != null -> LivePalette(IconDark, tint, tint, IconDark, IconFace, tint, tint.copy(alpha = .7f))
             style == IconStyle.DARK -> LivePalette(IconDark, Color.White, IconRed, IconDark, IconFace, Color.White, IconOrange)
+            style == IconStyle.CLEAR -> LivePalette(ClearTile, Color.White, Color.White.copy(alpha = .85f), ClearTile,
+                Color.White.copy(alpha = .1f), Color.White, Color.White.copy(alpha = .7f))
             else -> LivePalette(Color.White, Color.Black, IconRedLight, Color.Black, Color.White, Color.Black, IconOrange)
         }
     }
 }
 
 private val IconRedLight = Color(0xFFFF3B30)
+/** The frosted tile behind Clear icons. */
+internal val ClearTile = Color.White.copy(alpha = .2f)
 private val IconDark = Color(0xFF1C1C1E)
 private val IconFace = Color(0xFF2C2C2E)
 private val IconRed = Color(0xFFFF453A)

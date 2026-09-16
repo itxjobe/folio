@@ -11,6 +11,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Status options in Icons & Side Bar: Compact spacing brings the time and date closer together, and Background turns off the frosted capsule behind the status (the dock keeps its own).
 - Software Update works like iOS, but more open: Automatic Updates is Automatic (checks daily, downloads, and installs while the phone is idle, then tells you what's new), Notify Me or Manual. An update shows its release notes, size and download progress, with Update Now and Update Tonight (installs while idle and charging). If you'd changed the old switches, your choice carries over.
 - The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
+- Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
 
