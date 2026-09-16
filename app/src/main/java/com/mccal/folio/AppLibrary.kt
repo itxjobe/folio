@@ -149,9 +149,8 @@ internal fun AppLibrary(
                     WebSearchRow(query) { openWebSearch(context, it, query) }
                 }
                 if (browsing && categorized.isNotEmpty()) {
-                    // Tiles stay iPhone-sized (~180dp): more columns on the wide inner screen instead of giant tiles.
-                    // As many ~160dp tiles (plus their 14dp gaps) as fit, like iPad's App Library.
-                    val columns = evenColumns(((libraryWidth + 14.dp) / 174.dp).toInt().coerceIn(2, 6), 2, hasHinge)
+                    // Tiles stay iPhone-sized: more columns on the wide inner screen instead of giant tiles.
+                    val columns = libraryColumns(libraryWidth.value, hasHinge)
                     items(categorized.entries.toList().chunked(columns), key = { row -> "cat-" + row.first().key.name }) { row ->
                         Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             row.forEach { (cat, apps) ->

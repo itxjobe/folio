@@ -27,7 +27,7 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Fixed
 - Scrolling lists and grids fade softly at their edges instead of being cut off.
-- The App Library on the unfolded screen in portrait uses iPad-sized category tiles and no longer covers the Side Bar's status.
+- The App Library on the unfolded screen uses iPad-sized category tiles in both orientations (landscape showed two giant columns, issue #9) and no longer covers the Side Bar's status.
 - Beta labels no longer wrap in narrow Settings layouts.
 - Setting Folio up no longer leaves the screen blurred and unresponsive. A sheet opened while Folio was behind a system permission screen could stay invisible and still take every tap, so Home sat blurred with no way out but a restart. Sheets now always appear, and the Home button closes anything that's open.
 - Setup and full-screen Settings pages are smoother: Home no longer blurs behind a page that covers it, which was work nobody could see.
