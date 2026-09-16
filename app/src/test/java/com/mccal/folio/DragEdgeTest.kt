@@ -27,3 +27,22 @@ class DragEdgeTest {
         assertEquals(0, dragEdgeDirection(Offset.Zero, Rect.Zero, 60f))
     }
 }
+
+class FolderDragTest {
+    private val folder = newFolderId()
+    private fun state() = HomeDragState().apply {
+        // The dragged folder's tile sits under the finger with its own folder target, over an empty Home cell.
+        register("cell", DragRegion(DropTarget.Home(5), Rect(0f, 0f, 100f, 100f), null, 0))
+        register("tile", DragRegion(DropTarget.Folder(folder), Rect(0f, 0f, 100f, 100f), null, 0, folderId = folder))
+    }
+
+    @Test fun `a dragged folder lands on the Home cell, not on itself`() {
+        val drag = state().apply { source = DragRegion(DropTarget.Home(21), Rect.Zero, folder, 0) }
+        assertEquals(DropTarget.Home(5), drag.destination(Offset(50f, 50f), setOf(0))?.target)
+    }
+
+    @Test fun `an app still drops into a folder`() {
+        val drag = state().apply { source = DragRegion(DropTarget.Home(3), Rect.Zero, "pkg/.App", 0) }
+        assertEquals(DropTarget.Folder(folder), drag.destination(Offset(50f, 50f), setOf(0))?.target)
+    }
+}

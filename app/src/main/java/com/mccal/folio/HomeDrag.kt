@@ -46,7 +46,9 @@ internal class HomeDragState {
                 is DropTarget.Widget -> false
                 is DropTarget.Home -> source?.appId != null || source?.target is DropTarget.Widget
                 is DropTarget.Dock -> source?.appId != null
-                is DropTarget.Folder -> source?.appId != null && source?.target !is DropTarget.Folder
+                // A dragged folder is drawn under the finger with its own drop target, and folders don't nest,
+                // so a folder only ever lands on Home cells (and apps never on the folder they're leaving).
+                is DropTarget.Folder -> source?.appId?.let { !isFolderId(it) } == true && source?.target !is DropTarget.Folder
                 DropTarget.Remove -> source?.target !is DropTarget.Library
                 is DropTarget.Library -> false
             }

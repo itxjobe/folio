@@ -5,6 +5,12 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
+## [0.6.1] - Unreleased
+
+### Fixed
+- Creating a folder no longer shows a second copy of it on the unfolded screen's extra left page.
+- Folders can be moved again: dragging one no longer drops it onto itself (which buzzed and put it back).
+
 ## [0.6.0] - 2026-09-16
 
 ### Added
