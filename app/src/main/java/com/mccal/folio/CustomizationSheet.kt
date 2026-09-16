@@ -222,7 +222,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     AppIconCard(onChanged = { model.refresh() })
                     SettingsCard(stringResource(R.string.background)) {
                         IosSegmented(listOf(true to stringResource(R.string.android_wallpaper), false to stringResource(R.string.folio_background)),
-                            state.systemWallpaper, { system -> model.setSystemWallpaper(system); (wallpaperContext as? android.app.Activity)?.recreate() },
+                            state.systemWallpaper, { system -> model.setSystemWallpaper(system); (wallpaperContext as? android.app.Activity)?.applyWallpaperWindow(system) },
                             Modifier.padding(vertical = 6.dp), tag = "background-choice")
                         Text(if (state.systemWallpaper) "Uses the same wallpaper as your phone’s home screen (including live wallpapers), so it matches what you had in Samsung’s or another launcher."
                             else "Folio’s dunes or a photo you choose, only behind Folio.",
@@ -1458,6 +1458,7 @@ private data class RoadmapItem(val icon: ImageVector, val color: Long, val title
             RoadmapItem(Icons.Rounded.NotificationsActive, 0xFFFF3B30, "Notification Rules", "Choose per app where notifications show.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Dock, 0xFF30D158, "Dock Drawer", "Swipe in on the dock for recent apps and Now Playing.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Schedule, 0xFFFF9F0A, "Complications", "A second time zone, sunset and your next alarm on the Lock Cover and StandBy.", RoadmapStatus.PLANNED),
+            RoadmapItem(Icons.Rounded.Newspaper, 0xFFFF9F0A, "Custom Today View", "Arrange Today View your way, with a news feed like the page left of Android's Home.", RoadmapStatus.PLANNED),
             RoadmapItem(Icons.Rounded.Brush, 0xFFFF375F, "Lock Designer", "Design your own Lock Cover and StandBy for each screen.", RoadmapStatus.PLANNED),
         ),
         "Exploring" to listOf(
