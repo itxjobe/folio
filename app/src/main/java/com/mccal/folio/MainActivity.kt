@@ -138,7 +138,9 @@ class MainActivity : ComponentActivity() {
                     else show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 }
             }
-            val overlayOpen = topPanel.value != null || spotlightVisible.value || LauncherSheetsOpen.intValue > 0 || lockCoverVisible.value
+            val overlayOpen = topPanel.value != null || spotlightVisible.value || LauncherSheetsOpen.intValue > 0 ||
+                // Only a Lock Cover that's actually drawn blurs Home (turning the setting off mid-way must not leave a blur).
+                (lockCoverVisible.value && state.lockCover)
             MotionSpeed.current = state.motionSpeed
             val overlayProgress by androidx.compose.animation.core.animateFloatAsState(if (overlayOpen) 1f else 0f,
                 MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "overlay")

@@ -115,7 +115,8 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
             kotlinx.coroutines.flow.combine(IslandListenerService.activity, IslandEvents.latest) { a, e ->
                 a?.takeUnless { it is IslandActivity.Call && "CALL" in settings.value.eventsOff } to e }
                 .collectLatest { (activity, eventPair) ->
-                    val remaining = eventPair?.takeIf { it.first.kind !in settings.value.eventsOff }
+                    // Folio's own notices belong to Home; they don't follow you into other apps.
+                    val remaining = eventPair?.takeIf { it.first.kind !in settings.value.eventsOff && it.first !is IslandEvent.Notice }
                         ?.let { IslandEvents.showMs(it.first) - (System.currentTimeMillis() - it.second) } ?: 0L
                     islandContent.value = if (remaining > 0) IslandContent.Event(eventPair!!.first) else activity?.let { IslandContent.Live(it) }
                     sync()

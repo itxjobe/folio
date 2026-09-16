@@ -129,7 +129,9 @@ class IslandEvents private constructor(private val context: Context) {
          * screen, and as a toast otherwise (island off, another app in front).
          */
         fun notice(context: Context, text: String, appIcon: android.graphics.Bitmap? = null) {
-            if (noticeIslands > 0 && FolioForeground.visible.value) post(IslandEvent.Notice(text, appIcon))
+            // A sheet or full-screen page (Settings) would cover Home's island, so those keep the toast.
+            val covered = LauncherSheetsOpen.intValue > 0 || LauncherPagesOpen.intValue > 0
+            if (noticeIslands > 0 && FolioForeground.visible.value && !covered) post(IslandEvent.Notice(text, appIcon))
             else android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
         }
         /** Hides the pop-up now (swiped away); the notification itself stays in Notification Center. */

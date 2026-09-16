@@ -38,6 +38,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folio no longer asks for the Nearby devices (Bluetooth) permission: headphone and speaker names now come from Android's audio device list.
 
 ### Fixed
+- Home can no longer stay blurred behind a Lock Cover that was turned off while it was about to show.
+- Folio's short notices fall back to a regular message while Settings or another sheet covers Home, so they're never hidden behind it, and they don't follow you into other apps.
 - The dock no longer overlaps the Side Bar's status when it grows (Focus or Silent icons, the Rings styles); it always starts just below it, including in Discover.
 - In jiggle mode, the dock's remove buttons stay inside the Side Bar instead of hanging off its edge.
 - Spotlight's Suggestions show whole rows only, so the unfolded screen shows one clean row above the keyboard instead of a cut-off second row.
