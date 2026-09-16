@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.AirplanemodeActive
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -46,10 +47,12 @@ data class StatusStyle(
     val colorfulBattery: Boolean = true,
     /** Frost strength shared by the status, dock and island capsules (0 = clear, 1 = solid). */
     val railGlass: Float = .26f,
+    /** A bell with a slash while the ringer is on silent or vibrate, like iPhone's status bar. */
+    val showSilent: Boolean = true,
 ) {
     fun toJson(): org.json.JSONObject = org.json.JSONObject().put("showTime", showTime).put("showDate", showDate)
         .put("showBatteryPercent", showBatteryPercent).put("glyph", glyph.name).put("colorfulBattery", colorfulBattery)
-        .put("railGlass", railGlass.toDouble())
+        .put("railGlass", railGlass.toDouble()).put("showSilent", showSilent)
 
     companion object {
         fun fromJson(j: org.json.JSONObject?): StatusStyle = if (j == null) StatusStyle() else StatusStyle(
@@ -57,11 +60,19 @@ data class StatusStyle(
             showBatteryPercent = j.optBoolean("showBatteryPercent", true),
             glyph = runCatching { StatusGlyph.valueOf(j.optString("glyph")) }.getOrDefault(StatusGlyph.RING),
             colorfulBattery = j.optBoolean("colorfulBattery", true),
-            railGlass = j.optDouble("railGlass", .26).toFloat().coerceIn(0f, 1f))
+            railGlass = j.optDouble("railGlass", .26).toFloat().coerceIn(0f, 1f),
+            showSilent = j.optBoolean("showSilent", true))
     }
 }
 
-enum class StatusGlyph(val label: String) { RING("Ring"), ICONS("Icons"), MINIMAL("Battery only"), NONE("Hidden") }
+enum class StatusGlyph(val label: String) {
+    RING("Ring"),
+    /** Apple Watch Activity-style: battery, Wi-Fi and cellular as three nested rings. */
+    RINGS("Rings"),
+    /** The battery ring with the percentage inside, like iPhone's Batteries widget. */
+    PERCENT("Ring with Percentage"),
+    ICONS("Icons"), MINIMAL("Battery only"), NONE("Hidden"),
+}
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -107,6 +118,7 @@ fun StatusRail(
     val description = listOfNotNull(
         if (locationInUse) "Location in use" else null,
         focus?.let { "${it.name} on" },
+        if (status.silent && style.showSilent) "Silent mode" else null,
         now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, $format")),
         status.battery?.let { "Battery $it percent${if (status.charging) ", charging" else ""}" } ?: "Battery unavailable",
         if (status.wifiConnected) "Wi-Fi connected${status.wifiLevel?.let { ", signal $it of 4" } ?: ""}" else "Wi-Fi disconnected",
@@ -146,11 +158,51 @@ fun StatusRail(
                 focus?.let { Icon(it.icon(), "${it.name} on", tint = androidx.compose.ui.graphics.Color(it.color).let { c ->
                     if (LocalHomeInk.current.dark) c else androidx.compose.ui.graphics.lerp(c, androidx.compose.ui.graphics.Color.White, .35f) },
                     modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-focus")) }
+                if (status.silent && style.showSilent) Icon(Icons.Rounded.NotificationsOff, null,
+                    tint = if (style.colorfulBattery) (if (onLight) SilentOnLight else Silent) else ink,
+                    modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-silent"))
                 if (style.showTime) Text(now.format(timeFormatter), color = ink, fontSize = timeSize, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                 if (!compact && style.showDate) Text(now.format(dateFormatter), color = ink.copy(alpha = if (onLight) .85f else .7f), fontSize = detailSize,
                     fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                 when (style.glyph) {
+                    StatusGlyph.RINGS -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.Center) {
+                        val colorful = style.colorfulBattery
+                        val batteryRing = if (!colorful) ink else if (status.charging || (status.battery ?: 100) > 20) (if (onLight) RingGreenOnLight else RingGreen) else low
+                        val wifiRing = if (colorful) (if (onLight) RingBlueOnLight else RingBlue) else ink
+                        val cellRing = if (colorful) (if (onLight) RingOrangeOnLight else RingOrange) else ink
+                        val wifiFraction = if (status.wifiConnected) ((status.wifiLevel ?: 4) / 4f).coerceIn(.08f, 1f) else 0f
+                        Canvas(Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val stroke = w * .075f
+                            listOf(
+                                .44f to (batteryRing to (status.battery?.div(100f) ?: 0f)),
+                                .30f to (wifiRing to wifiFraction),
+                                .16f to (cellRing to activeDots / 5f),
+                            ).forEach { (r, ring) ->
+                                val (color, fraction) = ring
+                                val radius = w * r
+                                val topLeft = Offset(w / 2 - radius, w / 2 - radius)
+                                drawCircle(color.copy(alpha = faint(.22f)), radius, Offset(w / 2, w / 2), style = Stroke(stroke))
+                                if (fraction > 0f) drawArc(color, -90f, 360f * fraction, false, topLeft, Size(radius * 2, radius * 2),
+                                    style = Stroke(stroke, cap = StrokeCap.Round))
+                            }
+                        }
+                        if (status.airplane) Icon(Icons.Rounded.AirplanemodeActive, "Airplane Mode", tint = ink, modifier = Modifier.size(visualSize * .2f))
+                    }
+                    StatusGlyph.PERCENT -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.Center) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val radius = w * .44f
+                            drawCircle(ink.copy(alpha = faint(.22f)), radius, Offset(w / 2, w / 2), style = Stroke(w * .07f))
+                            status.battery?.let { level ->
+                                drawArc(batteryColor, -90f, 360f * level / 100, false, Offset(w / 2 - radius, w / 2 - radius),
+                                    Size(radius * 2, radius * 2), style = Stroke(width = w * .07f, cap = StrokeCap.Round))
+                            }
+                        }
+                        Text(status.battery?.toString() ?: "—", color = if (status.charging && style.colorfulBattery) charging else ink,
+                            fontSize = (visualSize.value * .34f / fontScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                    }
                     StatusGlyph.RING, StatusGlyph.MINIMAL -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.Center) {
                         // Inside the battery ring, like iPhone's status bar: Wi-Fi when joined; otherwise cellular bars,
                         // an airplane in Airplane Mode, or a slowly sweeping fan while there's no connection at all.
@@ -216,7 +268,8 @@ fun StatusRail(
                     }
                     StatusGlyph.NONE -> Unit
                 }
-                if (!compact && style.showBatteryPercent) Text(if (status.airplane) "Airplane" else status.battery?.let { "$it%" } ?: "—",
+                // The percentage is already inside the ring in that style.
+                if (!compact && style.showBatteryPercent && style.glyph != StatusGlyph.PERCENT) Text(if (status.airplane) "Airplane" else status.battery?.let { "$it%" } ?: "—",
                     color = if (status.charging && style.colorfulBattery) charging else ink,
                     fontSize = detailSize, fontWeight = FontWeight.Medium,
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
@@ -243,6 +296,16 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWifiFan(w: Floa
 }
 
 private val BatteryCharging = Color(0xFF6EE39A)
+/** Activity-ring colors (iOS system green, cyan-blue and orange), with darker versions for light capsules. */
+private val RingGreen = Color(0xFF30D158)
+private val RingGreenOnLight = Color(0xFF248A3D)
+private val RingBlue = Color(0xFF64D2FF)
+private val RingBlueOnLight = Color(0xFF0071A4)
+private val RingOrange = Color(0xFFFF9F0A)
+private val RingOrangeOnLight = Color(0xFFC93400)
+/** iOS shows Silent mode's bell in red. */
+private val Silent = Color(0xFFFF453A)
+private val SilentOnLight = Color(0xFFD70015)
 private val BatteryLow = Color(0xFFFFB35C)
 /** iOS's darker system green and orange, which keep their contrast on light backgrounds. */
 private val BatteryChargingOnLight = Color(0xFF248A3D)

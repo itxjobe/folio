@@ -28,6 +28,8 @@ data class DeviceStatus(
     val wifiLevel: Int? = null,
     val cellularLevel: Int? = null,
     val airplane: Boolean = false,
+    /** Ringer on silent or vibrate. */
+    val silent: Boolean = false,
 )
 
 /** Observe only while visible. No location, phone-state, or notification access required. */
@@ -66,7 +68,7 @@ class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserv
     override fun onStart(owner: LifecycleOwner) {
         context.registerReceiver(receiver, IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED); addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
-            addAction(WifiManager.RSSI_CHANGED_ACTION)
+            addAction(WifiManager.RSSI_CHANGED_ACTION); addAction(android.media.AudioManager.RINGER_MODE_CHANGED_ACTION)
         })
         receiverRegistered = true
         networkRegistered = runCatching { connection.registerDefaultNetworkCallback(networkCallback); true }.getOrDefault(false)
@@ -82,7 +84,9 @@ class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserv
         val connected = info?.supplicantState == SupplicantState.COMPLETED || caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         val level = info?.rssi?.takeIf { connected && it > -127 }?.let { WifiManager.calculateSignalLevel(it, 5) }
         val airplane = Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) == 1
-        mutable.update { it.copy(wifiConnected = connected, wifiLevel = level, airplane = airplane) }
+        val silent = runCatching { context.getSystemService(android.media.AudioManager::class.java).ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL }
+            .getOrDefault(false)
+        mutable.update { it.copy(wifiConnected = connected, wifiLevel = level, airplane = airplane, silent = silent) }
     }
 
     override fun onStop(owner: LifecycleOwner) {
