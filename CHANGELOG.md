@@ -18,6 +18,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
 
+### Changed
+- Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
+
 ### Fixed
 - An app that re-posts the same notification (like a repeating warning) no longer pops up in the island each time; it stays in Notification Center.
 - In short landscape windows, the widget row on the left no longer runs under the page controls.
