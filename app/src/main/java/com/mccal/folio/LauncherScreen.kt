@@ -79,6 +79,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -339,7 +340,10 @@ fun LauncherScreen(
     BackHandler(enabled = sheet.isEmpty() && !launcherActivity.spotlightVisible.value && launcherActivity.topPanel.value == null) { if (resizeSlot != null) resizeSlot = null else if (drag.active) {
         val destination = if (drag.source?.target is DropTarget.Library) homePages else drag.originPage.coerceAtMost(homePages - 1)
         drag.clear(); scope.launch { pager.scrollToPage(destination) }
-    } else if (selectedId != null) selectedId = null else if (homeEdit.active) homeEdit.stop() else { focus.clearFocus(); scope.launch { pager.animateScrollToPage(0) } } }
+    } else if (selectedId != null) selectedId = null else if (homeEdit.active) homeEdit.stop()
+        // Previewing (Folio isn't the Home app yet): Back on the first page leaves, like any other app.
+        else if (!isDefaultHome && pager.currentPage == 0) launcherActivity.moveTaskToBack(true)
+        else { focus.clearFocus(); scope.launch { pager.animateScrollToPage(0) } } }
     val openDiscover = { if (firstHome > 0) scope.launch { pager.animateScrollToPage(-1) } else if (discoverMode) onDiscover(); Unit }
     val openLibrary = { scope.launch { pager.animateScrollToPage(homePages) }; Unit }
     val todayContent: @Composable (Modifier) -> Unit = { pageModifier ->
@@ -749,9 +753,8 @@ fun LauncherScreen(
             }
             Column(Modifier.align(if (state.leftHanded) Alignment.BottomEnd else Alignment.BottomStart).width(pagerWidth)
                 .padding(start = if (state.leftHanded) 0.dp else 16.dp, end = if (state.leftHanded) 16.dp else 0.dp, bottom = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (!isDefaultHome) FilledTonalButton(onClick = { sheet = ""; onMakeDefault() }, Modifier.heightIn(min = 48.dp).testTag("home-setup")) {
-                    Icon(Icons.Rounded.Home, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.set_as_home_app))
-                }
+                if (!isDefaultHome && !homeEdit.active && !drag.active) PreviewBar(onUseAsHome = { sheet = ""; onMakeDefault() },
+                    onExit = { launcherActivity.moveTaskToBack(true) })
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     if (!drag.active) IconButton(onClick = openDiscover, Modifier.size(32.dp).testTag("discover-page-link")) {
                         Icon(Icons.Rounded.Explore, "Discover", tint = Color.White.copy(alpha = .65f), modifier = Modifier.size(17.dp))
@@ -1476,4 +1479,22 @@ private fun libraryEdges(statusInCorner: Boolean, dockWidth: Float, leftHanded: 
     val rail = if (statusInCorner) (dockWidth + 28f).dp else 0.dp
     return if (leftHanded) PaddingValues(start = rail.coerceAtLeast(16.dp), end = if (statusInCorner) 16.dp else 0.dp)
     else PaddingValues(start = 16.dp, end = rail)
+}
+
+/** Shown while Folio is open as an app, before it's the Home app: says so, and offers both ways forward. */
+@Composable
+private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
+    val ink = LocalHomeInk.current
+    Row(Modifier.padding(bottom = 6.dp).heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp))
+        .background(Glass.copy(alpha = LocalGlassLook.current.widget)).border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(24.dp))
+        .padding(start = 16.dp, end = 4.dp).testTag("home-setup"), verticalAlignment = Alignment.CenterVertically) {
+        Text("Preview", color = ink.secondary, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
+        Spacer(Modifier.width(12.dp))
+        Text("Use as Home", color = Color(0xFF0A84FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onUseAsHome)
+                .heightIn(min = 48.dp).wrapContentHeight().padding(horizontal = 8.dp).testTag("preview-use-as-home"))
+        IconButton(onClick = onExit, Modifier.size(48.dp).testTag("preview-exit")) {
+            Icon(Icons.Rounded.Close, "Exit Preview", tint = ink.secondary, modifier = Modifier.size(18.dp))
+        }
+    }
 }

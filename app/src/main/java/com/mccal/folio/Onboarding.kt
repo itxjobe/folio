@@ -74,7 +74,7 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                 "An iPhone-style Home Screen for Android, made for foldables. Setup takes about a minute, and you can skip any step.",
                 action = "Continue", optional = false, appIcon = true),
             OnboardingPage("home", Icons.Rounded.Home, 0xFF0A84FF, "Make Folio Your Home",
-                "So the Home gesture and folding always come back to Folio. You can switch back anytime.",
+                "So the Home gesture and folding always come back to Folio. You can switch back anytime, or try Folio first: open it from your Home Screen, and press Back to leave.",
                 action = "Choose Home App", done = { isDefaultHome }, onAction = onMakeDefault),
             OnboardingPage("notifications", Icons.Rounded.Notifications, 0xFFFF3B30, "Notifications",
                 "Folio reads notifications only to show them on your phone. Nothing is sent anywhere.",
@@ -199,7 +199,7 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                 Text(primary, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
-                if (page.optional && !done) Text("Set Up Later in Settings", color = IosBlue, fontSize = 17.sp,
+                if (page.optional && !done) Text(if (page.key == "home") "Try Folio First" else "Set Up Later in Settings", color = IosBlue, fontSize = 17.sp,
                     modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { go(index + 1) }.padding(10.dp).testTag("onboarding-not-now"))
             }
             Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.Center,

@@ -13,6 +13,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
 - Big Clock widget (Widgets › Folio): a large Lock Screen-style clock on Home with the date and your next event or alarm, as wide as the page.
 - Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
+- Try Folio before making it your Home app: until then, Folio's icon opens Home as a preview, with Use as Home and an exit button. Back on the first page or the Home gesture takes you back to your Home Screen, and setup reminders wait until you choose Folio.
 - Dock position (Home Screen & Dock › Dock): Bottom puts the dock along the bottom of the cover screen and phones in portrait, with the status staying on the Side Bar. Unfolded, the dock stays on the Side Bar.
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.

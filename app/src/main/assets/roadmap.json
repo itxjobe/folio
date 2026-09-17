@@ -53,6 +53,20 @@
           "title": "Folder badges",
           "detail": "Folders show how many notifications their apps have.",
           "status": "done"
+        },
+        {
+          "icon": "dock",
+          "color": "#30D158",
+          "title": "Dock position",
+          "detail": "Put the dock along the bottom of the cover screen, and keep it on the Side Bar unfolded.",
+          "status": "done"
+        },
+        {
+          "icon": "tap",
+          "color": "#0A84FF",
+          "title": "Try Folio first",
+          "detail": "Open Folio from your current Home Screen to try it before making it your Home app.",
+          "status": "done"
         }
       ]
     },

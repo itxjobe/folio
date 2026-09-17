@@ -250,7 +250,7 @@ class MainActivity : ComponentActivity() {
                 StandByOverlay(rememberHalfOpenPose(this@MainActivity), state.standBy, blocked = overlayOpen, status = deviceStatus)
                 LockCover(lockCoverVisible.value && state.lockCover) { lockCoverVisible.value = false }
                 AudioDeviceCard("BLUETOOTH" !in state.islandEventsOff, blocked = overlayOpen)
-                SetupReminderCard(defaultHome.value, blocked = overlayOpen || showFirstRun.value, onMakeDefault = ::makeDefault,
+                SetupReminderCard(defaultHome.value, blocked = overlayOpen || showFirstRun.value || !defaultHome.value, onMakeDefault = ::makeDefault,
                     onShadeSetup = ::showShadeSetup) { SettingsLink.page = CustomizationPage.PERMISSIONS; settingsRequests.intValue++ }
                 sharedTheme.value?.let { theme ->
                     AlertDialog(onDismissRequest = { sharedTheme.value = null },
@@ -446,9 +446,11 @@ class MainActivity : ComponentActivity() {
         sharedTheme.value?.let { outState.putString(PENDING_THEME, it.toJson().toString()) }
         super.onSaveInstanceState(outState)
     }
-    /** Android's "Home app settings" gear, or Folio's own app icon (the FolioSettingsApp alias). */
+    /** Android's "Home app settings" gear, or Folio's own app icon (the FolioSettingsApp alias). Until Folio is the
+     * Home app, its icon opens Home instead, as a preview you can leave with Back or the Home gesture. */
     private fun opensSettings(intent: Intent) = intent.action == Intent.ACTION_APPLICATION_PREFERENCES ||
-        intent.component?.className?.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}") == true
+        (fromAppIcon(intent) && defaultHome.value)
+    private fun fromAppIcon(intent: Intent) = intent.component?.className?.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}") == true
 
     /** Any app can start Home with this extra, so it's parsed again and only ever applied after the user taps Apply. */
     private fun takeSharedTheme(intent: Intent?) {
@@ -463,9 +465,10 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         takeSharedTheme(intent)
         FoldRenderExperiment.onNewIntent(this, intent)
+        updateDefaultHome()
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
         if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
-        else if (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getStringExtra("duo_destination") == "home") {
+        else if (intent.hasCategory(Intent.CATEGORY_HOME) || fromAppIcon(intent) || intent.getStringExtra("duo_destination") == "home") {
             closeEverything(); homeRequests.intValue++
         }
         intent.removeExtra("duo_destination")
