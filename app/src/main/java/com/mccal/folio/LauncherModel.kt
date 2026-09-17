@@ -81,6 +81,16 @@ data class LauncherState(
     val notificationClock: Boolean = true,
     val groupNotifications: Boolean = true,
     val dockEverywhere: Boolean = false,
+    /** Buttons in Every App: a large Back / Home / Recents bar over other apps (Folio's accessibility service). */
+    val buttonBar: Boolean = false,
+    /** Bar height in dp (44 standard, 52 large, 60 extra large) and width as a share of the screen. */
+    val buttonBarHeight: Float = 52f,
+    val buttonBarWidth: Float = .5f,
+    /** Android's Back · Home · Recents order instead of Samsung's Recents · Home · Back. */
+    val buttonBarAndroidOrder: Boolean = false,
+    val buttonBarLight: Boolean = false,
+    /** Fades the bar when you haven't touched it for a moment. */
+    val buttonBarFade: Boolean = true,
     val iconStyle: IconStyle = IconStyle.DEFAULT,
     val standBy: Boolean = true,
     /** Spotlight sections the user turned off (names of [SpotlightSection]). */
@@ -196,6 +206,9 @@ data class LauncherState(
     /** Per-page looks by real Home page number (pages without an entry use Home's settings). */
     val pageStyles: Map<Int, PageStyle> = emptyMap(),
     val islandEverywhere: Boolean = false,
+    /** The island steps aside for full-screen video and games (on), and for landscape apps (off). */
+    val islandHideFullScreen: Boolean = true,
+    val islandHideLandscape: Boolean = false,
     /** Home Screen & Dock › Layout › Rows: 0 = Automatic (More rows), 4 = always four app rows. */
     val homeRows: Int = 0,
     /** App rows that last fit the cover-class and the inner-class Home (0 = not measured yet); see [homeAppRows]. */
@@ -873,8 +886,17 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setNcSplit(value: Boolean) = updateSettings(soon = false) { it.copy(ncSplit = value) }
     fun setFolderColor(folderId: String, color: Long?) = updateSettings(soon = false) {
         it.copy(folderColors = if (color == null) it.folderColors - folderId else it.folderColors + (folderId to color)) }
+    fun setButtonBar(value: Boolean) = updateSettings(soon = false) { it.copy(buttonBar = value) }
+    fun setButtonBarHeight(value: Float) = updateSettings(soon = false) { it.copy(buttonBarHeight = value.coerceIn(44f, 60f)) }
+    fun setButtonBarWidth(value: Float) = updateSettings(soon = false) { it.copy(buttonBarWidth = value.coerceIn(.3f, .8f)) }
+    fun setButtonBarAndroidOrder(value: Boolean) = updateSettings(soon = false) { it.copy(buttonBarAndroidOrder = value) }
+    fun setButtonBarLight(value: Boolean) = updateSettings(soon = false) { it.copy(buttonBarLight = value) }
+    fun setButtonBarFade(value: Boolean) = updateSettings(soon = false) { it.copy(buttonBarFade = value) }
+
     fun setDockEverywhere(value: Boolean) = updateSettings(soon = false) { it.copy(dockEverywhere = value) }
     fun setIslandEverywhere(value: Boolean) = updateSettings(soon = false) { it.copy(islandEverywhere = value) }
+    fun setIslandHideFullScreen(value: Boolean) = updateSettings(soon = false) { it.copy(islandHideFullScreen = value) }
+    fun setIslandHideLandscape(value: Boolean) = updateSettings(soon = false) { it.copy(islandHideLandscape = value) }
     fun setHomeRows(value: Int) = updateSettings(soon = false) { it.copy(homeRows = if (value == BASE_APP_ROWS) value else 0) }
     /** Remembers how many app rows fit this screen class's full-screen Home (see [effectiveHomeRows]). */
     fun recordHomeFit(expanded: Boolean, rows: Int) {
@@ -1026,6 +1048,10 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("pageStyles", JSONObject().apply { s.pageStyles.forEach { (page, style) -> put(page.toString(), JSONObject().put("scale", style.iconScale.toDouble())
                 .apply { style.labels?.let { put("labels", it) } }) } })
             .put(SettingKeys.DOCK_EVERYWHERE, s.dockEverywhere).put(SettingKeys.ISLAND_EVERYWHERE, s.islandEverywhere)
+            .put(SettingKeys.ISLAND_HIDE_FULL_SCREEN, s.islandHideFullScreen).put(SettingKeys.ISLAND_HIDE_LANDSCAPE, s.islandHideLandscape)
+            .put(SettingKeys.BUTTON_BAR, s.buttonBar).put(SettingKeys.BUTTON_BAR_HEIGHT, s.buttonBarHeight.toDouble())
+            .put(SettingKeys.BUTTON_BAR_WIDTH, s.buttonBarWidth.toDouble()).put(SettingKeys.BUTTON_BAR_ANDROID_ORDER, s.buttonBarAndroidOrder)
+            .put(SettingKeys.BUTTON_BAR_LIGHT, s.buttonBarLight).put(SettingKeys.BUTTON_BAR_FADE, s.buttonBarFade)
             .put("compact", preset(s.compact)).put("expanded", preset(s.expanded))
             .put("homeRows", s.homeRows).put("homeFitCompact", s.homeFitCompact).put("homeFitExpanded", s.homeFitExpanded)
         val editor = prefs.edit()
@@ -1284,6 +1310,14 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
             o.optJSONArray(key)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } }.orEmpty()
         }.filterValues { it.isNotEmpty() } } ?: emptyMap(),
         dockEverywhere = j.optBoolean("dockEverywhere", false), islandEverywhere = j.optBoolean("islandEverywhere", false),
+        islandHideFullScreen = j.optBoolean(SettingKeys.ISLAND_HIDE_FULL_SCREEN, true),
+        islandHideLandscape = j.optBoolean(SettingKeys.ISLAND_HIDE_LANDSCAPE, false),
+        buttonBar = j.optBoolean(SettingKeys.BUTTON_BAR, false),
+        buttonBarHeight = j.optDouble(SettingKeys.BUTTON_BAR_HEIGHT, 52.0).toFloat().coerceIn(44f, 60f),
+        buttonBarWidth = j.optDouble(SettingKeys.BUTTON_BAR_WIDTH, .5).toFloat().coerceIn(.3f, .8f),
+        buttonBarAndroidOrder = j.optBoolean(SettingKeys.BUTTON_BAR_ANDROID_ORDER, false),
+        buttonBarLight = j.optBoolean(SettingKeys.BUTTON_BAR_LIGHT, false),
+        buttonBarFade = j.optBoolean(SettingKeys.BUTTON_BAR_FADE, true),
         homeRows = j.optInt("homeRows", 0).takeIf { it == BASE_APP_ROWS } ?: 0,
         homeFitCompact = j.optInt("homeFitCompact", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0,
         homeFitExpanded = j.optInt("homeFitExpanded", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0)

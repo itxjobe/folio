@@ -449,6 +449,30 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         SettingsSwitch(stringResource(R.string.dynamic_island), state.islandEverywhere, { on ->
                             model.setIslandEverywhere(on); if (on && !SystemShadeAccessibilityService.isConnected()) onShadeSetup()
                         }, "island-everywhere-switch")
+                        if (state.islandEverywhere) {
+                            // A pill over a full-screen film or game is in the way, so it steps aside by default.
+                            SettingsSwitch("Hide in Full Screen", state.islandHideFullScreen, model::setIslandHideFullScreen, "island-hide-full-screen-switch")
+                            SettingsSwitch("Hide in Landscape", state.islandHideLandscape, model::setIslandHideLandscape, "island-hide-landscape-switch")
+                            CardNote("The island comes back as soon as the app shows the status bar again, or you turn the phone upright.")
+                        }
+                        // For people who find the system's buttons too small, especially on the inner screen.
+                        SettingsSwitch("Big Buttons", state.buttonBar, { on ->
+                            model.setButtonBar(on); if (on && !SystemShadeAccessibilityService.isConnected()) onShadeSetup()
+                        }, "button-bar-switch")
+                        if (state.buttonBar) {
+                            IosMenuRow("Size", listOf(44f to "Standard", 52f to "Large", 60f to "Extra Large"), state.buttonBarHeight,
+                                model::setButtonBarHeight, tag = "button-bar-size")
+                            IosMenuRow("Width", listOf(.36f to "Compact", .5f to "Half the Screen", .7f to "Wide"), state.buttonBarWidth,
+                                model::setButtonBarWidth, tag = "button-bar-width")
+                            IosMenuRow("Order", listOf(false to "Recents · Home · Back", true to "Back · Home · Recents"), state.buttonBarAndroidOrder,
+                                model::setButtonBarAndroidOrder, tag = "button-bar-order")
+                            IosMenuRow("Look", listOf(false to "Dark Glass", true to "Light Glass"), state.buttonBarLight,
+                                model::setButtonBarLight, tag = "button-bar-look")
+                            SettingsSwitch("Fade When Idle", state.buttonBarFade, model::setButtonBarFade, "button-bar-fade-switch")
+                            CardNote("Big Back, Home and Recents buttons float over other apps, for when the system's are too small. They press the same buttons Android does, sit above Android's own navigation, and hide in full-screen apps.")
+                            if (!gestureNavigation(androidx.compose.ui.platform.LocalContext.current))
+                                CardNote("Android's three buttons are on, so you'll see both sets. Folio's bar sits above them; switch to gesture navigation in Android's Display settings to have only these.")
+                        }
                         CardNote(stringResource(R.string.uses_folios_accessibility_service_the_sa))
                     }
                     if (page == CustomizationPage.ISLAND) SettingsCard(stringResource(R.string.island)) {
@@ -840,6 +864,7 @@ private val IosBlue = FolioColors.Blue
 private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = listOf(
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
+    Triple("Big Buttons in every app", "navigation buttons back home recents big large accessibility bar", CustomizationPage.ISLAND),
     Triple("Dock and status position", "dock bottom side bar status top cover inner move dock higher lower", CustomizationPage.HOME),
     Triple("Rounded screen corners", "corners rounded iphone duo screen round edges", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
@@ -866,6 +891,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Dynamic Island", "island pill camera pop-ups calls messages charging bluetooth", CustomizationPage.ISLAND),
     Triple("Other notifications in the island", "island pop-ups banners notifications apps alerts permission warning", CustomizationPage.ISLAND_APPS),
     Triple("Island and dock in every app", "overlay everywhere other apps handle", CustomizationPage.ISLAND),
+    Triple("Hide the island in full screen", "island full screen landscape video game immersive hide", CustomizationPage.ISLAND),
     Triple("Notification Center", "notifications clock stack group split blur panels iphone style", CustomizationPage.NOTIFICATIONS),
     Triple("Control Center", "control center size centered toggles", CustomizationPage.NOTIFICATIONS),
     Triple("Spotlight", "search engine google duckduckgo contacts calculator sections messages openbubbles", CustomizationPage.SEARCH),

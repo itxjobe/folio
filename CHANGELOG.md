@@ -24,6 +24,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Move apps without dragging:** TalkBack actions and Alt+arrow keys move apps and folders around Home and between pages.
 - **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
 - **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
+- **Big Buttons:** optional large Back, Home and Recents buttons over other apps, for when the system's are too small (Dynamic Island › In Every App). They sit above Android's own navigation, hide in full-screen apps and fade when idle.
+- **The island steps aside in full screen:** the island in every app now leaves full-screen video and games alone, with switches for full screen and landscape (Dynamic Island › In Every App).
 - **Predictive back:** folders, the App Library and Settings follow your back swipe before closing.
 
 ### Changed
