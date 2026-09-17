@@ -179,6 +179,19 @@ class IslandListenerService : NotificationListenerService() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?) = size > 64
     }
 
+    /** What each notification last popped up with, so an app re-posting the same warning doesn't pop up again. */
+    private val shownContent = object : LinkedHashMap<String, Pair<Int, Long>>(32, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Int, Long>>?) = size > 64
+    }
+    private fun isRepeat(key: String, title: String?, text: String?): Boolean {
+        val signature = (title to text).hashCode()
+        val now = System.currentTimeMillis()
+        val last = shownContent[key]
+        if (last != null && last.first == signature && now - last.second < REPEAT_QUIET_MS) return true
+        shownContent[key] = signature to now
+        return false
+    }
+
     /**
      * The rules every island pop-up follows: the app's own alert settings, Do Not Disturb, nothing old or repeated,
      * and (when [avoidDouble]) no second banner on top of Android's own pop-up.
@@ -228,6 +241,7 @@ class IslandListenerService : NotificationListenerService() {
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))
             ?.toString()?.takeIf { it.isNotBlank() }
         if (title == null && text == null) return
+        if (isRepeat(sbn.key, title, text)) return
         val picture = runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(96, 96) }.getOrNull()
         IslandEvents.post(IslandEvent.Message(sbn.key, sbn.packageName, label, title ?: label, text, picture,
             appIcon(sbn.packageName), Messaging.replyAction(n) != null, alert = true))
@@ -425,6 +439,8 @@ class IslandListenerService : NotificationListenerService() {
     }.getOrDefault(pkg).also { labelCache.put(pkg, it) }
 
     companion object {
+        /** An unchanged notification re-posted within this time stays in Notification Center without popping up again. */
+        private const val REPEAT_QUIET_MS = 30 * 60_000L
         private val messageChannelsMutable = MutableStateFlow<Map<String, MessageChannel>>(emptyMap())
         /** Messaging channels seen since Folio started (kept in memory only). */
         val messageChannels: StateFlow<Map<String, MessageChannel>> = messageChannelsMutable.asStateFlow()

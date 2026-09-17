@@ -57,8 +57,8 @@
         {
           "icon": "dock",
           "color": "#30D158",
-          "title": "Dock position",
-          "detail": "Put the dock along the bottom of the cover screen, and keep it on the Side Bar unfolded.",
+          "title": "Dock and status position",
+          "detail": "Choose the Side Bar or the bottom for the dock, and move the status to the top, on each screen.",
           "status": "done"
         },
         {

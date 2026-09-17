@@ -14,11 +14,13 @@ Folio shows the newest section on the phone after an update, and every version u
 - Big Clock widget (Widgets › Folio): a large Lock Screen-style clock on Home with the date and your next event or alarm, as wide as the page.
 - Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
 - Try Folio before making it your Home app: until then, Folio's icon opens Home as a preview, with Use as Home and an exit button. Back on the first page or the Home gesture takes you back to your Home Screen, and setup reminders wait until you choose Folio.
-- Dock position (Home Screen & Dock › Dock): Bottom puts the dock along the bottom of the cover screen and phones in portrait, with the status staying on the Side Bar. Unfolded, the dock stays on the Side Bar.
+- Dock and status position, for each screen (Home Screen & Dock › Side Bar): the dock can be Automatic, always on the Side Bar, or along the bottom (short landscape screens keep the Side Bar so every row fits), and the status can start at the top of the screen instead of level with your apps, for larger folds.
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
 
 ### Fixed
+- An app that re-posts the same notification (like a repeating warning) no longer pops up in the island each time; it stays in Notification Center.
+- In short landscape windows, the widget row on the left no longer runs under the page controls.
 - The Dynamic Island now always covers a punch-hole camera, instead of sitting below it on screens where the camera is close to the top (like the Galaxy Z Fold7's inner screen).
 - A panel or Spotlight that was closed while Folio wasn't drawing can no longer stay on screen (or leave Home blurred) with no way out: it finishes closing on its own.
 - Turning on Folio gestures now names Samsung's "App was denied access" message and walks through Allow restricted settings step by step.

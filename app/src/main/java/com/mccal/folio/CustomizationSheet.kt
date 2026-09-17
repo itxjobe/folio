@@ -863,7 +863,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
 private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = listOf(
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
-    Triple("Dock position", "dock bottom side bar cover phone move dock", CustomizationPage.HOME),
+    Triple("Dock and status position", "dock bottom side bar status top cover inner move dock higher lower", CustomizationPage.HOME),
     Triple("Rounded screen corners", "corners rounded iphone duo screen round edges", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
     Triple("Folders", "folder columns grid background glass solid clear", CustomizationPage.HOME),
@@ -1260,8 +1260,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     // Home page 1 drawn at a real cover-screen size with Folio's own layout math and parts (widget cards, icons,
     // status rail, dock, search pill), then scaled down, so the preview matches Home instead of approximating it.
     val refW = 420f; val refH = 720f
-    val geometry = homeGeometry(refW, refH, state.compact, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f,
-        bottomDock = state.dockBottom)
+    val geometry = homeGeometry(refW, refH, state.compact, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f)
     val placements = state.widgetPlacements.filter { it.page == 0 }
     val cells = HomeCellLayout.forPage(geometry, placements.map { it.row to it.spanY })
     val (iconSize, labels) = (state.pageStyles[0] ?: PageStyle()).apply(geometry, state.labels)
@@ -1313,7 +1312,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                         }
                     }
                     if (sideBar && state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
-                        Modifier.align(railAlign).then(railEdge).offset(y = geometry.contentTop.dp).width(state.compact.dockWidth.dp),
+                        Modifier.align(railAlign).then(railEdge).offset(y = geometry.statusTop.dp).width(state.compact.dockWidth.dp),
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
                     if (sideBar && geometry.dockBesideRail) Box(Modifier.align(if (left) Alignment.BottomEnd else Alignment.BottomStart)
                         .width((refW - state.compact.dockWidth - 28f).dp).padding(bottom = 58.dp), contentAlignment = Alignment.Center) { Row(Modifier
@@ -1439,9 +1438,21 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         dismissButton = { TextButton(onClick = { confirmIPhone = false }) { Text(stringResource(R.string.cancel)) } })
     CustomizationSlider("App icon size", "${p.iconSize.toInt()} dp", p.iconSize, 40f..68f) { model.setPreset(wide, p.copy(iconSize = it)) }
     CustomizationSlider("Space between rows", "${p.rowGap.toInt()} dp", p.rowGap, 0f..28f) { model.setPreset(wide, p.copy(rowGap = it)) }
+    SettingsCard("Side Bar") {
+        IosMenuRow("Dock", listOf(DockPlacement.AUTOMATIC to "Automatic", DockPlacement.SIDE to "Side Bar", DockPlacement.BOTTOM to "Bottom"),
+            p.dockPlacement, { model.setPreset(wide, p.copy(dockPlacement = it)) }, tag = "dock-placement")
+        IosMenuRow("Status", listOf(false to "Level with Apps", true to "Top"), p.statusTop,
+            { model.setPreset(wide, p.copy(statusTop = it)) }, tag = "status-position")
+        Text(when (p.dockPlacement) {
+            DockPlacement.AUTOMATIC -> if (wide) "The dock stays on the Side Bar, and moves to the bottom when the screen is upright." else "The dock stays on the Side Bar."
+            DockPlacement.SIDE -> "The dock stays on the Side Bar, even when the screen is upright."
+            DockPlacement.BOTTOM -> if (wide) "The dock sits along the bottom, under your pages." else "The dock sits along the bottom. In landscape it moves to the Side Bar, so every row of apps fits."
+        } + if (p.statusTop) " The status starts at the top of the screen." else "",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
+    }
     CustomizationSlider("Dock width", "${p.dockWidth.toInt()} dp", p.dockWidth, 56f..84f) { model.setPreset(wide, p.copy(dockWidth = it)) }
-    SettingsSwitch(stringResource(R.string.align_dock_with_app_rows), p.dockAlignToGrid, { model.setPreset(wide, p.copy(dockAlignToGrid = it)) })
-    if (!p.dockAlignToGrid) CustomizationSlider("Dock height on screen", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, .25f.. .75f) { model.setPreset(wide, p.copy(dockPosition = it)) }
+    if (p.dockPlacement != DockPlacement.BOTTOM) SettingsSwitch(stringResource(R.string.align_dock_with_app_rows), p.dockAlignToGrid, { model.setPreset(wide, p.copy(dockAlignToGrid = it)) })
+    if (!p.dockAlignToGrid && p.dockPlacement != DockPlacement.BOTTOM) CustomizationSlider("Dock height on screen", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, .25f.. .75f) { model.setPreset(wide, p.copy(dockPosition = it)) }
     SheetGroup { IosActionRow(stringResource(R.string.reset_this_layout), destructive = true, onClick = { model.setPreset(wide, LayoutPreset()) }) }
     // Per-page looks (after Atria): each page can have its own icon size and labels.
     SheetGroupLabel("Pages")
@@ -1754,9 +1765,6 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
 @Composable private fun RecentDotsCard(state: LauncherState, model: LauncherModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     SettingsCard("Dock") {
-        IosMenuRow("Position", listOf(false to "Side Bar", true to "Bottom"), state.dockBottom, model::setDockBottom, tag = "dock-position")
-        Text("Bottom puts the dock along the bottom on the cover screen and phones, in portrait. Unfolded, the dock stays on the Side Bar.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Recent App Dots", Modifier.weight(1f, fill = false)); BetaTag() }
             IosSwitch(state.dockRecentDots, { on ->

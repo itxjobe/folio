@@ -37,13 +37,41 @@ class LayoutModelTest {
             }
         }
     }
-    @Test fun `bottom dock applies only to narrow portrait screens`() {
-        val p = LayoutPreset()
-        val cover = homeGeometry(360f, 780f, p, true, bottomDock = true)
-        assertTrue(cover.horizontalDock); assertTrue(cover.dockBesideRail)
-        assertTrue(homeGeometry(360f, 780f, p, true).let { !it.horizontalDock })
-        assertTrue(homeGeometry(780f, 360f, p, true, bottomDock = true).let { !it.horizontalDock })
-        assertTrue(homeGeometry(900f, 700f, p, true, bottomDock = true).let { !it.horizontalDock && !it.dockBesideRail })
+    @Test fun `dock placement follows the choice and short landscape keeps the Side Bar`() {
+        fun g(w: Float, h: Float, d: DockPlacement) = homeGeometry(w, h, LayoutPreset(dockPlacement = d), true)
+        assertTrue(g(360f, 780f, DockPlacement.BOTTOM).let { it.horizontalDock && it.dockBesideRail })
+        assertFalse(g(360f, 780f, DockPlacement.AUTOMATIC).horizontalDock)
+        assertFalse(g(780f, 360f, DockPlacement.BOTTOM).horizontalDock)
+        assertTrue(g(700f, 900f, DockPlacement.AUTOMATIC).let { it.horizontalDock && !it.dockBesideRail })
+        assertTrue(g(700f, 900f, DockPlacement.SIDE).let { !it.horizontalDock && !it.expanded })
+        assertTrue(g(900f, 640f, DockPlacement.BOTTOM).let { it.horizontalDock && it.dockBesideRail && it.expanded })
+    }
+
+    @Test fun `every dock and status placement fits the page without cutting anything off`() {
+        val sizes = listOf(360f to 780f, 780f to 360f, 412f to 900f, 700f to 900f, 900f to 640f, 1180f to 760f, 640f to 600f)
+        for ((w, h) in sizes) for (d in DockPlacement.entries) for (top in listOf(false, true)) for (labels in listOf(true, false)) {
+            val p = LayoutPreset(dockPlacement = d, statusTop = top)
+            val g = homeGeometry(w, h, p, labels, statusHeight = 160f)
+            val bottom = 44f + if (g.horizontalDock) g.dockBarHeight + 16f else 0f
+            val page = if (g.splitColumns) maxOf(g.widgetHeight + 18f + 2f * g.rowHeight, 3f * g.rowHeight) else g.widgetHeight + 18f + 4f * g.rowHeight
+            val where = "${w}x$h $d top=$top labels=$labels"
+            assertTrue("rows too short at $where", g.rowHeight >= 48f)
+            assertTrue("page runs under the controls at $where", g.contentTop + page <= h - bottom + .5f)
+            assertTrue("grid wider than the screen at $where", g.gridWidth + (if (g.horizontalDock && !g.dockBesideRail) 0f else p.dockWidth + 28f) <= (if (g.expanded) g.homeWidth + 16f else w))
+            assertTrue("status starts off screen at $where", g.statusTop >= 16f)
+            if (!g.horizontalDock) {
+                assertTrue("dock overlaps the status at $where", g.dockTop >= g.statusTop + 160f - 22f - .5f || h < 500f)
+                assertTrue("dock runs off the bottom at $where", g.dockTop + g.dockHeight <= h - 12f + .5f)
+            }
+        }
+    }
+
+    @Test fun `status can start at the top and the dock stays under it`() {
+        val level = homeGeometry(700f, 900f, LayoutPreset(dockPlacement = DockPlacement.SIDE), true, statusHeight = 160f)
+        val top = homeGeometry(700f, 900f, LayoutPreset(dockPlacement = DockPlacement.SIDE, statusTop = true), true, statusHeight = 160f)
+        assertEquals(level.contentTop, level.statusTop)
+        assertEquals(16f, top.statusTop)
+        assertTrue(top.dockTop >= top.statusTop + 138f)
     }
 
     @Test fun `hiding labels preserves row rhythm and large text gains room`() {

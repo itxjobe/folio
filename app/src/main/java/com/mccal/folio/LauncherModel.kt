@@ -145,7 +145,6 @@ data class LauncherState(
     /** Black rounded corners over Home, like the iPhone Duo concept (issue #8). */
     val roundedCorners: Boolean = false,
     /** Dock along the bottom on phone-sized screens (the cover) in portrait, instead of on the Side Bar. */
-    val dockBottom: Boolean = false,
     val cornerRadius: Float = 40f,
     /** Frost behind Home's widgets (0 = clear, 1 = solid). The Side Bar's is statusStyle.railGlass. */
     val widgetGlass: Float = .26f,
@@ -714,7 +713,6 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setHomeInk(value: String) = updateSettings(soon = false) { it.copy(homeInk = value) }
     fun setTintedGlass(value: Boolean) = updateSettings(soon = false) { it.copy(tintedGlass = value) }
     fun setRoundedCorners(value: Boolean) = updateSettings(soon = false) { it.copy(roundedCorners = value) }
-    fun setDockBottom(value: Boolean) = updateSettings(soon = false) { it.copy(dockBottom = value) }
     fun setCornerRadius(value: Float) = updateSettings(soon = true) { it.copy(cornerRadius = value.coerceIn(16f, 72f)) }
     fun setWidgetGlass(value: Float) = updateSettings(soon = true) { it.copy(widgetGlass = value.coerceIn(0f, 1f)) }
     fun setFolderColumns(value: Int) = updateSettings(soon = false) { it.copy(folderColumns = value.takeIf { v -> v in setOf(0, 3, 4) } ?: 0) }
@@ -927,6 +925,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         val s = mutable.value
         fun preset(p: LayoutPreset) = JSONObject().put("iconSize", p.iconSize).put("rowGap", p.rowGap)
             .put("dockWidth", p.dockWidth).put("dockPosition", p.dockPosition).put("dockAlignToGrid", p.dockAlignToGrid)
+            .put("dockPlacement", p.dockPlacement.name).put("statusTop", p.statusTop)
         val widgets = JSONArray().also { array -> s.widgetPlacements.forEach { w -> array.put(JSONObject()
             .put("slot", w.slot).put("id", w.id).put("page", w.page).put("column", w.column).put("row", w.row)
             .put("spanX", w.spanX).put("spanY", w.spanY)) } }
@@ -965,7 +964,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("widgetGlass", s.widgetGlass.toDouble()).put("glassOutline", s.glassOutline.toDouble())
             .put("focusModes", focusModesToJson(s.focusModes))
             .put("activeFocus", s.activeFocus ?: "").put("leftPage", s.leftPage).put("todayUnfolded", s.todayUnfolded).put("systemWallpaper", s.systemWallpaper).put("homeInk", s.homeInk).put("tintedGlass", s.tintedGlass)
-            .put("roundedCorners", s.roundedCorners).put("dockBottom", s.dockBottom).put("cornerRadius", s.cornerRadius.toDouble())
+            .put("roundedCorners", s.roundedCorners).put("cornerRadius", s.cornerRadius.toDouble())
             .put("dimWallpaperDark", s.dimWallpaperDark).put("iconTintFromWallpaper", s.iconTintFromWallpaper)
             .put("tintNotifications", s.tintNotifications).put("tintMedia", s.tintMedia).put("dockMagnify", s.dockMagnify).put("appPanels", s.appPanels).put("haptics", s.haptics).put("lockCover", s.lockCover)
             .put("featureScopes", JSONObject().apply { s.featureScopes.forEach { (id, m) -> put(id, JSONObject(m as Map<*, *>)) } }).put("notificationAppRow", s.notificationAppRow)
@@ -1002,7 +1001,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 p.optDouble("rowGap", default.rowGap.toDouble()).toFloat(),
                 p.optDouble("dockWidth", default.dockWidth.toDouble()).toFloat(),
                 p.optDouble("dockPosition", default.dockPosition.toDouble()).toFloat(),
-                p.optBoolean("dockAlignToGrid", true)).sanitized()
+                p.optBoolean("dockAlignToGrid", true), DockPlacement.parse(p.optString("dockPlacement")),
+                p.optBoolean("statusTop", false)).sanitized()
             return upgradePreset(loaded, j.optInt("schema", 1), key == "expanded")
         }
         val order = j.optJSONArray(if (j.optInt("schema", 1) >= 2) "pinned" else "order") ?: JSONArray()
@@ -1168,7 +1168,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             systemWallpaper = j.optBoolean("systemWallpaper", false),
             homeInk = j.optString("homeInk", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
             tintedGlass = j.optBoolean("tintedGlass", true),
-            roundedCorners = j.optBoolean("roundedCorners", false), dockBottom = j.optBoolean("dockBottom", false), cornerRadius = j.optDouble("cornerRadius", 40.0).toFloat().coerceIn(16f, 72f), dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
+            roundedCorners = j.optBoolean("roundedCorners", false), cornerRadius = j.optDouble("cornerRadius", 40.0).toFloat().coerceIn(16f, 72f), dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
             iconTintFromWallpaper = j.optBoolean("iconTintFromWallpaper", false),
             tintNotifications = j.optBoolean("tintNotifications", false), tintMedia = j.optBoolean("tintMedia", true),
             dockMagnify = j.optBoolean("dockMagnify", false), appPanels = j.optBoolean("appPanels", true), haptics = j.optBoolean("haptics", true), lockCover = j.optBoolean("lockCover", true),

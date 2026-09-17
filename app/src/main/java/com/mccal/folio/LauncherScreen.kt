@@ -539,7 +539,7 @@ fun LauncherScreen(
                 labelHeight = with(density) { LocalLabelSize.current.lineSp.sp.toDp().value } + 6f, inLibrary = inLibrary,
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
                 // The rail's round search/back controls only show without the search pill or on Discover.
-                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale, bottomDock = state.dockBottom)
+                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale)
             SideEffect {
                 resizePitchX = with(density) { geometry.cellWidth.dp.toPx() }
                 resizePitchY = with(density) { minOf((geometry.widgetHeight + 18f) / 2f, geometry.rowHeight).dp.toPx() }
@@ -712,7 +712,7 @@ fun LauncherScreen(
                 }
             }
             if (state.verticalStatus) StatusRail(deviceStatus,
-                Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.contentTop.dp)
+                Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.statusTop.dp)
                     .width(preset.dockWidth.dp).onSizeChanged {
                         // The whole rail, location slot included: the dock goes below all of it.
                         statusHeight = with(density) { it.height.toDp().value }

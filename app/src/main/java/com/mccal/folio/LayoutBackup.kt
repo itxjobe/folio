@@ -66,6 +66,7 @@ fun encodeLayoutBackup(state: LauncherState, widgetDescriptors: List<BackupWidge
     } }
     fun preset(value: LayoutPreset) = JSONObject().put("iconSize", value.iconSize).put("rowGap", value.rowGap)
         .put("dockWidth", value.dockWidth).put("dockPosition", value.dockPosition).put("dockAlignToGrid", value.dockAlignToGrid)
+        .put("dockPlacement", value.dockPlacement.name).put("statusTop", value.statusTop)
     return JSONObject().put("version", LAYOUT_BACKUP_VERSION).put("sourceScope", sourceScope).put("apps", apps)
         .put("homeSlots", JSONArray(state.homeSlots)).put("leadingSlots", JSONArray(state.leadingSlots))
         .put("dock", JSONArray(state.dock)).put("folders", folders).put("widgets", widgets)
@@ -178,7 +179,9 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
     fun preset(key: String): LayoutPreset {
         val item = root.getJSONObject(key)
         val loaded = LayoutPreset(item.strictFloat("iconSize"), item.strictFloat("rowGap"),
-            item.strictFloat("dockWidth"), item.strictFloat("dockPosition"), item.strictBoolean("dockAlignToGrid"))
+            item.strictFloat("dockWidth"), item.strictFloat("dockPosition"), item.strictBoolean("dockAlignToGrid"),
+            // Added in 0.6.1: older backups don't have them.
+            DockPlacement.parse(item.optString("dockPlacement")), item.optBoolean("statusTop", false))
         require(loaded == loaded.sanitized()) { "Invalid layout preset" }
         return loaded
     }

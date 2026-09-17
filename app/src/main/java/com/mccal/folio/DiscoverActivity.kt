@@ -389,13 +389,14 @@ private fun DiscoverDock(state: LauncherState, status: DeviceStatus, fullSize: S
                     fullSize.width - size.width, (insets?.top ?: 0).toFloat(), fullSize.width, fullSize.height)
             }
             var statusHeight by remember { mutableFloatStateOf(0f) }
-            val geometry = homeGeometry(fullWidth, maxHeight.value, preset, state.labels,
+            // Discover's page is laid out beside the Side Bar, so its dock stays there whatever Home uses.
+            val geometry = homeGeometry(fullWidth, maxHeight.value, preset.copy(dockPlacement = DockPlacement.SIDE), state.labels,
                 statusHeight = if (state.verticalStatus) statusHeight + 22f else 0f,
                 labelHeight = with(density) { 14.sp.toDp().value } + 6f, inLibrary = true,
                 homeBottomSpace = if (context.getSystemService(android.app.role.RoleManager::class.java)
                     .isRoleHeld(android.app.role.RoleManager.ROLE_HOME)) 44f else 88f, classScale = classScale)
             if (state.verticalStatus) StatusRail(status, Modifier.align(Alignment.TopEnd).padding(end = 12.dp)
-                .offset(y = geometry.contentTop.dp).width(preset.dockWidth.dp)
+                .offset(y = geometry.statusTop.dp).width(preset.dockWidth.dp)
                 .onSizeChanged {
                     // The whole rail, location slot included: the dock goes below all of it.
                     statusHeight = it.height / density.density
