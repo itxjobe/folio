@@ -49,6 +49,7 @@ Limits:
 | `icon` | path | `assets/icon.png`, square, at least 180 px. |
 | `depiction` | path | Usually `depiction.json`. |
 | `license` | string | SPDX id, e.g. `MIT`. GPL code isn't accepted in the Community source. |
+| `requires` | object | `{ "features": [capability ids] }`: the Folio capabilities this package configures. See [Capabilities](#capabilities). |
 | `origin` *(0.7.x)* | enum | Set by Folio, not authors: `folio-source`, `file`, `play-icon-pack`, `launcher-import`. |
 
 **Text values:** any *text* field is either a plain string, or an object of language tags with an `en` fallback: `{ "en": "Sunset Icons", "es": "Iconos Atardecer" }`.
@@ -179,6 +180,38 @@ It's signed the same way as `entry.json`. Revoked packages are turned off, and t
 | `folio://source/<url-encoded https URL>` | the Add Source sheet, pre-filled |
 | `folio://package/<id>` | the package page, if a source the user added lists it |
 | a shared `.foliopkg` | the install sheet; unsigned files say "Unknown developer" |
+
+## Capabilities
+
+Every feature in Folio belongs to one of three classes:
+- **Core:** Folio implements it (folders, dock, status, widgets, search, Focus).
+- **Package:** a package configures a Core capability; Cabinet and themes are examples.
+- **Integration:** it connects to something outside Folio (icon pack apps).
+
+A package never adds behavior Folio doesn't already have. When you remove a package, the capability returns to its defaults.
+
+`requires.features` lists the capabilities a package configures. Before installing, Folio checks that it has every one. If it doesn't, it shows "Needs a newer Folio" and doesn't install the package.
+
+| Capability id | What Folio implements | Since |
+|---|---|---|
+| `theme` | Theme presets and theme files (`"folioTheme": 1`) | 0.4.0 |
+| `home.layout` | Home grid, dock and layout presets | before 0.7.0 |
+| `wallpaper` | Folio's wallpaper | 0.1.0 |
+| `icons` | Icon style, shape and tint | before 0.7.0 |
+| `icons.packs` | Icon packs found through the ADW/Nova/Lawnchair intents | by 0.4.0 |
+| `tweaks.appPanels` | Cabinet (formerly App Panels) | 0.6.0 |
+| `tweaks.dockMagnify` | Harborline (formerly Dock Magnification) | 0.6.0 |
+| `tweaks.notificationAppRow` | Roll Call (formerly Notification App Row) | 0.6.0 |
+| `tweaks.tintNotifications` | Palette (formerly Tinted Notifications) | 0.6.0 |
+| `tweaks.tintMedia` | Colored Albums (formerly Album Art Colors) | 0.6.0 |
+| `island.messages` | Messages in the Dynamic Island | 0.7.x |
+| `focus.modes` | Switching Home Modes / Focus | 0.7.x |
+| `settings.pages` | Settings pages drawn from `settings.json` | 0.7.x |
+| `scripts` | The script sandbox | 0.7.x |
+
+"Since" comes from CHANGELOG.md. "Before 0.7.0" means the feature exists today but the changelog doesn't record when it arrived. The 0.1.0 entry is inherited from DuoLauncher, and 0.7.x means planned.
+
+**Packages never get Android permissions.** Folio holds its own permissions (for example Notification access). The permissions below are Folio's rules for what a package may change; they're what the privacy label lists.
 
 ## Permissions
 
