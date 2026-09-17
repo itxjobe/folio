@@ -13,10 +13,12 @@ Folio shows the newest section on the phone after an update, and every version u
 - The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
 - Big Clock widget (Widgets › Folio): a large Lock Screen-style clock on Home with the date and your next event or alarm, as wide as the page.
 - Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
+- Dock position (Home Screen & Dock › Dock): Bottom puts the dock along the bottom of the cover screen and phones in portrait, with the status staying on the Side Bar. Unfolded, the dock stays on the Side Bar.
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
 
 ### Fixed
+- The Dynamic Island now always covers a punch-hole camera, instead of sitting below it on screens where the camera is close to the top (like the Galaxy Z Fold7's inner screen).
 - A panel or Spotlight that was closed while Folio wasn't drawing can no longer stay on screen (or leave Home blurred) with no way out: it finishes closing on its own.
 - Turning on Folio gestures now names Samsung's "App was denied access" message and walks through Allow restricted settings step by step.
 - Google Discover beside Home is only used on Android 17 and newer; on Android 16 (reported on the Galaxy Z Fold7, issue #12) it could leave smeared copies of Home on screen, so Discover opens as its own page there.

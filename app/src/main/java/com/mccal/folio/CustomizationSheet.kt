@@ -863,6 +863,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
 private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = listOf(
     Triple("Background & wallpaper", "wallpaper photo dunes android image", CustomizationPage.WALLPAPER),
     Triple("Text on Home", "light dark ink labels legibility", CustomizationPage.WALLPAPER),
+    Triple("Dock position", "dock bottom side bar cover phone move dock", CustomizationPage.HOME),
     Triple("Rounded screen corners", "corners rounded iphone duo screen round edges", CustomizationPage.WALLPAPER),
     Triple("Glass", "glass frost blur outline border transparency widgets side bar tint", CustomizationPage.WALLPAPER),
     Triple("Folders", "folder columns grid background glass solid clear", CustomizationPage.HOME),
@@ -1259,7 +1260,8 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     // Home page 1 drawn at a real cover-screen size with Folio's own layout math and parts (widget cards, icons,
     // status rail, dock, search pill), then scaled down, so the preview matches Home instead of approximating it.
     val refW = 420f; val refH = 720f
-    val geometry = homeGeometry(refW, refH, state.compact, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f)
+    val geometry = homeGeometry(refW, refH, state.compact, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f,
+        bottomDock = state.dockBottom)
     val placements = state.widgetPlacements.filter { it.page == 0 }
     val cells = HomeCellLayout.forPage(geometry, placements.map { it.row to it.spanY })
     val (iconSize, labels) = (state.pageStyles[0] ?: PageStyle()).apply(geometry, state.labels)
@@ -1313,7 +1315,17 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                     if (sideBar && state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
                         Modifier.align(railAlign).then(railEdge).offset(y = geometry.contentTop.dp).width(state.compact.dockWidth.dp),
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
-                    if (sideBar) Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
+                    if (sideBar && geometry.dockBesideRail) Box(Modifier.align(if (left) Alignment.BottomEnd else Alignment.BottomStart)
+                        .width((refW - state.compact.dockWidth - 28f).dp).padding(bottom = 58.dp), contentAlignment = Alignment.Center) { Row(Modifier
+                        .height(geometry.dockBarHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
+                        .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        state.dock.forEach { id ->
+                            Box(Modifier.width((dockIconSize(iconSize) + 22f).dp), contentAlignment = Alignment.Center) {
+                                id?.let(apps::get)?.let { AppIcon(it, null, Modifier.size(dockIconSize(iconSize).dp), shape = RoundedCornerShape(11.dp)) }
+                            }
+                        }
+                    } }
+                    else if (sideBar) Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
                         .height(geometry.dockHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         state.dock.forEach { id ->
@@ -1742,6 +1754,9 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
 @Composable private fun RecentDotsCard(state: LauncherState, model: LauncherModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     SettingsCard("Dock") {
+        IosMenuRow("Position", listOf(false to "Side Bar", true to "Bottom"), state.dockBottom, model::setDockBottom, tag = "dock-position")
+        Text("Bottom puts the dock along the bottom on the cover screen and phones, in portrait. Unfolded, the dock stays on the Side Bar.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { Text("Recent App Dots", Modifier.weight(1f, fill = false)); BetaTag() }
             IosSwitch(state.dockRecentDots, { on ->

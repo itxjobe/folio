@@ -35,6 +35,8 @@ data class HomeGeometry(
     val zoneGap: Float = 0f,
     /** Tall, roomy windows (the unfolded screen in portrait): one centered page with the dock as a bar along the bottom. */
     val horizontalDock: Boolean = false,
+    /** The bottom dock was chosen on a phone-sized screen: it sits under the grid, beside the status Side Bar. */
+    val dockBesideRail: Boolean = false,
     val dockBarHeight: Float = 0f,
 )
 
@@ -97,12 +99,18 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     /** Whether round controls (search, back) sit at the bottom of the rail on Home; without them the dock may run lower. */
     railControls: Boolean = true,
     /** See [isRegularSize]: size classes are judged at the phone's own density. */
-    classScale: Float = 1f): HomeGeometry {
+    classScale: Float = 1f,
+    /** Dock › Position › Bottom: a dock bar along the bottom on phone-sized screens in portrait. */
+    bottomDock: Boolean = false): HomeGeometry {
     val p = preset.sanitized()
     // Unfolded Duo layout only with regular size both ways; the cover in landscape is still compact.
     // Two Duo panels side by side need a window wider than tall. Taller than wide (portrait), iPhone Duo keeps one
     // centered Home page with the dock as a horizontal bar: the only pose where Apple keeps horizontal bars.
-    val horizontalDock = isRegularSize(width, height, classScale) && height > width
+    val regular = isRegularSize(width, height, classScale)
+    val tallRegular = regular && height > width
+    // Landscape phone screens keep the Side Bar dock: a bottom bar would take too much of a short screen.
+    val phoneBottom = bottomDock && !regular && height > width
+    val horizontalDock = tallRegular || phoneBottom
     val expanded = width * classScale >= 650f && height * classScale >= REGULAR_MIN_HEIGHT_DP && !horizontalDock
     val homeWidth = if (expanded) minOf(460f, width * 0.56f) else width
     val dockBarHeight = if (horizontalDock) dockIconSize(p.iconSize) + 28f else 0f
@@ -111,7 +119,7 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     // Status sits in the top-right corner, so the same margin is kept on both sides and the grid stays centered.
     // Portrait (horizontal dock): the four columns spread across the screen between equal margins, like iPad mini's
     // Home, rather than sitting in a narrow block when Display size / Screen zoom gives the screen more room (issue #10).
-    var gridWidth = if (horizontalDock) minOf(width - 2f * (p.dockWidth + 56f), 4f * p.iconSize * 2.6f).coerceAtLeast(4f * (p.iconSize + 16f))
+    var gridWidth = if (tallRegular) minOf(width - 2f * (p.dockWidth + 56f), 4f * p.iconSize * 2.6f).coerceAtLeast(4f * (p.iconSize + 16f))
         else (homeWidth - p.dockWidth - 44f).coerceAtLeast(192f)
     // Keep the same icon rhythm when labels are hidden; allow larger system text to fit.
     val labelSpace = if (labels) maxOf(20f, labelHeight) else 20f
@@ -171,7 +179,7 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     val dockTop = homeDockTop.coerceIn(topLimit, maxOf(topLimit, height - dockHeight - bottomReserve))
     return HomeGeometry(expanded, homeWidth, gridWidth, icon, row, widget, contentTop, dockTop, dockHeight, dockRowHeight,
         splitColumns = splitColumns, cellWidth = if (splitColumns) splitCell else gridWidth / 4f, zoneGap = if (splitColumns) zoneGap else 0f,
-        horizontalDock = horizontalDock, dockBarHeight = dockBarHeight)
+        horizontalDock = horizontalDock, dockBarHeight = dockBarHeight, dockBesideRail = phoneBottom)
 }
 
 /** Keep stored order stable across installs, removals and configuration changes. */

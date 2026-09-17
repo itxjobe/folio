@@ -37,6 +37,15 @@ class LayoutModelTest {
             }
         }
     }
+    @Test fun `bottom dock applies only to narrow portrait screens`() {
+        val p = LayoutPreset()
+        val cover = homeGeometry(360f, 780f, p, true, bottomDock = true)
+        assertTrue(cover.horizontalDock); assertTrue(cover.dockBesideRail)
+        assertTrue(homeGeometry(360f, 780f, p, true).let { !it.horizontalDock })
+        assertTrue(homeGeometry(780f, 360f, p, true, bottomDock = true).let { !it.horizontalDock })
+        assertTrue(homeGeometry(900f, 700f, p, true, bottomDock = true).let { !it.horizontalDock && !it.dockBesideRail })
+    }
+
     @Test fun `hiding labels preserves row rhythm and large text gains room`() {
         val regular = homeGeometry(475f, 700f, LayoutPreset(), true)
         val hidden = homeGeometry(475f, 700f, LayoutPreset(), false)

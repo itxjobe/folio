@@ -535,7 +535,7 @@ fun LauncherScreen(
                 labelHeight = with(density) { LocalLabelSize.current.lineSp.sp.toDp().value } + 6f, inLibrary = inLibrary,
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
                 // The rail's round search/back controls only show without the search pill or on Discover.
-                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale)
+                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale, bottomDock = state.dockBottom)
             SideEffect {
                 resizePitchX = with(density) { geometry.cellWidth.dp.toPx() }
                 resizePitchY = with(density) { minOf((geometry.widgetHeight + 18f) / 2f, geometry.rowHeight).dp.toPx() }
@@ -575,7 +575,8 @@ fun LauncherScreen(
             }
             val contentHeight = maxHeight
             val panelWidth = maxWidth - geometry.homeWidth.dp
-            val pagerWidth = if (geometry.horizontalDock) maxWidth else maxWidth - preset.dockWidth.dp - 28.dp
+            // A phone-sized screen keeps the status Side Bar beside Home even with the dock at the bottom.
+            val pagerWidth = if (geometry.horizontalDock && !geometry.dockBesideRail) maxWidth else maxWidth - preset.dockWidth.dp - 28.dp
             val leftColumnOrigin = (maxWidth / 2f - geometry.gridWidth.dp) / 2f - 16.dp
             val homeStride = panelWidth - leftColumnOrigin
             val bottomSpace = (if (isDefaultHome) 44.dp else 88.dp) + if (geometry.horizontalDock) (geometry.dockBarHeight + 16f).dp else 0.dp
@@ -690,7 +691,7 @@ fun LauncherScreen(
                             // Unfolded portrait: the Side Bar's status capsule sits in the top corner, so the library keeps
                             // the same side margin Home does instead of running underneath it.
                             onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(top = 16.dp, bottom = bottomSpace)
-                                .padding(libraryEdges(geometry.horizontalDock && state.verticalStatus, preset.dockWidth, state.leftHanded)).testTag("library-page"),
+                                .padding(libraryEdges(geometry.horizontalDock && !geometry.dockBesideRail && state.verticalStatus, preset.dockWidth, state.leftHanded)).testTag("library-page"),
                             drag = drag, page = visibleHomePages, onLaunchFrom = onLaunchFrom, onTurnOnWork = { model.turnOnWork(it) })
                     } else {
                         // Centered beside the rail when the grid is narrower than the space (short, wide windows).
@@ -722,8 +723,15 @@ fun LauncherScreen(
             // Background and border without clipping, so Harbor-style magnified icons can grow past the rail.
             // Portrait unfolded (iPhone Duo): a horizontal dock bar centered along the bottom, above the page controls.
             val dockPitch = dockIconSize(geometry.iconSize) + 22f
-            Box((if (geometry.horizontalDock) Modifier.align(Alignment.BottomCenter).padding(bottom = (if (isDefaultHome) 44 else 88).dp + 8.dp)
-                    .width((dockPitch * state.dock.size + 16f).dp).height(geometry.dockBarHeight.dp)
+            val dockBarWidth = (dockPitch * state.dock.size + 16f).dp
+            Box((if (geometry.horizontalDock) (if (geometry.dockBesideRail)
+                    // Centered under the grid, which sits beside the status Side Bar.
+                    Modifier.align(if (state.leftHanded) Alignment.BottomEnd else Alignment.BottomStart)
+                        .padding(start = if (state.leftHanded) 0.dp else ((pagerWidth + 16.dp - dockBarWidth) / 2).coerceAtLeast(0.dp),
+                            end = if (state.leftHanded) ((pagerWidth + 16.dp - dockBarWidth) / 2).coerceAtLeast(0.dp) else 0.dp)
+                    else Modifier.align(Alignment.BottomCenter))
+                    .padding(bottom = (if (isDefaultHome) 44 else 88).dp + 8.dp)
+                    .width(dockBarWidth).height(geometry.dockBarHeight.dp)
                 else Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.dockTop.dp)
                     .width(preset.dockWidth.dp).height(geometry.dockHeight.dp)).graphicsLayer {
                     // Composite the stationary dock independently of the shared pager layer (not while magnifying: it would clip).
