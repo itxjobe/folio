@@ -156,6 +156,13 @@
       "title": "Next",
       "items": [
         {
+          "icon": "redeem",
+          "color": "#BF5AF2",
+          "title": "Supporter codes",
+          "detail": "Redeem a Ko-fi code in Settings to try new features early. Folio's core stays free, and a code is checked on your phone — offline, with no account.",
+          "status": "building"
+        },
+        {
           "icon": "grid",
           "color": "#0A84FF",
           "title": "Edit Layout on Home",
@@ -295,7 +302,7 @@
           "icon": "keyboard",
           "color": "#8E8E93",
           "title": "Folio Keyboard",
-          "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.",
+          "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks. Supporters would get the beta first, and it reaches everyone after that.",
           "status": "exploring"
         },
         {

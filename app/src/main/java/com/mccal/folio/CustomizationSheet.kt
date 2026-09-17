@@ -1667,6 +1667,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
     "history" -> Icons.Rounded.History; "tap" -> Icons.Rounded.TouchApp; "pages" -> Icons.Rounded.ViewCarousel
     "dock" -> Icons.Rounded.Dock; "lock" -> Icons.Rounded.Lock; "news" -> Icons.Rounded.Newspaper; "brush" -> Icons.Rounded.Brush
     "sensor" -> Icons.Rounded.Sensors; "keyboard" -> Icons.Rounded.Keyboard; "palette" -> Icons.Rounded.Palette
+    "redeem" -> Icons.Rounded.Redeem
     else -> Icons.Rounded.Star
 }
 
