@@ -3,6 +3,39 @@
   "note": "Where Folio is headed. Plans can change with feedback, and Android doesn't allow everything iOS does.",
   "sections": [
     {
+      "release": "0.7.0",
+      "items": [
+        {
+          "icon": "store",
+          "color": "#0A84FF",
+          "title": "Folio Market",
+          "detail": "A Sileo-style store for themes, tweaks and layouts, with Featured, Sources, Packages, Installed and Settings.",
+          "status": "building"
+        },
+        {
+          "icon": "palette",
+          "color": "#FF375F",
+          "title": "Community sources",
+          "detail": "Add sources from GitHub. Every source is signed, and nothing is downloaded unless you add it.",
+          "status": "building"
+        },
+        {
+          "icon": "lock",
+          "color": "#30D158",
+          "title": "Privacy labels",
+          "detail": "See what a package can use before you get it.",
+          "status": "building"
+        },
+        {
+          "icon": "extension",
+          "color": "#BF5AF2",
+          "title": "Make your own tweaks",
+          "detail": "A package format, sample and tools so anyone can publish themes and tweaks.",
+          "status": "building"
+        }
+      ]
+    },
+    {
       "release": "0.6.1",
       "items": [
         {
@@ -135,13 +168,6 @@
           "status": "planned"
         },
         {
-          "icon": "store",
-          "color": "#0A84FF",
-          "title": "The Folio app",
-          "detail": "A Sileo-style app for tweaks, themes and updates, with Settings as one tab. The Tweak Library is the first piece.",
-          "status": "planned"
-        },
-        {
           "icon": "grid",
           "color": "#30D158",
           "title": "Home grid columns",
@@ -199,7 +225,7 @@
           "icon": "lock",
           "color": "#30D158",
           "title": "More privacy controls",
-          "detail": "More ways to keep what's on your screen private, planned for 0.7.0.",
+          "detail": "More ways to keep what's on your screen private, planned for 0.8.0.",
           "status": "planned"
         },
         {
@@ -222,6 +248,13 @@
           "title": "Lock Designer",
           "detail": "Design your own Lock Cover and StandBy for each screen.",
           "status": "planned"
+        },
+        {
+          "icon": "store",
+          "color": "#30D158",
+          "title": "Apps in the Market",
+          "detail": "Icon packs and themes from Play Store, F-Droid and Obtainium, plus layouts from other launchers, all from the Folio Market.",
+          "status": "planned"
         }
       ]
     },
@@ -240,20 +273,6 @@
           "color": "#8E8E93",
           "title": "Folio Keyboard",
           "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.",
-          "status": "exploring"
-        },
-        {
-          "icon": "palette",
-          "color": "#FF375F",
-          "title": "Community themes",
-          "detail": "Browse and add themes shared on GitHub, right from Folio.",
-          "status": "exploring"
-        },
-        {
-          "icon": "extension",
-          "color": "#BF5AF2",
-          "title": "Folio Tweaks",
-          "detail": "Tweaks made by the community, if it can be done safely.",
           "status": "exploring"
         }
       ]

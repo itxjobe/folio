@@ -33,19 +33,19 @@ internal data class TweakFeature(
 )
 
 internal val TweakFeatures = listOf(
-    TweakFeature("appPanels", "App Panels", "Velox by Phillip Tennen",
+    TweakFeature("appPanels", "Cabinet", "Velox by Phillip Tennen",
         "Swipe up on an app icon for a small panel with its shortcuts, latest notifications and music controls.",
         androidx.compose.material.icons.Icons.Rounded.Widgets, 0xFF0A84FF, { it.appPanels }, { m, v -> m.setAppPanels(v) }, true),
-    TweakFeature("dockMagnify", "Dock Magnification", "Harbor by Evan Swick",
+    TweakFeature("dockMagnify", "Harborline", "Harbor by Evan Swick",
         "Dock icons swell under your finger as you slide along the dock.",
         androidx.compose.material.icons.Icons.Rounded.Add, 0xFF5E5CE6, { it.dockMagnify }, { m, v -> m.setDockMagnify(v) }, false),
-    TweakFeature("notificationAppRow", "Notification App Row", "Axon by Nepeta",
+    TweakFeature("notificationAppRow", "Roll Call", "Axon by Nepeta",
         "A row of app icons above Notification Center. Tap one to show only that app.",
         androidx.compose.material.icons.Icons.Rounded.Notifications, 0xFFFF3B30, { it.notificationAppRow }, { m, v -> m.setNotificationAppRow(v) }, true),
-    TweakFeature("tintNotifications", "Tinted Notifications", "Velvet by NoisyFlake & HiMyNameisUbik",
+    TweakFeature("tintNotifications", "Palette", "Velvet by NoisyFlake & HiMyNameisUbik",
         "Notification cards take on a soft version of their app’s color.",
         androidx.compose.material.icons.Icons.Rounded.Star, 0xFFFF9F0A, { it.tintNotifications }, { m, v -> m.setTintNotifications(v) }, false),
-    TweakFeature("tintMedia", "Album Art Colors", "ColorFlow by David Goldman",
+    TweakFeature("tintMedia", "Colored Albums", "ColorFlow by David Goldman",
         "The music card and the island’s sound bars take on the album art’s color.",
         androidx.compose.material.icons.Icons.Rounded.MusicNote, 0xFFFF375F, { it.tintMedia }, { m, v -> m.setTintMedia(v) }, true),
 )

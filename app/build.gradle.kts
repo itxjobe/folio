@@ -102,6 +102,7 @@ android {
     }
 }
 dependencies {
+    implementation(project(":market"))
     implementation("androidx.window:window:1.5.1")
     // Installs the baseline profiles that Compose and AndroidX ship, so hot paths are compiled ahead of time.
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

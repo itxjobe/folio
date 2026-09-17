@@ -1,0 +1,204 @@
+# Folio Package Format v1
+
+Status: **draft** for Folio 0.7.0. Fields marked *(0.7.x)* are reserved: parsers accept them, but Folio doesn't act on them yet.
+
+This page is the reference for packages and sources. The machine-readable versions are the JSON Schemas in
+[`schema/v1/`](schema/v1/). Folio's parser and the `folio-pkg` tool are both tested against these schemas.
+
+## Principles
+
+- **Declarative first.** A package is data: JSON, images, and (optionally) a sandboxed script. Folio never downloads or loads DEX, JAR or native code. See [ADR 0004](../adr/0004-declarative-first.md).
+- **Signed sources, verified files.** A source signs its entry file, the entry file pins the index's hash, and the index pins every package's hash. See [ADR 0001](../adr/0001-repo-format.md).
+- **Permissions are the source of truth.** Everything a package can do maps to a permission it declares. Folio shows those permissions before install, builds the privacy label from them, and enforces them at runtime.
+- **Local-first.** Folio only goes online for sources the user adds.
+
+## Package: `.foliopkg`
+
+A `.foliopkg` file is a zip archive:
+
+```
+manifest.json      required
+depiction.json     optional, the package page
+assets/            optional, png, webp or jpg
+script.js          optional, only when kind includes "script"
+```
+
+Limits:
+- **Size:** at most 20 MB compressed and 50 MB uncompressed.
+- **Entries:** at most 500.
+- **Names:** relative paths with `/` separators; no `..`, no absolute paths, no symlinks.
+- **Rejected on sight:** anything that breaks these rules, plus files with extensions other than `.json`, `.png`, `.webp`, `.jpg`, `.jpeg` and `.js`.
+
+### `manifest.json`
+
+| Field | Type | Notes |
+|---|---|---|
+| `$schema` | string | Optional. `https://folio.mccal.dev/schema/v1/manifest.schema.json` gives editors autocomplete. |
+| `format` | integer | Always `1`. |
+| `id` | string | Reverse-DNS, lowercase: `dev.maya.sunset-icons`. Unique across all sources. |
+| `name` | text | Display name, at most 40 characters. |
+| `version` | string | dpkg ordering: `[epoch:]upstream[-revision]`; `~` sorts before release (`1.0~beta1` < `1.0`). |
+| `author` | object | `{ "name": text, "url"?: https URL }`. |
+| `minFolio` | string | Oldest Folio version it supports, e.g. `0.7.0`. |
+| `section` | enum | `themes`, `tweaks`, `layouts`, `wallpapers`, `scripts`. |
+| `kind` | array of enum | One or more of the kinds below. |
+| `permissions` | array of enum | See [Permissions](#permissions). Empty means "appearance only". |
+| `screens` | array of enum | `cover`, `inner`. Both if omitted. |
+| `depends` | array of string | Package ids, optionally `id (>= 1.2)`. |
+| `conflicts` | array of string | Same syntax. |
+| `icon` | path | `assets/icon.png`, square, at least 180 px. |
+| `depiction` | path | Usually `depiction.json`. |
+| `license` | string | SPDX id, e.g. `MIT`. GPL code isn't accepted in the Community source. |
+| `origin` *(0.7.x)* | enum | Set by Folio, not authors: `folio-source`, `file`, `play-icon-pack`, `launcher-import`. |
+
+**Text values:** any *text* field is either a plain string, or an object of language tags with an `en` fallback: `{ "en": "Sunset Icons", "es": "Iconos Atardecer" }`.
+
+**Kinds:**
+
+| Kind | Payload | Applied through |
+|---|---|---|
+| `theme` | `theme.json` in the same format as `themes/*.json` (`"folioTheme": 1`) | the existing theme importer |
+| `layoutPreset` | `layout.json`, a subset of `LayoutPreset` | the layout model, with undo |
+| `wallpaper` | images in `assets/` | the wallpaper picker |
+| `iconPackLink` | `{ "package": "com.example.icons" }` | the ADW/Nova icon-pack lookup |
+| `tweakBundle` | `tweaks.json`: built-in tweak ids and their options | `installTweak` and feature scopes |
+| `settingsSchema` *(0.7.x)* | `settings.json` (see its schema) | Folio's settings renderer |
+| `script` *(0.7.x)* | `script.js` | the script sandbox |
+| `externalApp` *(later)* | a `via` list: `playStore`, `fdroid`, `obtainium` | Get opens the store, then Apply |
+
+### `depiction.json`
+
+This is the package page. It's a list of blocks, and Folio draws every block with its own components.
+
+```json
+{
+  "format": 1,
+  "tint": "#D85A30",
+  "blocks": [
+    { "type": "hero", "image": "assets/hero.webp" },
+    { "type": "screenshots", "images": ["assets/s1.webp", "assets/s2.webp"] },
+    { "type": "markdown", "text": "Warm, rounded icons for **2,400** apps." },
+    { "type": "featureList", "items": ["Themed icon fallback", "Cover and inner screens"] },
+    { "type": "changelog", "entries": [{ "version": "1.2.0", "date": "2026-09-14", "notes": "180 new icons." }] },
+    { "type": "link", "title": "Website", "url": "https://example.com" },
+    { "type": "donation", "url": "https://ko-fi.com/example" }
+  ]
+}
+```
+
+Block types:
+- `hero`
+- `screenshots`
+- `markdown`: a safe subset (paragraphs, bold, italic, lists and links); no HTML or images.
+- `featureList`
+- `compatibility`
+- `changelog`
+- `link`: https only.
+- `donation`: https only.
+
+Folio adds its own rows for privacy, source, "Built from" and Report.
+
+## Source: static files
+
+Host a source on any HTTPS server; GitHub Pages is the easy path. The layout:
+
+```
+entry.json          signed pointer to the index
+entry.json.sig      detached signature over entry.json's exact bytes
+index.json          repo info and package list
+revoked.json        signed list of disabled packages (optional)
+revoked.json.sig
+packages/*.foliopkg
+icon.png
+```
+
+### `entry.json`
+
+```json
+{
+  "format": 1,
+  "keyId": "7F3A91C25B0ED418",
+  "timestamp": 1789660320,
+  "maxAge": 1209600,
+  "index": { "path": "index.json", "sha256": "…", "size": 18342 }
+}
+```
+
+The client accepts an entry only when all of these hold:
+1. The signature verifies with the pinned key.
+2. `timestamp` isn't older than the last one it accepted for this source (rollback protection).
+3. `timestamp + maxAge` hasn't passed; `maxAge` is at most 30 days (freeze protection).
+4. The downloaded index matches `size` and `sha256`.
+
+The signature algorithm is decided in ADR 0002, during Phase 2.
+
+### `index.json`
+
+```json
+{
+  "format": 1,
+  "name": "Folio Community",
+  "description": "Themes and tweaks reviewed by the Folio project.",
+  "icon": "icon.png",
+  "issuesUrl": "https://github.com/McCal-Codes/folio-community/issues/new",
+  "featured": [{ "package": "dev.maya.sunset-icons", "label": "Theme of the week" }],
+  "packages": [
+    {
+      "id": "dev.maya.sunset-icons",
+      "version": "1.2.0",
+      "url": "packages/dev.maya.sunset-icons_1.2.0.foliopkg",
+      "sha256": "…",
+      "size": 1468211,
+      "manifest": { "…": "copy of the package's manifest.json" },
+      "provenance": { "repo": "maya/sunset-icons", "commit": "3f9c2a1", "workflow": "publish.yml" }
+    }
+  ]
+}
+```
+
+- **Package URLs:** relative to the index, or absolute https (for example a GitHub Release asset URL). Folio never calls the GitHub API for each package.
+- **Consistency:** the manifest copy must match the manifest inside the downloaded file, or the install fails.
+
+### `revoked.json`
+
+```json
+{ "format": 1, "timestamp": 1789660320, "packages": [{ "id": "dev.bad.pkg", "versions": ["*"], "reason": "Malware" }], "sources": [] }
+```
+
+It's signed the same way as `entry.json`. Revoked packages are turned off, and the user is told why.
+
+### Trust
+
+- **Official key:** the Folio source's key is built into the app.
+- **Other sources:** the key fingerprint is shown when the user adds the source, and then pinned. If a source's key changes, Folio stops trusting it until the user confirms.
+
+## Links
+
+| Link | Opens |
+|---|---|
+| `folio://source/<url-encoded https URL>` | the Add Source sheet, pre-filled |
+| `folio://package/<id>` | the package page, if a source the user added lists it |
+| a shared `.foliopkg` | the install sheet; unsigned files say "Unknown developer" |
+
+## Permissions
+
+| Permission | What it allows | Privacy label wording |
+|---|---|---|
+| `home.appearance` | Colors, materials, icon style | none (appearance only) |
+| `home.layout` | Changing the Home grid and dock | Changes your Home layout |
+| `icons` | Replacing app icons | none |
+| `wallpaper` | Setting Folio's wallpaper | none |
+| `tweaks` | Turning built-in tweaks on or off | Changes Folio tweaks |
+| `island.messages` | Showing messages in the Dynamic Island | Shows island messages |
+| `focus.switch` | Switching Home Modes / Focus | Switches Home Modes |
+| `fold.state` | Reading whether the phone is folded | Reads fold state |
+| `time` | Running on a schedule | Runs on a schedule |
+| `apps.open` | Opening an app the user picked | Opens apps |
+
+Scripts can only use actions whose permission they declare. New permissions come with a new format version.
+
+## Versioning this format
+
+- **Additive changes** (new optional fields, new kinds or block types) keep `format: 1`. Older Folio versions ignore what they don't know.
+- **Breaking changes** use `format: 2`, with a new schema folder. Folio keeps reading v1.
+- **Compatibility:** every v1 package in `market/src/test/resources/corpus/v1/` must keep installing in every future Folio version.

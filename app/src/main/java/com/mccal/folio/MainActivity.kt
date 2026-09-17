@@ -123,7 +123,7 @@ class MainActivity : ComponentActivity() {
             val safeAcknowledged = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
             if (safeMode.value && !safeAcknowledged.value) AlertDialog(onDismissRequest = {},
                 title = { androidx.compose.material3.Text("Folio Started in Safe Mode") },
-                text = { androidx.compose.material3.Text("Folio closed unexpectedly twice, so optional features are paused: app panels, Actions, the fold animation, Lock Cover, the island and dock over other apps, and tinting. Your settings haven’t changed.") },
+                text = { androidx.compose.material3.Text("Folio closed unexpectedly twice, so optional features are paused: Cabinet, Actions, the fold animation, Lock Cover, the island and dock over other apps, and tinting. Your settings haven’t changed.") },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { SafeMode.exit(this@MainActivity); safeMode.value = false }) {
                     androidx.compose.material3.Text("Restart Normally") } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { safeAcknowledged.value = true }) {
