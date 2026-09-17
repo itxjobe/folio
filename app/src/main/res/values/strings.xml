@@ -35,7 +35,7 @@
     <string name="opens_android_s_preview_to_use_folio_s_b">Opens Android’s preview to use Folio’s background as your phone’s wallpaper too (a live wallpaper), so it matches outside Folio.</string>
     <string name="preview_as_phone_wallpaper">Preview as phone wallpaper</string>
     <string name="gestures">Gestures</string>
-    <string name="pull_down_from_the_top_left_for_notifica">Pull down from the top-left for notifications, top-right for Control Center. Swipe down lower on Home for Spotlight. Swipe sideways to change pages.</string>
+    <string name="pull_down_from_the_top_left_for_notifica">Pull down from the top-left for notifications, top-right for Control Center. Swipe sideways to change pages.</string>
     <string name="iphone_style_control_center_and_notifica">iPhone-style Control Center and notifications</string>
     <string name="panels">Panels</string>
     <string name="big_clock_in_notification_center">Big clock in Notification Center</string>

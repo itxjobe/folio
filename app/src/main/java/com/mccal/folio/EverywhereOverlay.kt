@@ -28,6 +28,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -93,7 +94,6 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
     private var buttons: ComposeView? = null
     private var buttonSettings: ButtonBarSettings? = null
     private var buttonParams: WindowManager.LayoutParams? = null
-    private var buttonsAsideForKeyboard = false
     private val dockOpen = MutableStateFlow(false)
 
     private data class Settings(val dockEverywhere: Boolean, val islandEverywhere: Boolean, val leftHanded: Boolean, val dock: List<String>, val eventsOff: Set<String> = emptySet(),
@@ -184,7 +184,6 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
             while (true) {
                 val now = fullScreenNow()
                 if (now != fullScreen) { fullScreen = now; sync() }
-                keyboardCheck()
                 kotlinx.coroutines.delay(600)
             }
         }
@@ -263,7 +262,7 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
         buttonSettings = s
         val view = ComposeView(service).apply {
             setViewTreeLifecycleOwner(owner); setViewTreeSavedStateRegistryOwner(owner)
-            setContent { ButtonBar(s, onAction = { service.performGlobalAction(it) }) }
+            setContent { ButtonBar(s, onAction = { service.performGlobalAction(it) }, onLift = ::liftButtons) }
         }
         val params = WindowManager.LayoutParams(
             (service.resources.displayMetrics.widthPixels * s.width).toInt(), (s.height * density).toInt() + (20 * density).toInt(),
@@ -271,31 +270,32 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            // Above Android's own navigation, whether that's the gesture strip or the three buttons.
-            y = navigationInset() + (10 * density).toInt()
+            // Above Android's own navigation, whether that's the gesture strip or the three buttons, plus any
+            // lift the bar was dragged to on this screen.
+            y = navigationInset() + (10 * density).toInt() +
+                (ButtonBarPosition.load(service, wideScreen(), landscapeNow()) * density).toInt()
         }
-        runCatching { wm.addView(view, params); buttons = view; buttonParams = params; buttonsAsideForKeyboard = false }
+        runCatching { wm.addView(view, params); buttons = view; buttonParams = params }
     }
 
     /**
-     * The keyboard sits at the bottom too, so the bar shrinks out of its way rather than covering the top row of
-     * keys. The window stays (at a single pixel) so it can still see when the keyboard goes away.
+     * Long-press and drag moves the bar up the screen, the way the island moves: it gets it off the keyboard, off
+     * an app's own bottom bar, or wherever it's in the way. The spot is kept per screen and orientation.
      */
-    private fun keyboardCheck() {
+    private fun liftButtons(deltaPx: Float, done: Boolean) {
         val view = buttons ?: return
         val params = buttonParams ?: return
-        val up = runCatching { view.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime()) == true }.getOrDefault(false)
-        if (up == buttonsAsideForKeyboard) return
-        buttonsAsideForKeyboard = up
-        val s = buttonSettings ?: return
-        params.width = if (up) 1 else (service.resources.displayMetrics.widthPixels * s.width).toInt()
-        params.height = if (up) 1 else (s.height * density).toInt() + (20 * density).toInt()
+        val floor = navigationInset() + (10 * density).toInt()
+        val ceiling = (service.resources.displayMetrics.heightPixels * .6f).toInt()
+        params.y = (params.y - deltaPx).toInt().coerceIn(floor, ceiling)
         runCatching { wm.updateViewLayout(view, params) }
+        if (done) ButtonBarPosition.save(service, wideScreen(), landscapeNow(), (params.y - floor) / density)
     }
+
+    private fun wideScreen(): Boolean = service.resources.configuration.smallestScreenWidthDp >= 600
 
     private fun removeButtons() {
         buttons?.let { runCatching { wm.removeView(it) } }; buttons = null; buttonSettings = null; buttonParams = null
-        buttonsAsideForKeyboard = false
     }
 
     private fun openDock() {
@@ -445,16 +445,38 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
 internal fun gestureNavigation(context: android.content.Context): Boolean =
     runCatching { android.provider.Settings.Secure.getInt(context.contentResolver, "navigation_mode") == 2 }.getOrDefault(true)
 
+/**
+ * Where the buttons were dragged to, as a lift in dp above their resting place at the bottom. Saved beside the
+ * island's own dragged position, per screen and orientation: a spot picked in landscape means nothing once it turns.
+ */
+internal object ButtonBarPosition {
+    private fun key(wide: Boolean, landscape: Boolean) =
+        "button_bar_lift_" + (if (wide) "inner" else "cover") + (if (landscape) "_landscape" else "")
+
+    fun load(context: android.content.Context, wide: Boolean, landscape: Boolean): Float =
+        context.getSharedPreferences("folio", 0).getFloat(key(wide, landscape), 0f)
+
+    fun save(context: android.content.Context, wide: Boolean, landscape: Boolean, liftDp: Float) {
+        context.getSharedPreferences("folio", 0).edit().putFloat(key(wide, landscape), liftDp).apply()
+    }
+
+    fun reset(context: android.content.Context) {
+        context.getSharedPreferences("folio", 0).edit().apply {
+            for (wide in listOf(true, false)) for (landscape in listOf(true, false)) remove(key(wide, landscape))
+        }.apply()
+    }
+}
+
 /** Whether the island should step aside right now: shared by the service and its tests. */
 internal fun overlayStepsAside(hideFullScreen: Boolean, hideLandscape: Boolean, fullScreen: Boolean, landscape: Boolean): Boolean =
     (hideFullScreen && fullScreen) || (hideLandscape && landscape)
 
 /**
- * The Buttons in Every App bar: one glass pill with three large targets. It fades while you're not using it and
- * hides itself in full-screen apps (where the system bars are hidden too), so films and games stay uncovered.
+ * The Buttons in Every App bar: one glass pill with three large targets. It fades while you're not using it, and
+ * a long-press drag moves it up the screen. Full-screen apps are the service's business: it takes the bar away.
  */
 @androidx.compose.runtime.Composable
-private fun ButtonBar(s: EverywhereOverlay.ButtonBarSettings, onAction: (Int) -> Unit) {
+private fun ButtonBar(s: EverywhereOverlay.ButtonBarSettings, onAction: (Int) -> Unit, onLift: (Float, Boolean) -> Unit) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     var touched by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
     var faded by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -475,6 +497,13 @@ private fun ButtonBar(s: EverywhereOverlay.ButtonBarSettings, onAction: (Int) ->
         .padding(bottom = 10.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
         androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.fillMaxWidth().height(s.height.dp)
             .alpha(alpha)
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { touched = System.currentTimeMillis(); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
+                    onDragEnd = { onLift(0f, true) },
+                    onDragCancel = { onLift(0f, true) },
+                    onDrag = { change, drag -> change.consume(); onLift(drag.y, false) })
+            }
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(s.height.dp / 2))
             .background(if (s.light) androidx.compose.ui.graphics.Color.White.copy(alpha = .72f) else androidx.compose.ui.graphics.Color(0xFF1C1C1E).copy(alpha = .62f))
             .border(1.dp, (if (s.light) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White).copy(alpha = if (s.light) .08f else .28f),

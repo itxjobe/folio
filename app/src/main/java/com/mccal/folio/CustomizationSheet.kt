@@ -306,9 +306,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 CustomizationPage.GESTURES, CustomizationPage.NOTIFICATIONS, CustomizationPage.SEARCH, CustomizationPage.TODAY -> {
                     if (page == CustomizationPage.GESTURES) SettingsCard(stringResource(R.string.gestures)) {
                         IosMenuRow("Animation Speed", MotionSpeed.entries.map { it to it.label }, state.motionSpeed, model::setMotionSpeed, tag = "motion-speed")
+                        IosMenuRow("Swipe Down on Home", listOf("SPOTLIGHT" to "Spotlight", "NOTIFICATIONS" to "Notification Center", "OFF" to "Nothing"),
+                            state.swipeDownHome, model::setSwipeDownHome, tag = "swipe-down-home")
                         SettingsSwitch(stringResource(R.string.drag_page_dots_to_flip_pages), state.pageScrub, model::setPageScrub, "page-scrub-switch")
                         SettingsSwitch(stringResource(R.string.haptic_feedback), state.haptics, model::setHaptics, "haptics-switch")
-                        CardNote(stringResource(R.string.pull_down_from_the_top_left_for_notifica))
+                        CardNote(stringResource(R.string.pull_down_from_the_top_left_for_notifica) +
+                            " A swipe down lower on Home does what you pick above — set it to Notification Center for the usual Android pull-down, from anywhere on the page.")
                     }
                     // One page for the panels: the on/off switch and, when on, their options.
                     if (page == CustomizationPage.NOTIFICATIONS) SettingsCard(stringResource(R.string.panels)) {
@@ -371,7 +374,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     if (page == CustomizationPage.SEARCH) SettingsCard(stringResource(R.string.search)) {
                         SettingsSwitch(stringResource(R.string.search_button_on_home), state.searchPill, model::setSearchPill, "search-pill-switch")
-                        SettingsSwitch(stringResource(R.string.swipe_down_on_home_for_spotlight), state.swipeDownSearch, model::setSwipeDownSearch, "swipe-search-switch")
                         SettingsSwitch(stringResource(R.string.search_button_opens_the_google_app), state.googleSearch, model::setGoogleSearch, "google-search-switch")
                         CardNote(stringResource(R.string.when_off_the_search_button_opens_spotlig))
                     }
@@ -469,6 +471,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             IosMenuRow("Look", listOf(false to "Dark Glass", true to "Light Glass"), state.buttonBarLight,
                                 model::setButtonBarLight, tag = "button-bar-look")
                             SettingsSwitch("Fade When Idle", state.buttonBarFade, model::setButtonBarFade, "button-bar-fade-switch")
+                            val buttonContext = androidx.compose.ui.platform.LocalContext.current
+                            CardAction("Put the buttons back at the bottom", onClick = { ButtonBarPosition.reset(buttonContext) })
+                            CardNote("Long-press and drag the bar to move it up the screen, out of the way of the keyboard or an app's own bottom bar.")
                             CardNote("Big Back, Home and Recents buttons float over other apps, for when the system's are too small. They press the same buttons Android does, sit above Android's own navigation, and hide in full-screen apps.")
                             if (!gestureNavigation(androidx.compose.ui.platform.LocalContext.current))
                                 CardNote("Android's three buttons are on, so you'll see both sets. Folio's bar sits above them; switch to gesture navigation in Android's Display settings to have only these.")
@@ -899,6 +904,7 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Search button & swipe down", "search pill swipe google", CustomizationPage.SEARCH),
     Triple("Page dots & haptics", "page dots scrub drag flip haptics vibration feedback", CustomizationPage.GESTURES),
     Triple("Gestures & pull-downs", "gesture pull down swipe", CustomizationPage.GESTURES),
+    Triple("Swipe down on Home", "swipe down home spotlight search notification center shade pull one finger", CustomizationPage.GESTURES),
     Triple("Actions", "activator double tap two finger charging bluetooth headphones trigger", CustomizationPage.GESTURES),
     Triple("Side Key", "side key assistant chatgpt claude wallet double press hold", CustomizationPage.SIDE_KEY),
     Triple("Lock Cover", "lock screen unlock cover clock", CustomizationPage.LOCK),

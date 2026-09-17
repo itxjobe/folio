@@ -698,7 +698,13 @@ fun LauncherScreen(
                 canStartGesture = { point -> geometry.expanded || homePages < 2 || !state.pageScrub || !scrubberBounds.contains(point + gestureOriginInRoot) },
                 onDownwardSwipe = { panel ->
                     // The App Library has its own search field, so a pull from its top middle does nothing.
-                    if (panel == ShadePanel.SEARCH) { if (state.swipeDownSearch && pager.currentPage != visibleHomePages) launcherActivity.openSpotlight() }
+                    if (panel == ShadePanel.SEARCH) {
+                        if (pager.currentPage != visibleHomePages) when (state.swipeDownHome) {
+                            "SPOTLIGHT" -> launcherActivity.openSpotlight()
+                            // Notification Center, or Android's own shade when Folio's panels are off.
+                            "NOTIFICATIONS" -> launcherActivity.openSystemShade(ShadePanel.NOTIFICATIONS)
+                        }
+                    }
                     else launcherActivity.openSystemShade(panel)
                 },
                 onLeadingOverscroll = if (firstHome == 0 && discoverMode) onDiscover else null,
