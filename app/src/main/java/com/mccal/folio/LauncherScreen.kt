@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.roundToIntRect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -325,6 +326,23 @@ fun LauncherScreen(
         SettingsLink.page?.let { customizationPage = it; SettingsLink.page = null }
         sheet = "settings"
     } }
+    // Saved layout damaged, or apps failed to load: say so instead of quietly showing an empty Home.
+    var problemDismissed by rememberSaveable(state.error) { mutableStateOf(false) }
+    state.error?.takeIf { !problemDismissed && sheet.isEmpty() }?.let { message ->
+        if (model.layoutDamaged) AlertDialog(onDismissRequest = { problemDismissed = true },
+            title = { Text("Your Home Layout Couldn’t Be Loaded") },
+            text = { Text("Folio kept your saved layout untouched and is showing a basic Home for now. Restore a backup or an earlier layout, or start fresh (Folio keeps a copy of the old one).") },
+            confirmButton = { TextButton(onClick = { SettingsLink.page = CustomizationPage.BACKUP; customizationPage = CustomizationPage.BACKUP; sheet = "settings" }) { Text("Restore…") } },
+            dismissButton = { Row {
+                TextButton(onClick = { problemDismissed = true }) { Text("Not Now") }
+                TextButton(onClick = { model.resetDamagedLayout() }) { Text("Start Fresh", color = Color(0xFFFF453A)) }
+            } })
+        else AlertDialog(onDismissRequest = { problemDismissed = true },
+            title = { Text("Apps Couldn’t Be Loaded") },
+            text = { Text(message.removeSuffix(" Tap to retry.")) },
+            confirmButton = { TextButton(onClick = { problemDismissed = true; model.refresh() }) { Text("Try Again") } },
+            dismissButton = { TextButton(onClick = { problemDismissed = true }) { Text("Not Now") } })
+    }
     LaunchedEffect(searchRequests) { if (searchRequests > 0) { drag.clear(); widgetSession = null; resizeSlot = null; sheet = ""; widgetPackage = null; widgetExactTarget = false; selectedId = null
         if (!state.googleSearch || !onGoogleSearch(null)) pager.animateScrollToPage(homePages)
     } }
@@ -393,16 +411,22 @@ fun LauncherScreen(
     val widgetRawTarget = widgetSession?.let { session -> drag.regions.values.firstOrNull {
         it.target is DropTarget.Home && it.page in eligibleDragPages && it.bounds.contains(session.pointer)
     }?.target as? DropTarget.Home }
+    // More rows: automatic placement uses the rows every page shows; a page already drawn taller (apps placed lower
+    // on the other screen) also takes drops in those rows.
+    val homeAppRows = state.homeAppRows
+    val visibleRows = visibleHomeRows(homeAppRows)
+    fun pageRows(page: Int) = shownHomeRows(homeAppRows, state.layout.slotsForPage(page), state.widgetPlacements.filter { it.page == page })
+    fun draftAt(index: Int, span: WidgetSpan, slot: Int) = widgetCandidate(state.layout, slot, index, span.width, span.height, pageRows(homeCellPage(index)))
     val widgetDraft = widgetSession?.let { session -> session.candidate ?: widgetRawTarget?.let { cell ->
-        widgetCandidate(state.layout, session.slot, session.targetIndex ?: cell.index, session.span.width, session.span.height)
-    } ?: session.targetIndex?.let { widgetCandidate(state.layout, session.slot, it, session.span.width, session.span.height) } }
+        draftAt(session.targetIndex ?: cell.index, session.span, session.slot)
+    } ?: session.targetIndex?.let { draftAt(it, session.span, session.slot) } }
     val dropHomePage = if (pager.currentPage >= visibleHomePages)
         lastHomePage.coerceIn(0, homePages - 1) else pager.currentPage.coerceIn(0, homePages)
-    val previewLayout = remember(state.layout, drag.source, insertionTarget, drag.moved) {
+    val previewLayout = remember(state.layout, drag.source, insertionTarget, drag.moved, homeAppRows) {
         val id = drag.source?.appId
         when {
-            id != null && insertionTarget is DropTarget.Home -> dropApp(state.layout, id, insertionTarget)
-            id != null && insertionTarget is DropTarget.Dock -> dropApp(state.layout, id, insertionTarget)
+            id != null && insertionTarget is DropTarget.Home -> dropApp(state.layout, id, insertionTarget, homeAppRows)
+            id != null && insertionTarget is DropTarget.Dock -> dropApp(state.layout, id, insertionTarget, homeAppRows)
             drag.source?.target is DropTarget.Widget && insertionTarget is DropTarget.Home ->
                 moveWidget(state.layout, (drag.source!!.target as DropTarget.Widget).index, insertionTarget.index)
             else -> state.layout
@@ -523,7 +547,10 @@ fun LauncherScreen(
         if (dim > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim)))
         // Home never moves for the keyboard: including IME insets here re-measured the whole grid on every
         // frame of the keyboard animation (Spotlight/search jank). Sheets that need it use imePadding themselves.
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime).union(rememberHiddenCameraInsets())
+        var homeBoxTop by remember { mutableFloatStateOf(0f) }
+        val hinge = LocalHinge.current
+        BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { homeBoxTop = it.positionInWindow().y }
+            .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime).union(rememberHiddenCameraInsets())
             // Short windows run the rail the full height, so keep the upright island's strip clear there. Regular-size
             // windows (unfolded portrait) keep Home centered: the island sits below the status and beside the dock bar.
             .union(rememberSideIslandInsets(state.island && androidx.compose.ui.platform.LocalConfiguration.current.let {
@@ -550,7 +577,25 @@ fun LauncherScreen(
                 labelHeight = with(density) { LocalLabelSize.current.lineSp.sp.toDp().value } + 6f, inLibrary = inLibrary,
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
                 // The rail's round search/back controls only show without the search pill or on Discover.
-                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale)
+                railControls = !state.searchPill || pager.currentPage < 0, classScale = classScale, appRows = homeAppRows,
+                foldAtCenter = hinge?.vertical == true, fillSpace = state.homeRows == 0)
+            // Half folded like a laptop: the status (information) stays above the hinge and the dock (controls) goes
+            // below it, like Folio's other fold-aware panels; the dock scrolls if the lower half is short.
+            val tableHinge = hinge?.takeIf { it.active && !it.vertical }
+            val hingeTop = tableHinge?.let { with(density) { (it.startPx - homeBoxTop).toDp().value } }
+            val hingeBottom = tableHinge?.let { with(density) { (it.endPx - homeBoxTop).toDp().value } }
+            val statusTopShown = if (hingeTop != null && geometry.statusTop + statusHeight > hingeTop - 8f)
+                maxOf(16f, hingeTop - 8f - statusHeight) else geometry.statusTop
+            val dockTopShown = if (hingeBottom != null && !geometry.horizontalDock && geometry.dockTop < hingeBottom + 8f)
+                hingeBottom + 8f else geometry.dockTop
+            val dockHeightShown = if (dockTopShown != geometry.dockTop)
+                minOf(geometry.dockHeight, (maxHeight.value - dockTopShown - 12f).coerceAtLeast(56f)) else geometry.dockHeight
+            // More rows (Automatic): remember how many rows fit this screen, so both screens can show the same number.
+            // Only the full-screen Home counts: not split-screen or pop-up windows, short windows, or two-column pages
+            // (micro covers never get here).
+            val measuresRows = !geometry.splitColumns && maxHeight.value * classScale >= HOME_REGULAR_MIN_HEIGHT_DP &&
+                !launcherActivity.isInMultiWindowMode
+            LaunchedEffect(measuresRows, wide, geometry.fitAppRows) { if (measuresRows) model.recordHomeFit(wide, geometry.fitAppRows) }
             SideEffect {
                 resizePitchX = with(density) { geometry.cellWidth.dp.toPx() }
                 resizePitchY = with(density) { minOf((geometry.widgetHeight + 18f) / 2f, geometry.rowHeight).dp.toPx() }
@@ -589,6 +634,7 @@ fun LauncherScreen(
                 }
             }
             val contentHeight = maxHeight
+            val contentWidth = maxWidth
             val panelWidth = maxWidth - geometry.homeWidth.dp
             // A phone-sized screen keeps the status Side Bar beside Home even with the dock at the bottom.
             val pagerWidth = if (geometry.horizontalDock && !geometry.dockBesideRail) maxWidth else maxWidth - preset.dockWidth.dp - 28.dp
@@ -728,7 +774,7 @@ fun LauncherScreen(
                 }
             }
             if (state.verticalStatus) StatusRail(deviceStatus,
-                Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.statusTop.dp)
+                Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = statusTopShown.dp)
                     .width(preset.dockWidth.dp).onSizeChanged {
                         // The whole rail, location slot included: the dock goes below all of it.
                         statusHeight = with(density) { it.height.toDp().value }
@@ -742,9 +788,12 @@ fun LauncherScreen(
                 }) else null)
             // Background and border without clipping, so Harbor-style magnified icons can grow past the rail.
             // Portrait unfolded (iPhone Duo): a horizontal dock bar centered along the bottom, above the page controls.
-            val dockPitch = dockIconSize(geometry.iconSize) + 22f
+            val dockPitch = geometry.dockPitch
             val dockBarWidth = (dockPitch * state.dock.size + 16f).dp
-            Box((if (geometry.horizontalDock) (if (geometry.dockBesideRail)
+            Box((if (geometry.horizontalDock) (if (hinge?.active == true && hinge.vertical)
+                    // Half folded like a book: the bar sits centered on the trailing half, off the hinge.
+                    Modifier.align(Alignment.BottomEnd).padding(end = ((contentWidth / 2 - dockBarWidth) / 2).coerceAtLeast(0.dp))
+                else if (geometry.dockBesideRail)
                     // Centered under the grid, which sits beside the status Side Bar.
                     Modifier.align(if (state.leftHanded) Alignment.BottomEnd else Alignment.BottomStart)
                         .padding(start = if (state.leftHanded) 0.dp else ((pagerWidth + 16.dp - dockBarWidth) / 2).coerceAtLeast(0.dp),
@@ -752,8 +801,8 @@ fun LauncherScreen(
                     else Modifier.align(Alignment.BottomCenter))
                     .padding(bottom = (if (isDefaultHome) 44 else 88).dp + 8.dp)
                     .width(dockBarWidth).height(geometry.dockBarHeight.dp)
-                else Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = geometry.dockTop.dp)
-                    .width(preset.dockWidth.dp).height(geometry.dockHeight.dp)).graphicsLayer {
+                else Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = dockTopShown.dp)
+                    .width(preset.dockWidth.dp).height(dockHeightShown.dp)).graphicsLayer {
                     // Composite the stationary dock independently of the shared pager layer (not while magnifying: it would clip).
                     compositingStrategy = if (state.dockMagnify) androidx.compose.ui.graphics.CompositingStrategy.Auto
                         else androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -913,11 +962,11 @@ fun LauncherScreen(
                             onWallpaperPreview = { sheet = ""; onWallpaperPreview() }, homePage = pager.currentPage.coerceIn(0, homePages - 1))
                         "widgetActions" -> model.placement(widgetSlot)?.let { placement ->
                             val topPitch = (geometry.widgetHeight + 18f) / 2f
-                            val gridSizing = WidgetGridSizing(GRID_COLUMNS, GRID_ROWS, geometry.cellWidth,
+                            val gridSizing = WidgetGridSizing(GRID_COLUMNS, pageRows(placement.page).coerceAtLeast(visibleRows), geometry.cellWidth,
                                 minOf(topPitch, geometry.rowHeight), maxOf(topPitch, geometry.rowHeight), 10f, 18f,
                                 topRowHeightDp = topPitch, appRowHeightDp = geometry.rowHeight)
                             val constraints = widgets.manager.getAppWidgetInfo(placement.id)?.let { widgets.sizing(it, gridSizing) }
-                            WidgetActions(placement, constraints,
+                            WidgetActions(placement, constraints, rows = pageRows(placement.page),
                                 stackCards = model.stackCards(placement.slot), stackLabel = { widgetLabel(it, widgets) },
                                 stackRotate = state.stackRotate, onStackRotate = model::setStackRotate,
                                 onAddToStack = {
@@ -937,7 +986,7 @@ fun LauncherScreen(
                                 onMoveToPage = { page ->
                                     (0 until HOME_CELLS).firstOrNull { local ->
                                         widgetCandidate(state.layout, placement.slot, page * HOME_CELLS + local,
-                                            placement.spanX, placement.spanY) != null
+                                            placement.spanX, placement.spanY, visibleRows) != null
                                     }?.let { model.moveWidgetTo(placement.slot, page * HOME_CELLS + it) } == true
                                 }, homePages = homePages,
                                 onReplace = {
@@ -984,7 +1033,7 @@ fun LauncherScreen(
                     value = withContext(Dispatchers.IO) { widgetCatalog(launcherActivity, providers, selectedProfile) }
                 }
                 val topPitch = (geometry.widgetHeight + 18f) / 2f
-                val pickerSizing = remember(geometry) { WidgetGridSizing(GRID_COLUMNS, GRID_ROWS,
+                val pickerSizing = remember(geometry, visibleRows) { WidgetGridSizing(GRID_COLUMNS, visibleRows,
                     geometry.cellWidth, minOf(topPitch, geometry.rowHeight),
                     maxOf(topPitch, geometry.rowHeight), 10f, 18f,
                     topRowHeightDp = topPitch, appRowHeightDp = geometry.rowHeight) }
@@ -1038,10 +1087,10 @@ fun LauncherScreen(
                             val availablePages = (if (expandedWorkspace) -1 else 0)..homePages
                             val autoPages = (listOf(requestedPage) + availablePages.filter { it != requestedPage })
                             val freeIndex = if (existing != null || widgetExactTarget) requestedIndex.takeIf {
-                                widgetCandidate(state.layout, widgetSlot, it, span.width, span.height) != null
+                                draftAt(it, span, widgetSlot) != null
                             } else autoPages.asSequence().flatMap { page ->
                                 (0 until HOME_CELLS).asSequence().map { homeCellIndex(page, it) }
-                            }.firstOrNull { widgetCandidate(state.layout, widgetSlot, it, span.width, span.height) != null }
+                            }.firstOrNull { widgetCandidate(state.layout, widgetSlot, it, span.width, span.height, visibleRows) != null }
                             val targetIndex = freeIndex ?: requestedIndex
                             widgetSession = WidgetPickerSession(provider, widgetSlot, span, Offset.Zero,
                                 dragging = false, targetIndex = targetIndex)
@@ -1072,11 +1121,12 @@ fun LauncherScreen(
                         } ?: widgetTargetIndex.takeUnless { it == Int.MIN_VALUE } ?: 0
                         val requestedPage = homeCellPage(requested).coerceIn(if (expandedWorkspace) -1 else 0, homePages)
                         val availablePages = (if (expandedWorkspace) -1 else 0)..homePages
-                        val candidates = if (model.placement(widgetSlot) != null || widgetExactTarget) sequenceOf(requested)
+                        val exact = model.placement(widgetSlot) != null || widgetExactTarget
+                        val candidates = if (exact) sequenceOf(requested)
                             else (listOf(requestedPage) + availablePages.filter { it != requestedPage }).asSequence()
                                 .flatMap { page -> (0 until HOME_CELLS).asSequence().map { homeCellIndex(page, it) } }
                         val free = candidates.firstOrNull {
-                            widgetCandidate(state.layout, widgetSlot, it, span.width, span.height) != null
+                            widgetCandidate(state.layout, widgetSlot, it, span.width, span.height, if (exact) pageRows(homeCellPage(it)) else visibleRows) != null
                         }
                         widgetSession = WidgetPickerSession(null, widgetSlot, span, Offset.Zero,
                             dragging = false, targetIndex = free ?: requested, builtinId = builtinId)
@@ -1293,7 +1343,7 @@ fun LauncherScreen(
                 val minW = resizeConstraints?.minimum?.width ?: 2
                 val minH = resizeConstraints?.minimum?.height ?: 2
                 val maxW = minOf(GRID_COLUMNS - placement.column, resizeConstraints?.maximum?.width ?: GRID_COLUMNS)
-                val maxH = minOf(GRID_ROWS - placement.row, resizeConstraints?.maximum?.height ?: GRID_ROWS)
+                val maxH = minOf(pageRows(placement.page) - placement.row, resizeConstraints?.maximum?.height ?: GRID_ROWS)
                 val feasible = placement.page >= -1 && placement.row in 0 until GRID_ROWS &&
                     !(placement.id >= 0 && resizeConstraints == null) && minW <= maxW && minH <= maxH
                 val candidate = resizeWidget(state.layout, slot, resizeWidth, resizeHeight)
@@ -1409,7 +1459,8 @@ fun LauncherScreen(
                                 ?.takeIf { it >= 0 || expandedWorkspace } ?: lastHomePage.coerceIn(0, homePages - 1)
                             val blocked = state.widgetPlacements.flatMapTo(mutableSetOf()) { it.coveredIndices() }
                             val targetIndex = (0 until HOME_CELLS).map { homeCellIndex(preferredPage, it) }
-                                .firstOrNull { it !in blocked && state.layout.slotAt(it) in listOf(null, firstId, second.id) }
+                                .firstOrNull { it !in blocked && homeCellShown(it, homeAppRows) && state.layout.slotAt(it) in listOf(null, firstId, second.id) }
+                                ?: state.layout.indexOfShortcut(firstId)
                             if (targetIndex != null) model.createFolder(firstId, second.id, targetIndex)
                             createFolderFirstId = null
                         }, modifier = Modifier.fillMaxWidth().testTag("folder-app-${second.id}")) {
@@ -1424,7 +1475,7 @@ fun LauncherScreen(
                 val destinationPages = (if (expandedWorkspace) listOf(-1) else emptyList()) + (0 until homePages)
                 val homeDestinations = destinationPages.mapNotNull { destinationPage ->
                     (0 until HOME_CELLS).map { homeCellIndex(destinationPage, it) }
-                        .firstOrNull { it !in blocked && state.layout.slotAt(it) == null }
+                        .firstOrNull { it !in blocked && homeCellShown(it, homeAppRows) && state.layout.slotAt(it) == null }
                 }
                 FolderPanel(folder, appsById, drag, pager.currentPage, homeDestinations,
                     dockVacancies = state.dock.indices.filter { state.dock[it] == null },

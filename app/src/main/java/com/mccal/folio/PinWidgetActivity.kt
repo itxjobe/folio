@@ -82,16 +82,17 @@ class PinWidgetActivity : ComponentActivity() {
         val model = FolioSettingsBridge.liveModel?.get() ?: return "Open Folio once, then try again."
         FocusPages.lockingFocus(model.state.value)?.let { return "Turn off ${it.name} to add to Home Screen." }
         val layout = model.state.value.layout
+        val appRows = model.state.value.homeAppRows
         val density = resources.displayMetrics.density
         // Folio's usual Home pitch: about 90dp columns, widget-height top rows, app rows below.
-        val grid = WidgetGridSizing(GRID_COLUMNS, GRID_ROWS, 90f, 88f, 97f, 10f, 18f, topRowHeightDp = 97f, appRowHeightDp = 88f)
+        val grid = WidgetGridSizing(GRID_COLUMNS, visibleHomeRows(appRows), 90f, 88f, 97f, 10f, 18f, topRowHeightDp = 97f, appRowHeightDp = 88f)
         val span = widgetSpanConstraints(WidgetProviderSizing(
             minWidthDp = provider.minWidth / density, minHeightDp = provider.minHeight / density,
             minResizeWidthDp = provider.minResizeWidth / density, minResizeHeightDp = provider.minResizeHeight / density,
             maxResizeWidthDp = provider.maxResizeWidth / density, maxResizeHeightDp = provider.maxResizeHeight / density,
             targetCellWidth = provider.targetCellWidth, targetCellHeight = provider.targetCellHeight,
             horizontalPaddingDp = 0f, verticalPaddingDp = 0f, resizeMode = provider.resizeMode), grid)?.preferred ?: WidgetSpan(2, 2)
-        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height) ?: return "There's no room on Home for this widget."
+        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height, appRows = appRows) ?: return "There's no room on Home for this widget."
         val host = AppWidgetHost(this, 1024)
         val id = host.allocateAppWidgetId()
         val accepted = runCatching { request.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }) }.getOrDefault(false)

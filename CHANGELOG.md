@@ -5,25 +5,27 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
-## [0.6.1] - Unreleased
+## [0.6.5] - Unreleased
 
 ### Added
-- Status options in Icons & Side Bar: Compact spacing brings the time and date closer together, and Background turns off the frosted capsule behind the status (the dock keeps its own).
-- Software Update works like iOS, but more open: Automatic Updates is Automatic (checks daily, downloads, and installs while the phone is idle, then tells you what's new), Notify Me or Manual. An update shows its release notes, size and download progress, with Update Now and Update Tonight (installs while idle and charging). If you'd changed the old switches, your choice carries over.
-- The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
-- Big Clock widget (Widgets › Folio): a large Lock Screen-style clock on Home with the date and your next event or alarm, as wide as the page.
-- Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
-- Try Folio before making it your Home app: until then, Folio's icon opens Home as a preview, with Use as Home and an exit button. Back on the first page or the Home gesture takes you back to your Home Screen, and setup reminders wait until you choose Folio.
-- Dock and status position, for each screen (Home Screen & Dock › Position): the dock can be Automatic, always on the Side Bar, or along the bottom (landscape phones and small windows keep the Side Bar so every row fits). The status can sit level with your apps or anywhere you like with the Status height slider, and the dock's own height slider now covers the whole Side Bar; the dock always stays below the status.
-- Tiny cover screens (like some flip phones) get a focused Home: the time, your first dock apps, what's playing, and ways into Notification Center and Search. Tap the time for Notification Center, hold it for Settings.
-- Pull down from the top of the App Library for Notification Center and Control Center, like iOS.
-- Folders show the total of their apps' notification badges, like iOS.
-- Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
+- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable.
+- **Layout sliders:** adjust row, column and dock spacing, widget size and status spacing, and watch Home change as you drag.
+- **Apps, dock and status position:** apps at the top, the dock on the side or bottom, and the status anywhere, for each screen.
+- **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight.
+- **Big Clock:** a large Lock Screen-style clock with the date and what's next.
+- **Try Folio first:** open Folio as a preview before making it your Home app.
+- **Clear icons:** frosted glass icons with white symbols, like iOS.
+- **Small cover screens:** a focused Home for tiny flip-phone covers, with the time, your dock apps and what's playing.
+- **App Library pull-down:** pull down from the top of the App Library for Notification Center and Control Center.
+- **Folder badges:** folders show the total of their apps' notification badges.
+- **Better bug reports:** Folio notes freezes and restarts, and Report a Bug can include them (kept on your phone).
+- **A live Roadmap:** see what's coming, updated from Folio's GitHub page.
 
 ### Changed
 - Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
 
 ### Fixed
+- Half folded, Home keeps off the hinge: unfolded pages stay on their side of a book fold, the bottom dock moves to one half, and on a table-style fold the status stays above the hinge and the dock goes below it.
 - On tall phones, Home sits centered in the screen instead of high up with empty space below.
 - On narrower phones, apps keep more space between them: icons never take more than 80% of their column.
 - Android's status bar no longer reappears over the Side Bar status after changing Display size, Smallest width or window size.

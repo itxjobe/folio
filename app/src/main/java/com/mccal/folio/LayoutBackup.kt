@@ -5,9 +5,10 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-const val LAYOUT_BACKUP_VERSION = 2
+/** 3: 36-cell Home pages (More rows); versions 1–2 had 24-cell pages and are moved on import. */
+const val LAYOUT_BACKUP_VERSION = 3
 const val MAX_LAYOUT_BACKUP_BYTES = 2 * 1024 * 1024
-private const val MAX_BACKUP_HOME_CELLS = HOME_CELLS * 100
+private const val MAX_BACKUP_PAGES = 100
 
 data class BackupWidgetDescriptor(
     val slot: Int,
@@ -67,6 +68,7 @@ fun encodeLayoutBackup(state: LauncherState, widgetDescriptors: List<BackupWidge
     fun preset(value: LayoutPreset) = JSONObject().put("iconSize", value.iconSize).put("rowGap", value.rowGap)
         .put("dockWidth", value.dockWidth).put("dockPosition", value.dockPosition).put("dockAlignToGrid", value.dockAlignToGrid)
         .put("dockPlacement", value.dockPlacement.name).put("statusAlignToGrid", value.statusAlignToGrid).put("statusPosition", value.statusPosition)
+        .put("columnGap", value.columnGap).put("dockSpacing", value.dockSpacing).put("widgetScale", value.widgetScale).put("pageTop", value.pageTop)
     return JSONObject().put("version", LAYOUT_BACKUP_VERSION).put("sourceScope", sourceScope).put("apps", apps)
         .put("homeSlots", JSONArray(state.homeSlots)).put("leadingSlots", JSONArray(state.leadingSlots))
         .put("dock", JSONArray(state.dock)).put("folders", folders).put("widgets", widgets)
@@ -101,13 +103,17 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
         require(id in appMetadata) { "Layout references an app without metadata" }
         return id.takeIf { it in available } ?: run { missing += "$id (${appMetadata.getValue(id)})"; null }
     }
+    // Versions 1–2 have 24-cell pages: the same cells keep their place on today's pages.
+    val legacyGrid = version < 3
+    val pageCells = if (legacyGrid) LEGACY_HOME_CELLS else HOME_CELLS
     val slotsArray = root.getJSONArray("homeSlots")
-    require(slotsArray.length() <= MAX_BACKUP_HOME_CELLS)
+    require(slotsArray.length() <= pageCells * MAX_BACKUP_PAGES)
     val rawSlots = List(slotsArray.length()) { index -> if (slotsArray.isNull(index)) null else slotsArray.getString(index) }
+        .let { if (legacyGrid) migrateLegacyHomeSlots(it) else it }
     val rawLeadingSlots = if (version == 1) List(HOME_CELLS) { null } else {
         val array = root.getJSONArray("leadingSlots")
-        require(array.length() == HOME_CELLS) { "Unfolded-only page must contain exactly $HOME_CELLS cells" }
-        List(HOME_CELLS) { index -> if (array.isNull(index)) null else array.getString(index) }
+        require(array.length() == pageCells) { "Unfolded-only page must contain exactly $pageCells cells" }
+        migrateLegacyLeadingSlots(List(pageCells) { index -> if (array.isNull(index)) null else array.getString(index) })
     }
     val folderArray = root.getJSONArray("folders")
     val importedFolders = List(folderArray.length()) { index ->
@@ -159,7 +165,7 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
             require(builtin in setOf(CLOCK_WIDGET, DATE_WIDGET, INFO_WIDGET, UP_NEXT_WIDGET, SUGGESTIONS_WIDGET, BIG_CLOCK_WIDGET)); builtin
         } else NEEDS_BINDING_WIDGET
         val placement = WidgetPlacement(slot, id, item.strictInt("page"), item.strictInt("column"), item.strictInt("row"),
-            item.strictInt("spanX"), item.strictInt("spanY"))
+            item.strictInt("spanX"), item.strictInt("spanY")).let { if (legacyGrid) migrateLegacyWidgetPlacement(it) else it }
         require(validBackupPlacement(placement) && layout.widgetPlacements.none { backupOverlaps(it, placement) })
         require(placement.coveredIndices().none { layout.slotAt(it) != null })
         val restore = if (id == NEEDS_BINDING_WIDGET) {
@@ -180,9 +186,12 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
         val item = root.getJSONObject(key)
         val loaded = LayoutPreset(item.strictFloat("iconSize"), item.strictFloat("rowGap"),
             item.strictFloat("dockWidth"), item.strictFloat("dockPosition"), item.strictBoolean("dockAlignToGrid"),
-            // Added in 0.6.1: older backups don't have them.
+            // Added in 0.6.5: older backups don't have them.
             DockPlacement.parse(item.optString("dockPlacement")), item.optBoolean("statusAlignToGrid", true),
-            item.optDouble("statusPosition", 0.0).toFloat())
+            item.optDouble("statusPosition", 0.0).toFloat(),
+            // Added with More rows.
+            item.optDouble("columnGap", DEFAULT_COLUMN_GAP.toDouble()).toFloat(), item.optDouble("dockSpacing", 0.0).toFloat(),
+            item.optDouble("widgetScale", 1.0).toFloat(), item.optBoolean("pageTop", false))
         require(loaded == loaded.sanitized()) { "Invalid layout preset" }
         return loaded
     }

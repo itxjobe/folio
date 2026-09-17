@@ -33,6 +33,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import kotlin.math.roundToInt
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -254,7 +259,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     SettingsCard("Screen Corners") {
                         SettingsSwitch("Rounded corners", state.roundedCorners, model::setRoundedCorners, "rounded-corners-switch")
                         if (state.roundedCorners) CustomizationSlider("Size", "${state.cornerRadius.toInt()} dp", state.cornerRadius, 16f..72f,
-                            model::setCornerRadius)
+                            onChange = model::setCornerRadius)
                         CardNote("Draws iPhone-style rounded corners over Home on both screens, like the iPhone Duo. Other apps aren’t changed.")
                     }
                     SettingsCard(stringResource(R.string.text_on_home)) {
@@ -428,8 +433,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             SettingsSwitch(stringResource(R.string.time), st.showTime, { model.setStatusStyle(st.copy(showTime = it)) }, "status-time")
                             SettingsSwitch(stringResource(R.string.date), st.showDate, { model.setStatusStyle(st.copy(showDate = it)) }, "status-date")
                             SettingsSwitch(stringResource(R.string.battery_percentage), st.showBatteryPercent, { model.setStatusStyle(st.copy(showBatteryPercent = it)) }, "status-percent")
-                            IosMenuRow("Spacing", listOf(false to "Standard", true to "Compact"), st.compactSpacing,
-                                { model.setStatusStyle(st.copy(compactSpacing = it)) }, tag = "status-spacing")
+                            CustomizationSlider("Status spacing", when (st.spacing.roundToInt()) {
+                                StatusStyle.COMPACT_SPACING.roundToInt() -> "Compact"; StatusStyle.STANDARD_SPACING.roundToInt() -> "Standard"
+                                else -> "${st.spacing.roundToInt()} dp" }, st.spacing, 0f..16f, StatusStyle.STANDARD_SPACING, peek = true) { model.setStatusStyle(st.copy(spacing = it)) }
                             SettingsSwitch("Background", st.background, { model.setStatusStyle(st.copy(background = it)) }, "status-background")
                             SettingsSwitch("Silent mode icon", st.showSilent, { model.setStatusStyle(st.copy(showSilent = it)) }, "status-silent")
                             SettingsSwitch(stringResource(R.string.color_battery_when_charging_or_low), st.colorfulBattery, { model.setStatusStyle(st.copy(colorfulBattery = it)) }, "status-color")
@@ -846,6 +852,11 @@ private val SettingsIndex: List<Triple<String, String, CustomizationPage>> = lis
     Triple("Dark appearance dims wallpaper", "dim dark mode night", CustomizationPage.WALLPAPER),
     Triple("Appearance (light, dark, sunset)", "theme dark light sunrise", CustomizationPage.WALLPAPER),
     Triple("Grid, icon size & dock", "layout rows columns spacing icons dock", CustomizationPage.HOME),
+    Triple("Rows", "rows more rows automatic grid taller extra apps", CustomizationPage.HOME),
+    Triple("Space between columns", "columns spacing gap apart closer", CustomizationPage.HOME),
+    Triple("Widget size", "widget size scale taller shorter height", CustomizationPage.HOME),
+    Triple("Space between dock apps", "dock spacing gap apart side bar bottom", CustomizationPage.HOME),
+    Triple("Status spacing", "status spacing compact time date side bar", CustomizationPage.STATUS),
     Triple("Widgets", "widget stack smart", CustomizationPage.HOME),
     Triple("Today View / Left of Home", "today discover google widgets page beside", CustomizationPage.TODAY),
     Triple("Icon pack, shape & style", "icons pack squircle circle tinted dark", CustomizationPage.STATUS),
@@ -1213,8 +1224,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     // Home page 1 drawn at a real cover-screen size with Folio's own layout math and parts (widget cards, icons,
     // status rail, dock, search pill), then scaled down, so the preview matches Home instead of approximating it.
     val refW = 420f; val refH = 720f
-    val geometry = homeGeometry(refW, refH, preset, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f)
+    val geometry = homeGeometry(refW, refH, preset, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f,
+        appRows = state.homeAppRows)
     val placements = state.widgetPlacements.filter { it.page == 0 }
+    val shownRows = shownHomeRows(state.homeAppRows, state.homeSlots.take(HOME_CELLS), placements)
     val cells = HomeCellLayout.forPage(geometry, placements.map { it.row to it.spanY })
     val (iconSize, labels) = (state.pageStyles[0] ?: PageStyle()).apply(geometry, state.labels)
     val scale = previewHeight.value / refH
@@ -1239,7 +1252,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                 }
                 if (state.dimWallpaperDark && basePalette.dark) Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = .3f)))
                 CompositionLocalProvider(LocalHomeInk provides ink, LocalDuoPalette provides basePalette.copy(glass = glass)) {
-                    Box(Modifier.offset(x = (if (left) refW - 16f - geometry.gridWidth else 16f).dp, y = geometry.contentTop.dp).width(geometry.gridWidth.dp).height((cells.height(GRID_ROWS)).dp)) {
+                    Box(Modifier.offset(x = (if (left) refW - 16f - geometry.gridWidth else 16f).dp, y = geometry.contentTop.dp).width(geometry.gridWidth.dp).height((cells.height(shownRows)).dp)) {
                         placements.forEach { w ->
                             Box(Modifier.offset(x = (cells.x(w.column, w.row) + 5f).dp, y = cells.y(w.row).dp)
                                 .size((geometry.cellWidth * w.spanX - 10f).dp, (cells.spanHeight(w.row, w.spanY) - 18f).coerceAtLeast(48f).dp)) {
@@ -1249,7 +1262,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                                 }
                             }
                         }
-                        repeat(HOME_CELLS) { local ->
+                        repeat(shownRows * GRID_COLUMNS) { local ->
                             val id = state.homeSlots.getOrNull(local) ?: return@repeat
                             val app = apps[id]
                             val folder = if (app == null) state.folders.firstOrNull { it.id == id } ?: return@repeat else null
@@ -1272,7 +1285,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                         .height(geometry.dockBarHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         state.dock.forEach { id ->
-                            Box(Modifier.width((dockIconSize(iconSize) + 22f).dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier.width(geometry.dockPitch.dp), contentAlignment = Alignment.Center) {
                                 id?.let(apps::get)?.let { AppIcon(it, null, Modifier.size(dockIconSize(iconSize).dp), shape = RoundedCornerShape(11.dp)) }
                             }
                         }
@@ -1389,16 +1402,23 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         confirmButton = { TextButton(onClick = { confirmIPhone = false; model.arrangeLikeIPhone() }) { Text("Arrange") } },
         dismissButton = { TextButton(onClick = { confirmIPhone = false }) { Text(stringResource(R.string.cancel)) } })
     SettingsCard("Layout") {
-        CustomizationSlider("App icon size", "${p.iconSize.toInt()} dp", p.iconSize, 40f..68f) { model.setPreset(wide, p.copy(iconSize = it)) }
-        CustomizationSlider("Space between rows", "${p.rowGap.toInt()} dp", p.rowGap, 0f..28f) { model.setPreset(wide, p.copy(rowGap = it)) }
+        val d = LayoutPreset()
+        CustomizationSlider("App icon size", "${p.iconSize.toInt()} dp", p.iconSize, 40f..68f, d.iconSize, peek = true) { model.setPreset(wide, p.copy(iconSize = it)) }
+        CustomizationSlider("Space between rows", "${p.rowGap.toInt()} dp", p.rowGap, 0f..28f, d.rowGap, peek = true) { model.setPreset(wide, p.copy(rowGap = it)) }
+        CustomizationSlider("Space between columns", "${p.columnGap.toInt()} dp", p.columnGap, 8f..40f, d.columnGap, peek = true) { model.setPreset(wide, p.copy(columnGap = it)) }
+        CustomizationSlider("Widget size", "${(p.widgetScale * 100).roundToInt()}%", p.widgetScale, .8f..1.25f, d.widgetScale, peek = true) { model.setPreset(wide, p.copy(widgetScale = it)) }
+        IosMenuRow("Rows", listOf(0 to "Automatic", 4 to "4"), state.homeRows, model::setHomeRows, tag = "home-rows")
+        CardNote("Automatic adds up to 3 more rows of apps where your screen has room. On a foldable, both screens use the same number, so your pages stay the same when you fold.")
     }
     SettingsCard("Position") {
         IosMenuRow("Dock", listOf(DockPlacement.AUTOMATIC to "Automatic", DockPlacement.SIDE to "Side Bar", DockPlacement.BOTTOM to "Bottom"),
             p.dockPlacement, { model.setPreset(wide, p.copy(dockPlacement = it)) }, tag = "dock-placement")
+        IosMenuRow("Apps", listOf(false to "Centered", true to "Top"), p.pageTop,
+            { model.setPreset(wide, p.copy(pageTop = it)) }, tag = "page-position")
         IosMenuRow("Status", listOf(true to "Level with Apps", false to "Custom"), p.statusAlignToGrid,
             { model.setPreset(wide, p.copy(statusAlignToGrid = it)) }, tag = "status-position")
         if (!p.statusAlignToGrid) CustomizationSlider("Status height", if (p.statusPosition < .01f) "Top" else "${(p.statusPosition * 100).toInt()}%",
-            p.statusPosition, 0f..1f) { model.setPreset(wide, p.copy(statusPosition = it)) }
+            p.statusPosition, 0f..1f, peek = true) { model.setPreset(wide, p.copy(statusPosition = it)) }
         CardNote(when (p.dockPlacement) {
             DockPlacement.AUTOMATIC -> if (wide) "The dock stays on the Side Bar, and moves to the bottom when the screen is upright." else "The dock stays on the Side Bar."
             DockPlacement.SIDE -> "The dock stays on the Side Bar, even when the screen is upright."
@@ -1406,9 +1426,11 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         } + if (!p.statusAlignToGrid) " The dock always stays below the status." else "")
     }
     SettingsCard("Side Bar") {
-        CustomizationSlider("Width", "${p.dockWidth.toInt()} dp", p.dockWidth, 56f..84f) { model.setPreset(wide, p.copy(dockWidth = it)) }
+        CustomizationSlider("Width", "${p.dockWidth.toInt()} dp", p.dockWidth, 56f..84f, LayoutPreset().dockWidth, peek = true) { model.setPreset(wide, p.copy(dockWidth = it)) }
+        CustomizationSlider("Space between dock apps", "${p.dockSpacing.toInt()} dp", p.dockSpacing, 0f..24f, 0f, peek = true) { model.setPreset(wide, p.copy(dockSpacing = it)) }
         if (p.dockPlacement != DockPlacement.BOTTOM) SettingsSwitch(stringResource(R.string.align_dock_with_app_rows), p.dockAlignToGrid, { model.setPreset(wide, p.copy(dockAlignToGrid = it)) })
-        if (!p.dockAlignToGrid && p.dockPlacement != DockPlacement.BOTTOM) CustomizationSlider("Dock height", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, 0f..1f) { model.setPreset(wide, p.copy(dockPosition = it)) }
+        if (!p.dockAlignToGrid && p.dockPlacement != DockPlacement.BOTTOM) CustomizationSlider("Dock height", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, 0f..1f,
+            LayoutPreset().dockPosition, peek = true) { model.setPreset(wide, p.copy(dockPosition = it)) }
     }
     SheetGroup { IosActionRow(stringResource(R.string.reset_this_layout), destructive = true, onClick = { model.setPreset(wide, LayoutPreset()) }) }
     // Per-page looks (after Atria): each page can have its own icon size and labels.
@@ -1531,10 +1553,31 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     }
 }
 
+/**
+ * [peek]: a Home layout slider, so Settings fades while it's dragged by touch (TalkBack and keys change it without a
+ * press, so they don't). [default]: a light tick as the value crosses it.
+ */
 @Composable private fun CustomizationSlider(label: String, valueLabel: String, value: Float,
-    range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
-    Column(Modifier.padding(top = 10.dp, bottom = 2.dp)) { Row { Text(label, Modifier.weight(1f), fontSize = 17.sp); Text(valueLabel, fontSize = 17.sp, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .6f)) }
-        IosSlider(value, onChange, valueRange = range, modifier = Modifier.semantics { contentDescription = label }) }
+    range: ClosedFloatingPointRange<Float>, default: Float? = null, peek: Boolean = false, onChange: (Float) -> Unit) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val dragged by interaction.collectIsDraggedAsState()
+    val pressed by interaction.collectIsPressedAsState()
+    val touching = peek && (dragged || pressed)
+    var bounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    val span = range.endInclusive - range.start
+    if (touching) SideEffect {
+        SettingsPeek.value = PeekSlider(label, valueLabel, if (span > 0f) ((value - range.start) / span).coerceIn(0f, 1f) else 0f, bounds)
+    }
+    DisposableEffect(touching) { onDispose { if (touching) SettingsPeek.value = null } }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val change: (Float) -> Unit = { next ->
+        if (default != null && next != value && kotlin.math.sign(next - default) != kotlin.math.sign(value - default))
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+        onChange(next)
+    }
+    Column(Modifier.padding(top = 10.dp, bottom = 2.dp).onGloballyPositioned { bounds = it.boundsInWindow() }) {
+        Row { Text(label, Modifier.weight(1f), fontSize = 17.sp); Text(valueLabel, fontSize = 17.sp, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .6f)) }
+        IosSlider(value, change, valueRange = range, modifier = Modifier.semantics { contentDescription = label }, interactionSource = interaction) }
 }
 
 @Composable private fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
@@ -1744,9 +1787,9 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
         IosMenuRow("Style", listOf("CLEAR" to "Clear", "LIGHT" to "Light", "FROSTED" to "Frosted", "SOLID" to "Solid") +
             (if (current == "CUSTOM") listOf("CUSTOM" to "Custom") else emptyList()), current,
             { key -> presets.firstOrNull { it.first == key }?.let { model.setGlassPreset(it.second) } }, tag = "glass-style")
-        CustomizationSlider("Widgets", "${(state.widgetGlass * 100).toInt()}%", state.widgetGlass, 0f..0.8f, model::setWidgetGlass)
+        CustomizationSlider("Widgets", "${(state.widgetGlass * 100).toInt()}%", state.widgetGlass, 0f..0.8f, onChange = model::setWidgetGlass)
         CustomizationSlider("Side Bar", "${(rail * 100).toInt()}%", rail, 0f..0.8f) { model.setStatusStyle(state.statusStyle.copy(railGlass = it)) }
-        CustomizationSlider("Outline", if (state.glassOutline < .01f) "Off" else "${(state.glassOutline * 100).toInt()}%", state.glassOutline, 0f..0.5f, model::setGlassOutline)
+        CustomizationSlider("Outline", if (state.glassOutline < .01f) "Off" else "${(state.glassOutline * 100).toInt()}%", state.glassOutline, 0f..0.5f, onChange = model::setGlassOutline)
         SettingsSwitch(stringResource(R.string.tint_glass_with_wallpaper_color), state.tintedGlass, model::setTintedGlass, "tinted-glass-switch")
         CardNote("Frost is how see-through widgets and the Side Bar are; the outline is the thin light edge around them.")
     }

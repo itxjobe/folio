@@ -260,7 +260,7 @@ internal fun HomePagePane(
     var paneBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     val pageStart = homeCellIndex(page, 0)
     val backgroundTarget = (pageStart until pageStart + HOME_CELLS).firstOrNull { index ->
-        state.layout.slotAt(index) == null && state.widgetPlacements.none { index in it.coveredIndices() }
+        homeCellShown(index, geometry.appRows) && state.layout.slotAt(index) == null && state.widgetPlacements.none { index in it.coveredIndices() }
     } ?: pageStart
     val verticalEdge = with(LocalDensity.current) { 42.dp.toPx() }
     LaunchedEffect(drag.active, page, paneBounds) {
@@ -386,15 +386,20 @@ internal fun SharedHomeGrid(
     val pending = widgets.pendingPlacement?.takeIf { it.page == page }
     val pendingIsReplacement = pending != null && widgetPlacements.any { it.slot == pending.slot }
     val pageWidgets = widgetPlacements.filter { it.page == page } + listOfNotNull(pending?.takeUnless { pendingIsReplacement })
-    val renderedRows = maxOf(GRID_ROWS, pageWidgets.maxOfOrNull { it.row + it.spanY } ?: GRID_ROWS)
+    // More rows: the rows Home shows, or more where apps or widgets already sit lower; cells past them aren't drawn.
+    val shownRows = shownHomeRows(geometry.appRows, pageRange.map { previewAt(it) ?: savedAt(it) }, pageWidgets)
+    // The retained overflow widget (stored under the grid) draws right after the shown rows.
+    fun displayRow(row: Int) = if (row >= GRID_ROWS) shownRows + row - GRID_ROWS else row
+    val widgetRows = pageWidgets.map { displayRow(it.row) to it.spanY }
+    val renderedRows = maxOf(shownRows, widgetRows.maxOfOrNull { it.first + it.second } ?: 0)
     // Stacked, or two columns side by side in a short, wide window (see HomeCellLayout).
-    val cells = remember(geometry, pageWidgets.map { it.row to it.spanY }) { HomeCellLayout.forPage(geometry, pageWidgets.map { it.row to it.spanY }) }
+    val cells = remember(geometry, widgetRows) { HomeCellLayout.forPage(geometry, widgetRows) }
     // Half folded like a laptop (phone upright): rows that would sit in the fold spring down past it, like iPhone Duo.
     val hinge = LocalHinge.current?.takeIf { it.active && !it.vertical }
     val density = LocalDensity.current
     var gridTopDp by remember { mutableFloatStateOf(0f) }
     val fold = hinge?.let { h -> with(density) {
-        foldDisplacement(cells, renderedRows, gridTopDp, h.startPx.toDp().value, h.endPx.toDp().value, pageWidgets.map { it.row to it.spanY })
+        foldDisplacement(cells, renderedRows, gridTopDp, h.startPx.toDp().value, h.endPx.toDp().value, widgetRows)
     } }
     val foldShift by animateFloatAsState(fold?.second ?: 0f, androidx.compose.animation.core.spring(dampingRatio = .85f, stiffness = 380f), label = "fold shift")
     val foldRow = fold?.first ?: Int.MAX_VALUE
@@ -404,7 +409,7 @@ internal fun SharedHomeGrid(
         val cellWidth = cells.cellWidth.dp
         fun cellX(column: Int, row: Int) = cells.x(column, row).dp
 
-        repeat(HOME_CELLS) { localIndex ->
+        repeat(shownRows * GRID_COLUMNS) { localIndex ->
             val globalIndex = pageStart + localIndex
             val cell = DropTarget.Home(globalIndex)
             val savedId = savedAt(globalIndex)
@@ -475,10 +480,11 @@ internal fun SharedHomeGrid(
         }
         pageWidgets.forEach { placement ->
             key("widget-${placement.slot}") {
-                val x = cellX(placement.column, placement.row) + 5.dp
                 val width = (cellWidth * placement.spanX - 10.dp).coerceAtLeast(1.dp)
-                val y = rowTop(placement.row)
-                val height = (cells.spanHeight(placement.row, placement.spanY) - 18f).coerceAtLeast(48f)
+                val row = displayRow(placement.row)
+                val x = cellX(placement.column, row) + 5.dp
+                val y = rowTop(row)
+                val height = (cells.spanHeight(row, placement.spanY) - 18f).coerceAtLeast(48f)
                 if (placement == pending) Surface(Modifier.offset(x = x, y = y.dp).width(width).height(height.dp)
                     .testTag("widget-pending-${placement.slot}").semantics(mergeDescendants = true) {
                         contentDescription = "Pending ${widgets.pendingProvider?.shortClassName ?: "widget"}"

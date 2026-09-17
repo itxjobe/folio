@@ -30,7 +30,7 @@ val releaseStoreFile = releaseSigningValues["FOLIO_RELEASE_STORE_FILE"]?.let { c
     }
 }
 
-val folioVersion = "0.6.1"
+val folioVersion = "0.6.5"
 
 // Bundle the changelog so Folio can show What's New after an update.
 val bundleChangelog = tasks.register<Copy>("bundleChangelog") {

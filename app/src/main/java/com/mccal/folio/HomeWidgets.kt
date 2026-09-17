@@ -330,6 +330,8 @@ internal fun WidgetActions(
     onAddToStack: () -> Unit = {},
     onRemoveFromStack: (Int) -> Unit = {},
     onShowFirstInStack: (Int) -> Unit = {},
+    /** Rows the widget's page shows (More rows); sizes never reach past them. */
+    rows: Int = GRID_ROWS,
 ) {
     val sheetMaxHeight = with(LocalDensity.current) {
         (LocalWindowInfo.current.containerSize.height * .88f).toDp()
@@ -340,7 +342,7 @@ internal fun WidgetActions(
     val minWidth = constraints?.minimum?.width ?: 2
     val minHeight = constraints?.minimum?.height ?: 2
     val maxWidth = minOf(GRID_COLUMNS - placement.column, constraints?.maximum?.width ?: GRID_COLUMNS)
-    val maxHeight = minOf(GRID_ROWS - placement.row, constraints?.maximum?.height ?: GRID_ROWS)
+    val maxHeight = minOf(rows.coerceAtMost(GRID_ROWS) - placement.row, constraints?.maximum?.height ?: GRID_ROWS)
     val feasible = placement.page >= -1 && placement.row in 0 until GRID_ROWS &&
         !(placement.id >= 0 && constraints == null) && minWidth <= maxWidth && minHeight <= maxHeight
     val valid = feasible && isValid(width, height)

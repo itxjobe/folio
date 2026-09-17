@@ -154,15 +154,56 @@ private fun FullScreenPage(onDismissRequest: () -> Unit, content: @Composable Co
             if (covering) LauncherPagesOpen.intValue++
             onDispose { if (covering) LauncherPagesOpen.intValue-- }
         }
+        // Dragging a Home layout slider: the page fades to a trace so the real Home behind shows the change, and only
+        // the slider stays readable (a capsule drawn where it is).
+        val peek = SettingsPeek.value
+        val fade = androidx.compose.animation.core.animateFloatAsState(if (peek != null) .14f else 1f,
+            if (LocalReduceMotion.current) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(250), label = "settings peek")
+        DisposableEffect(Unit) { onDispose { SettingsPeek.value = null } }
         MaterialTheme(colorScheme = FolioSheetColors, typography = MaterialTheme.typography) {
-            androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
-                translationX = size.width * slide.value
-            }, color = Color.Black, contentColor = Color.White) {
-                androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.folioSafeTop).navigationBarsPadding()
-                    .windowInsetsPadding(WindowInsets.ime), content = content)
+            Box(Modifier.fillMaxSize()) {
+                // The page background stays as a faint trace; its text and controls fade out completely, so nothing
+                // half-readable competes with Home (only the dragged slider's capsule shows).
+                androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
+                    translationX = size.width * slide.value
+                }, color = Color.Black.copy(alpha = fade.value), contentColor = Color.White) {
+                    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()
+                        .graphicsLayer { alpha = ((fade.value - .14f) / .86f).coerceIn(0f, 1f) }
+                        .windowInsetsPadding(WindowInsets.folioSafeTop).navigationBarsPadding()
+                        .windowInsetsPadding(WindowInsets.ime), content = content)
+                }
+                peek?.let { PeekCapsule(it) }
             }
         }
+    }
+}
+
+/** The dragged slider over the faded Settings page: its name, live value and track, where the slider is. */
+@Composable
+private fun PeekCapsule(peek: PeekSlider) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val height = with(density) { peek.bounds.height.toDp() }
+    // Along the bottom of the Home area, clear of the Side Bar and dock, so the whole page stays in view.
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().navigationBarsPadding()
+        .padding(horizontal = 96.dp).padding(bottom = 64.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
+    androidx.compose.foundation.layout.Column(Modifier
+        .size(minOf(maxWidth, 440.dp), height).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1C1C1E).copy(alpha = .94f))
+        .padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
+        androidx.compose.foundation.layout.Row {
+            androidx.compose.material3.Text(peek.label, Modifier.weight(1f), color = Color.White, fontSize = 17.sp, maxLines = 1)
+            androidx.compose.material3.Text(peek.valueLabel, color = Color.White.copy(alpha = .6f), fontSize = 17.sp, maxLines = 1)
+        }
+        Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = .22f))) {
+                Box(Modifier.fillMaxWidth(peek.fraction).height(4.dp).background(Color(0xFF0A84FF)))
+            }
+            // The thumb, where the finger is.
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                Box(Modifier.padding(start = (maxWidth - 28.dp) * peek.fraction.coerceIn(0f, 1f)).size(28.dp)
+                    .background(Color.White, androidx.compose.foundation.shape.CircleShape))
+            }
+        }
+    }
     }
 }
 

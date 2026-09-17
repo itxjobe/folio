@@ -51,15 +51,19 @@ data class StatusStyle(
     val showSilent: Boolean = true,
     /** The frosted capsule behind the status (the dock keeps its own). */
     val background: Boolean = true,
-    /** Time, date and icons packed closer together. */
-    val compactSpacing: Boolean = false,
+    /** Space between the status items (time, date, icons) in dp: [STANDARD_SPACING], or [COMPACT_SPACING] packed tight. */
+    val spacing: Float = STANDARD_SPACING,
 ) {
+    /** At or near Compact, text lines pack tight too, as the old Compact choice did. */
+    val tight get() = spacing < (COMPACT_SPACING + STANDARD_SPACING) / 2f
     fun toJson(): org.json.JSONObject = org.json.JSONObject().put("showTime", showTime).put("showDate", showDate)
         .put("showBatteryPercent", showBatteryPercent).put("glyph", glyph.name).put("colorfulBattery", colorfulBattery)
         .put("railGlass", railGlass.toDouble()).put("showSilent", showSilent)
-        .put("background", background).put("compactSpacing", compactSpacing)
+        .put("background", background).put("spacing", spacing.toDouble())
 
     companion object {
+        const val STANDARD_SPACING = 4f
+        const val COMPACT_SPACING = 0f
         fun fromJson(j: org.json.JSONObject?): StatusStyle = if (j == null) StatusStyle() else StatusStyle(
             showTime = j.optBoolean("showTime", true), showDate = j.optBoolean("showDate", true),
             showBatteryPercent = j.optBoolean("showBatteryPercent", true),
@@ -67,7 +71,10 @@ data class StatusStyle(
             colorfulBattery = j.optBoolean("colorfulBattery", true),
             railGlass = j.optDouble("railGlass", .26).toFloat().coerceIn(0f, 1f),
             showSilent = j.optBoolean("showSilent", true),
-            background = j.optBoolean("background", true), compactSpacing = j.optBoolean("compactSpacing", false))
+            background = j.optBoolean("background", true),
+            // Before the slider, spacing was Standard or Compact.
+            spacing = if (j.has("spacing")) j.optDouble("spacing", STANDARD_SPACING.toDouble()).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 16f) ?: STANDARD_SPACING
+                else if (j.optBoolean("compactSpacing", false)) COMPACT_SPACING else STANDARD_SPACING)
     }
 }
 
@@ -159,12 +166,13 @@ fun StatusRail(
             val hasContent = style.showTime || (!compact && style.showDate) || style.glyph != StatusGlyph.NONE ||
                 (!compact && style.showBatteryPercent)
             // Same frosted capsule as the dock so status and dock read as one side rail.
-            val tight = style.compactSpacing
+            val tight = style.tight
             if (hasContent) Column(Modifier.fillMaxWidth()
                 .then(if (style.background) Modifier.background(Glass.copy(alpha = style.railGlass), capsule)
                     .border(1.dp, LocalGlassLook.current.outlineColor, capsule) else Modifier)
-                .padding(vertical = if (compact || tight) 8.dp else 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (tight) 0.dp else 4.dp)) {
+                // Standard (4) and Compact (0) keep their old padding; the slider moves between and past them.
+                .padding(vertical = if (compact) 8.dp else (8f + style.spacing).coerceAtMost(12f).dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(style.spacing.dp)) {
                 focus?.let { Icon(it.icon(), "${it.name} on", tint = androidx.compose.ui.graphics.Color(it.color).let { c ->
                     if (LocalHomeInk.current.dark) c else androidx.compose.ui.graphics.lerp(c, androidx.compose.ui.graphics.Color.White, .35f) },
                     modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-focus")) }

@@ -192,6 +192,11 @@ data class LauncherState(
     /** Per-page looks by real Home page number (pages without an entry use Home's settings). */
     val pageStyles: Map<Int, PageStyle> = emptyMap(),
     val islandEverywhere: Boolean = false,
+    /** Home Screen & Dock › Layout › Rows: 0 = Automatic (More rows), 4 = always four app rows. */
+    val homeRows: Int = 0,
+    /** App rows that last fit the cover-class and the inner-class Home (0 = not measured yet); see [homeAppRows]. */
+    val homeFitCompact: Int = 0,
+    val homeFitExpanded: Int = 0,
     val loading: Boolean = true,
     val error: String? = null,
 ) {
@@ -199,7 +204,20 @@ data class LauncherState(
     val widgets: List<Int> get() = layout.widgets
     val layout: HomeLayout get() = HomeLayout(homeSlots, dock, widgetPlacements, folders, widgetRestores, leadingSlots, minPages)
     val homePages get() = layout.pageCount
+    /** App rows every Home page shows, the same on both screens so pages don't change when you fold. */
+    val homeAppRows: Int get() = effectiveHomeRows(homeRows, homeFitCompact, homeFitExpanded)
 }
+
+/**
+ * Automatic: the fewest rows any of this device's screens has room for (screens not measured yet don't count, and
+ * nothing measured means four). A fixed setting is used as is.
+ */
+fun effectiveHomeRows(setting: Int, fitCompact: Int, fitExpanded: Int): Int =
+    (if (setting > 0) setting else listOf(fitCompact, fitExpanded).filter { it > 0 }.minOrNull() ?: BASE_APP_ROWS)
+        .coerceIn(BASE_APP_ROWS, MAX_APP_ROWS)
+
+/** Saved-state schema. 9: 36-cell Home pages (More rows); 6–8 had 24. */
+const val STATE_SCHEMA = 9
 
 class LauncherModel(application: Application) : AndroidViewModel(application) {
     private data class RefreshedApps(val entries: List<AppEntry>, val profiles: List<AppProfile>,
@@ -420,7 +438,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                     val blockedForArrivals = (old.widgetPlacements.filter { it.page >= 0 }.flatMap { it.coveredIndices() } + hiddenCells).toSet()
                     val withArrivals = homeArrivals.fold(pins) { slots, app ->
                         if (app.id in old.dock || app.id in old.leadingSlots || old.folders.any { app.id in it.appIds }) slots
-                        else pinHomeApp(slots, app.id, true, blockedForArrivals)
+                        else pinHomeApp(slots, app.id, true, blockedForArrivals, old.homeAppRows)
                     }
                     val validPins = withArrivals.map { it?.takeUnless(removedIds::contains) }
                     val validDock = dock.map { it?.takeUnless(removedIds::contains) }
@@ -510,7 +528,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         mutable.update { old ->
             val enable = pinned && old.apps.any { it.id == id }
             old.copy(homeSlots = if (enable && id in old.leadingSlots) old.homeSlots else pinHomeApp(old.homeSlots, id,
-                enable, old.widgetPlacements.flatMapTo(mutableSetOf()) { it.coveredIndices() }.filterTo(mutableSetOf()) { it >= 0 }),
+                enable, old.widgetPlacements.flatMapTo(mutableSetOf()) { it.coveredIndices() }.filterTo(mutableSetOf()) { it >= 0 }, old.homeAppRows),
                 leadingSlots = if (enable) old.leadingSlots else old.leadingSlots.map { it?.takeUnless(id::equals) },
                 canUndoEdit = false)
         }
@@ -540,10 +558,12 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         val old = mutable.value
         val from = old.layout.indexOfShortcut(id) ?: return
         val page = homeCellPage(from)
-        val target = if (page == -1) homeCellIndex(-1,
-            (homeCellLocal(from) + offset).coerceIn(0, HOME_CELLS - 1))
-        else (from + offset).coerceIn(0, old.homeSlots.lastIndex)
-        applyDrop(id, DropTarget.Home(target))
+        // Steps over cells in rows Home doesn't show.
+        var target = from + offset
+        val step = if (offset < 0) -1 else 1
+        val range = if (page == -1) homeCellIndex(-1, 0)..homeCellIndex(-1, HOME_CELLS - 1) else 0..maxOf(old.homeSlots.lastIndex, from)
+        while (target in range && target != from && !homeCellShown(target, old.homeAppRows)) target += step
+        applyDrop(id, DropTarget.Home(target.coerceIn(range)))
     }
 
     fun applyDrop(id: String, target: DropTarget): Boolean {
@@ -552,7 +572,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         if (old.apps.none { it.id == id } && folder == null) return false
         if (target is DropTarget.Folder) return folder == null && addAppToFolder(target.id, id)
         if (folder != null && target !is DropTarget.Home) return false
-        return commitLayout(dropApp(old.layout, id, target))
+        return commitLayout(dropApp(old.layout, id, target, old.homeAppRows))
     }
 
     fun createFolder(firstAppId: String, secondAppId: String, targetIndex: Int, title: String = "Folder"): String? {
@@ -568,7 +588,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         return commitLayout(com.mccal.folio.addAppToFolder(mutable.value.layout, folderId, appId, index))
     }
     fun removeAppFromFolder(folderId: String, appId: String, target: DropTarget) =
-        commitLayout(com.mccal.folio.removeAppFromFolder(mutable.value.layout, folderId, appId, target))
+        commitLayout(com.mccal.folio.removeAppFromFolder(mutable.value.layout, folderId, appId, target, mutable.value.homeAppRows))
     fun moveFolderApp(folderId: String, appId: String, index: Int) =
         commitLayout(com.mccal.folio.moveFolderApp(mutable.value.layout, folderId, appId, index))
     fun folder(id: String) = mutable.value.layout.folder(id)
@@ -769,7 +789,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun arrangeLikeIPhone(): Boolean {
         saveLayoutSnapshot("Before Arrange Like iPhone")
         val state = mutable.value
-        return commitLayout(arrangeLikeIPhone(state.layout, resolveIPhoneApps(getApplication(), state.apps, state.messagesApp)))
+        return commitLayout(arrangeLikeIPhone(state.layout, resolveIPhoneApps(getApplication(), state.apps, state.messagesApp), state.homeAppRows))
     }
     private fun commitLayout(next: HomeLayout): Boolean {
         if (statePayloadInvalid) return false
@@ -848,6 +868,14 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         it.copy(folderColors = if (color == null) it.folderColors - folderId else it.folderColors + (folderId to color)) }
     fun setDockEverywhere(value: Boolean) = updateSettings(soon = false) { it.copy(dockEverywhere = value) }
     fun setIslandEverywhere(value: Boolean) = updateSettings(soon = false) { it.copy(islandEverywhere = value) }
+    fun setHomeRows(value: Int) = updateSettings(soon = false) { it.copy(homeRows = if (value == BASE_APP_ROWS) value else 0) }
+    /** Remembers how many app rows fit this screen class's full-screen Home (see [effectiveHomeRows]). */
+    fun recordHomeFit(expanded: Boolean, rows: Int) {
+        val value = rows.coerceIn(BASE_APP_ROWS, MAX_APP_ROWS)
+        val old = mutable.value
+        if ((if (expanded) old.homeFitExpanded else old.homeFitCompact) == value) return
+        updateSettings(soon = false) { if (expanded) it.copy(homeFitExpanded = value) else it.copy(homeFitCompact = value) }
+    }
     fun setPanelBlur(value: Float) = updateSettings(soon = true) { it.copy(panelBlur = value) }
     fun setNotificationClock(value: Boolean) = updateSettings(soon = false) { it.copy(notificationClock = value) }
     fun setGroupNotifications(value: Boolean) = updateSettings(soon = false) { it.copy(groupNotifications = value) }
@@ -865,7 +893,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         if (statePayloadInvalid) return
         undoLayout = null; undoImportSettings = null
         mutable.update { if (expanded) it.copy(expanded = value.sanitized(), canUndoEdit = false) else it.copy(compact = value.sanitized(), canUndoEdit = false) }
-        persist()
+        // Home updates on every slider step; the write waits until the slider rests.
+        persistSoon()
     }
     val retainedWidgetIds: Set<Int> get() {
         val state = mutable.value
@@ -920,12 +949,26 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         persistJob = viewModelScope.launch { kotlinx.coroutines.delay(300); persist() }
     }
 
+    /** Whether the saved Home layout couldn't be read (it's kept untouched and editing is paused until the user decides). */
+    val layoutDamaged get() = statePayloadInvalid
+
+    /** Starts over with a default Home after a damaged save; the damaged copy stays as `state_damaged_backup`. */
+    fun resetDamagedLayout() {
+        if (!statePayloadInvalid) return
+        prefs.getString("state", null)?.let { prefs.edit().putString("state_damaged_backup", it).apply() }
+        statePayloadInvalid = false
+        mutable.update { it.copy(error = null) }
+        persist()
+        refresh()
+    }
+
     private fun persist() {
         if (needsMigration || statePayloadInvalid) return
         val s = mutable.value
         fun preset(p: LayoutPreset) = JSONObject().put("iconSize", p.iconSize).put("rowGap", p.rowGap)
             .put("dockWidth", p.dockWidth).put("dockPosition", p.dockPosition).put("dockAlignToGrid", p.dockAlignToGrid)
             .put("dockPlacement", p.dockPlacement.name).put("statusAlignToGrid", p.statusAlignToGrid).put("statusPosition", p.statusPosition)
+            .put("columnGap", p.columnGap).put("dockSpacing", p.dockSpacing).put("widgetScale", p.widgetScale).put("pageTop", p.pageTop)
         val widgets = JSONArray().also { array -> s.widgetPlacements.forEach { w -> array.put(JSONObject()
             .put("slot", w.slot).put("id", w.id).put("page", w.page).put("column", w.column).put("row", w.row)
             .put("spanX", w.spanX).put("spanY", w.spanY)) } }
@@ -935,7 +978,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("slot", restore.slot).put("provider", restore.providerComponent).put("userSerial", restore.userSerial)
             .put("title", restore.title).put("profileLabel", restore.profileLabel).put("work", restore.isWork)
             .put("sourceScope", restore.sourceScope)) } }
-        val data = JSONObject().put("schema", 8).put("pinned", JSONArray(s.order)).put("homeSlots", JSONArray(s.homeSlots))
+        val data = JSONObject().put("schema", STATE_SCHEMA).put("pinned", JSONArray(s.order)).put("homeSlots", JSONArray(s.homeSlots))
             .put("leadingSlots", JSONArray(s.leadingSlots)).put("dock", JSONArray(s.dock))
             .put("widgets", widgets).put("labels", s.labels)
             .put("folders", folders)
@@ -977,6 +1020,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 .apply { style.labels?.let { put("labels", it) } }) } })
             .put(SettingKeys.DOCK_EVERYWHERE, s.dockEverywhere).put(SettingKeys.ISLAND_EVERYWHERE, s.islandEverywhere)
             .put("compact", preset(s.compact)).put("expanded", preset(s.expanded))
+            .put("homeRows", s.homeRows).put("homeFitCompact", s.homeFitCompact).put("homeFitExpanded", s.homeFitExpanded)
         val editor = prefs.edit()
         if (legacyRaw != null && sourceSchema == 2 && !prefs.contains("state_v2_backup"))
             editor.putString("state_v2_backup", legacyRaw)
@@ -990,221 +1034,13 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             editor.putString("state_v6_backup", legacyRaw)
         if (legacyRaw != null && sourceSchema < 8 && !prefs.contains("state_v7_backup"))
             editor.putString("state_v7_backup", legacyRaw)
+        if (legacyRaw != null && sourceSchema < 9 && !prefs.contains("state_v8_backup"))
+            editor.putString("state_v8_backup", legacyRaw)
         editor.putString("state", data.toString()).putBoolean("initialized", true).apply()
     }
 
     private fun load(): LauncherState = runCatching {
-        val j = JSONObject(prefs.getString("state", "{}") ?: "{}")
-        fun preset(key: String, default: LayoutPreset): LayoutPreset {
-            val p = j.optJSONObject(key) ?: return default
-            val loaded = LayoutPreset(p.optDouble("iconSize", default.iconSize.toDouble()).toFloat(),
-                p.optDouble("rowGap", default.rowGap.toDouble()).toFloat(),
-                p.optDouble("dockWidth", default.dockWidth.toDouble()).toFloat(),
-                p.optDouble("dockPosition", default.dockPosition.toDouble()).toFloat(),
-                p.optBoolean("dockAlignToGrid", true), DockPlacement.parse(p.optString("dockPlacement")),
-                // 0.6.1 development builds saved "statusTop" (the top of the screen).
-                p.optBoolean("statusAlignToGrid", !p.optBoolean("statusTop", false)),
-                p.optDouble("statusPosition", 0.0).toFloat()).sanitized()
-            return upgradePreset(loaded, j.optInt("schema", 1), key == "expanded")
-        }
-        val order = j.optJSONArray(if (j.optInt("schema", 1) >= 2) "pinned" else "order") ?: JSONArray()
-        val cells = j.optJSONArray("homeSlots").takeIf { j.optInt("schema", 1) >= 4 } ?: order
-        val schema = j.optInt("schema", 1)
-        require(schema <= 8) { "Unsupported saved-state schema $schema" }
-        val rawSlots = List(cells.length()) { cells.optString(it).takeIf { id -> id.isNotBlank() && id != "null" } }
-        val legacySlots = normalizeHomeSlots(rawSlots)
-        val rawLeadingSlots = if (schema >= 8) {
-            val leading = j.optJSONArray("leadingSlots") ?: error("Schema 8 requires a leading slot array")
-            require(leading.length() == HOME_CELLS)
-            List(HOME_CELLS) { leading.optString(it).takeIf { id -> id.isNotBlank() && id != "null" } }
-        } else List(HOME_CELLS) { null }
-        val loadedDock = List(4) { j.optJSONArray("dock")?.optString(it)?.takeIf { it.isNotBlank() && it != "null" } }
-        val widgetArray = j.optJSONArray("widgets")
-        val placements = if (schema >= 6) {
-            require(widgetArray != null) { "Schema $schema requires a widget placement array" }
-            fun strictInt(objectValue: JSONObject, key: String): Int {
-                val number = objectValue.get(key) as? Number ?: error("$key must be an integer")
-                val value = number.toDouble()
-                require(value.isFinite() && value % 1.0 == 0.0 && value >= Int.MIN_VALUE && value <= Int.MAX_VALUE) {
-                    "$key must be a finite integer"
-                }
-                return value.toInt()
-            }
-            List(widgetArray.length()) { index ->
-                val w = widgetArray.getJSONObject(index)
-                WidgetPlacement(strictInt(w, "slot"), strictInt(w, "id"), strictInt(w, "page"), strictInt(w, "column"), strictInt(w, "row"),
-                    strictInt(w, "spanX"), strictInt(w, "spanY"))
-            }.also { loaded ->
-                require(loaded.map { it.slot }.distinct().size == loaded.size) { "Widget placement slots must be unique" }
-                loaded.forEach { placement ->
-                    val baseGeometry = placement.slot >= 0 && placement.id != EMPTY_WIDGET && placement.page >= -1 &&
-                        placement.column >= 0 && placement.row >= 0 && placement.spanX in 1..GRID_COLUMNS &&
-                        placement.spanY in 1..GRID_ROWS && placement.column + placement.spanX <= GRID_COLUMNS
-                    val insideGrid = placement.row + placement.spanY <= GRID_ROWS
-                    val migratedOverflow = placement.page > 0 && placement.slot / 3 == placement.page && placement.slot % 3 == 2 &&
-                        placement.column == 0 && placement.row == GRID_ROWS && placement.spanX == GRID_COLUMNS && placement.spanY == 4
-                    require(baseGeometry && (insideGrid || migratedOverflow)) { "Invalid widget placement" }
-                }
-            }
-        } else {
-            val ids = if (schema < 5) List(3) { index ->
-                (widgetArray?.optInt(index, -1) ?: -1).let {
-                    if (it < 0) listOf(CLOCK_WIDGET, DATE_WIDGET, INFO_WIDGET)[index] else it
-                }
-            } else List(widgetArray?.length() ?: 0) { widgetArray!!.optInt(it, EMPTY_WIDGET) }
-            migrateSchema5Widgets(ids)
-        }.filterNot { placement -> schema < 8 && placement == WidgetPlacement(2, INFO_WIDGET, -1, 0, 0, 4, 6) }
-        val folders = if (schema >= 7) {
-            val array = j.optJSONArray("folders") ?: error("Schema 7 requires a folder array")
-            List(array.length()) { index ->
-                val item = array.getJSONObject(index)
-                val apps = item.getJSONArray("apps")
-                FolderEntry(item.getString("id"), item.getString("title"), List(apps.length()) { apps.getString(it) })
-            }.also { loaded ->
-                require(loaded.map(FolderEntry::id).distinct().size == loaded.size)
-                require(loaded.flatMap(FolderEntry::appIds).distinct().size == loaded.sumOf { it.appIds.size })
-                loaded.forEach { folder ->
-                    require(isFolderId(folder.id) && folder.title.isNotBlank() && folder.appIds.size >= 2)
-                    require(folder.appIds.none { it.isBlank() || isReservedFolderId(it) })
-                }
-                val children = loaded.flatMapTo(mutableSetOf(), FolderEntry::appIds)
-                val folderIds = loaded.mapTo(mutableSetOf(), FolderEntry::id)
-                val rawFolderRefs = (rawSlots + rawLeadingSlots).filterNotNull().filter(::isReservedFolderId)
-                require(rawFolderRefs.all(::isFolderId))
-                require(rawFolderRefs.size == folderIds.size && rawFolderRefs.toSet() == folderIds)
-                require((rawSlots + rawLeadingSlots).none { it in children } &&
-                    loadedDock.none { it in children || (it != null && isReservedFolderId(it)) })
-            }
-        } else emptyList()
-        if (schema >= 8) {
-            val leadingIds = rawLeadingSlots.filterNotNull()
-            require(leadingIds.distinct().size == leadingIds.size) {
-                "An unfolded-only shortcut appears more than once"
-            }
-            val leadingApps = leadingIds.filterNot(::isReservedFolderId)
-            val otherApps = rawSlots.filterNotNull().filterNot(::isReservedFolderId) +
-                loadedDock.filterNotNull() + folders.flatMap(FolderEntry::appIds)
-            require(leadingApps.none { it in otherApps }) {
-                "An unfolded-only app shortcut appears on another surface"
-            }
-            val occupiedLeadingCells = rawLeadingSlots.indices
-                .filterTo(mutableSetOf()) { rawLeadingSlots[it] != null }
-                .mapTo(mutableSetOf()) { homeCellIndex(-1, it) }
-            require(placements.filter { it.page == -1 }.none { placement ->
-                placement.coveredIndices().any { it in occupiedLeadingCells }
-            }) { "An unfolded-only shortcut overlaps a widget" }
-        }
-        val restores = if (schema >= 7) {
-            val array = j.optJSONArray("restores") ?: JSONArray()
-            List(array.length()) { index ->
-                val item = array.getJSONObject(index)
-                WidgetRestore(item.getInt("slot"), item.getString("provider"), item.getLong("userSerial"),
-                    item.getString("title"), item.getString("profileLabel"), item.optBoolean("work", false),
-                    item.optString("sourceScope").takeIf { it.isNotBlank() && it != "null" })
-            }.also { loaded ->
-                require(loaded.map(WidgetRestore::slot).distinct().size == loaded.size)
-                loaded.forEach { restore ->
-                    require(restore.slot >= 0 && restore.userSerial >= 0 && restore.title.isNotBlank() &&
-                        restore.profileLabel.isNotBlank() && ComponentName.unflattenFromString(restore.providerComponent) != null)
-                }
-                require(placements.filter { it.id == NEEDS_BINDING_WIDGET }.map { it.slot }.toSet() == loaded.map { it.slot }.toSet())
-            }
-        } else emptyList()
-        LauncherState(homeSlots = if (schema in 2..5) migrateSchema5Apps(legacySlots) else legacySlots,
-            leadingSlots = rawLeadingSlots,
-            dock = loadedDock,
-            widgetPlacements = placements, folders = folders, widgetRestores = restores,
-            googleSearch = j.optBoolean("googleSearch", true),
-            labels = j.optBoolean("labels", true), compact = preset("compact", LayoutPreset()),
-            expanded = preset("expanded", LayoutPreset()), verticalStatus = j.optBoolean("verticalStatus", true),
-            leftHanded = j.optBoolean("leftHanded", false),
-            hiddenApps = j.optJSONArray("hiddenApps")?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
-            island = j.optBoolean("island", true),
-            folioPanels = j.optBoolean("folioPanels", true),
-            minPages = j.optInt("minPages", 1).coerceIn(1, 20),
-            statusStyle = StatusStyle.fromJson(j.optJSONObject("statusStyle")),
-            foldEffect = j.optBoolean("foldEffect", true), foldSnapshot = j.optBoolean("foldSnapshot", false), foldIntensity = j.optDouble("foldIntensity", 1.0).toFloat().coerceIn(.3f, 1.5f),
-            stayAwakeOnFold = j.optBoolean("stayAwakeOnFold", true),
-            panelBlur = j.optDouble("panelBlur", 1.0).toFloat().coerceIn(0f, 1f), notificationClock = j.optBoolean("notificationClock", true),
-            groupNotifications = j.optBoolean("groupNotifications", true),
-            standBy = j.optBoolean("standBy", true),
-            spotlightHidden = j.optJSONArray("spotlightHidden")?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
-            searchEngine = j.optString("searchEngine", "GOOGLE"),
-            islandEventsOff = j.optJSONArray(SettingKeys.ISLAND_EVENTS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
-            libraryCategories = j.optBoolean("libraryCategories", true),
-            libraryWork = j.optBoolean("libraryWork", true),
-            iconStyle = runCatching { IconStyle.valueOf(j.optString("iconStyle")) }.getOrDefault(IconStyle.DEFAULT),
-            iconTint = j.optLong("iconTint", 0xFFFFB340),
-            iconShape = runCatching { IconShape.valueOf(j.optString("iconShape")) }.getOrDefault(IconShape.DEFAULT),
-            iconPack = j.optString("iconPack").takeIf { it.isNotBlank() && it != "null" },
-            badgeStyle = runCatching { BadgeStyle.valueOf(j.optString("badgeStyle")) }.getOrDefault(BadgeStyle.DOT),
-            badgeColor = runCatching { BadgeColor.valueOf(j.optString("badgeColor")) }.getOrDefault(BadgeColor.RED),
-            badgeLook = runCatching { BadgeLook.valueOf(j.optString("badgeLook")) }.getOrDefault(BadgeLook.IOS),
-            badgeSize = runCatching { BadgeSize.valueOf(j.optString("badgeSize")) }.getOrDefault(BadgeSize.STANDARD),
-            searchPill = j.optBoolean("searchPill", true), swipeDownSearch = j.optBoolean("swipeDownSearch", true),
-            messagesApp = j.optString("messagesApp").takeIf { it.isNotBlank() && it != "null" },
-            messagesAvoidDouble = j.optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true),
-            islandAlerts = j.optBoolean(SettingKeys.ISLAND_ALERTS, false),
-            islandAlertAppsOff = j.optJSONArray(SettingKeys.ISLAND_ALERT_APPS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
-            ccControls = j.optJSONArray("ccControls")?.let { a -> (0 until a.length()).map(a::getString).filter { name -> CcControl.entries.any { it.name == name } } }
-                ?: CcControl.DEFAULTS,
-            ccSize = runCatching { PanelSize.valueOf(j.optString("ccSize")) }.getOrDefault(PanelSize.STANDARD),
-            ccCentered = j.optBoolean("ccCentered", false), ncSplit = j.optBoolean("ncSplit", true),
-            widgetStacks = j.optJSONObject("widgetStacks")?.let { o -> o.keys().asSequence().mapNotNull { key ->
-                val ids = o.optJSONArray(key) ?: return@mapNotNull null
-                key.toIntOrNull()?.let { slot -> slot to (0 until ids.length()).map(ids::getInt) }
-            }.toMap() } ?: emptyMap(),
-            stackRotate = j.optBoolean("stackRotate", true),
-            railActivities = j.optBoolean("railActivitiesUnderStatus", false),
-            addNewAppsToHome = j.optBoolean("addNewAppsToHome", false),
-            layoutHistory = j.optBoolean("layoutHistory", false), dockRecentDots = j.optBoolean("dockRecentDots", false),
-            folderColumns = j.optInt("folderColumns", 0).takeIf { it in setOf(0, 3, 4) } ?: 0,
-            folderBackground = runCatching { FolderBackground.valueOf(j.optString("folderBackground")) }.getOrDefault(FolderBackground.GLASS),
-            labelSize = runCatching { LabelSize.valueOf(j.optString("labelSize")) }.getOrDefault(LabelSize.STANDARD),
-            motionSpeed = runCatching { MotionSpeed.valueOf(j.optString("motionSpeed")) }.getOrDefault(MotionSpeed.STANDARD),
-            widgetGlass = j.optDouble("widgetGlass", .26).toFloat().coerceIn(0f, 1f), glassOutline = j.optDouble("glassOutline", .16).toFloat().coerceIn(0f, 1f),
-            focusModes = focusModesFromJson(j.optJSONArray("focusModes")),
-            activeFocus = j.optString("activeFocus").takeIf { it.isNotEmpty() },
-            leftPage = j.optString("leftPage", "TODAY").takeIf { it in setOf("TODAY", "DISCOVER", "NONE") } ?: "TODAY",
-            todayUnfolded = j.optString("todayUnfolded", "PAGE").takeIf { it in setOf("PAGE", "BESIDE", "OFF") } ?: "PAGE",
-            systemWallpaper = j.optBoolean("systemWallpaper", false),
-            homeInk = j.optString("homeInk", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
-            tintedGlass = j.optBoolean("tintedGlass", true),
-            roundedCorners = j.optBoolean("roundedCorners", false), cornerRadius = j.optDouble("cornerRadius", 40.0).toFloat().coerceIn(16f, 72f), dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
-            iconTintFromWallpaper = j.optBoolean("iconTintFromWallpaper", false),
-            tintNotifications = j.optBoolean("tintNotifications", false), tintMedia = j.optBoolean("tintMedia", true),
-            dockMagnify = j.optBoolean("dockMagnify", false), appPanels = j.optBoolean("appPanels", true), haptics = j.optBoolean("haptics", true), lockCover = j.optBoolean("lockCover", true),
-            featureScopes = j.optJSONObject("featureScopes")?.let { o -> o.keys().asSequence().associateWith { id ->
-                o.optJSONObject(id)?.let { inner -> inner.keys().asSequence().associateWith { inner.getString(it) } }.orEmpty()
-            } } ?: emptyMap(),
-            notificationAppRow = j.optBoolean("notificationAppRow", true), pageScrub = j.optBoolean("pageScrub", true),
-            wallpaperMotion = j.optBoolean("wallpaperMotion", true), liveIcons = j.optBoolean("liveIcons", true),
-            liveIconLook = j.optString("liveIconLook", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
-            triggerActions = j.optJSONObject("triggerActions")?.let { o -> o.keys().asSequence().associateWith { o.getString(it) } } ?: emptyMap(),
-            todayWidgets = j.optJSONArray("todayWidgets")?.let { a -> (0 until a.length()).mapNotNull { i ->
-                a.optJSONObject(i)?.let { o -> runCatching { TodayWidget(o.getInt("id"), TodaySize.valueOf(o.getString("size"))) }.getOrNull() }
-            } } ?: DEFAULT_TODAY_WIDGETS,
-            folderColors = j.optJSONObject("folderColors")?.let { o -> o.keys().asSequence().associateWith { o.getLong(it) } } ?: emptyMap(),
-            pageStyles = j.optJSONObject("pageStyles")?.let { o -> o.keys().asSequence().mapNotNull { key ->
-                val page = key.toIntOrNull()?.takeIf { it >= 0 } ?: return@mapNotNull null
-                val style = o.optJSONObject(key) ?: return@mapNotNull null
-                page to PageStyle(style.optDouble("scale", 1.0).toFloat().coerceIn(.7f, 1.3f), if (style.has("labels")) style.optBoolean("labels") else null)
-            }.toMap() } ?: emptyMap(),
-            iconStacks = j.optJSONObject("iconStacks")?.let { o -> o.keys().asSequence().associateWith { key ->
-                o.optJSONArray(key)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } }.orEmpty()
-            }.filterValues { it.isNotEmpty() } } ?: emptyMap(),
-            dockEverywhere = j.optBoolean("dockEverywhere", false), islandEverywhere = j.optBoolean("islandEverywhere", false))
-            .let { st ->
-                val saved = j.optJSONArray("installedTweaks")
-                when {
-                    saved != null -> st.copy(installedTweaks = (0 until saved.length()).mapNotNull { saved.optString(it).takeIf(String::isNotBlank) }.toSet())
-                    // Updating from before the Tweak Library: every tweak that's on counts as installed, so nothing changes.
-                    legacyRaw != null -> st.copy(installedTweaks = TweakFeatures.filter { it.get(st) || it.id in st.featureScopes }.mapTo(mutableSetOf()) { it.id })
-                    // A new install starts clean: tweaks are added from the Tweak Library when wanted.
-                    else -> st.copy(installedTweaks = emptySet(), appPanels = false, dockMagnify = false, notificationAppRow = false,
-                        tintNotifications = false, tintMedia = false)
-                }
-            }
+        decodeLauncherState(prefs.getString("state", "{}") ?: "{}", legacyRaw)
     }.getOrElse {
         statePayloadInvalid = legacyRaw != null
         LauncherState(loading = false, error = "Saved Home layout could not be read; it was left unchanged.")
@@ -1226,4 +1062,231 @@ private fun launcherIcon(drawable: Drawable): Bitmap {
     drawable.background?.draw(canvas)
     drawable.foreground?.draw(canvas)
     return bitmap
+}
+
+/**
+ * Reads Folio's saved state (any schema it knows), upgrading older layouts. Throws when the saved text is damaged, so
+ * the caller can keep it untouched and tell the user. [legacyRaw] is the pre-schema-2 payload, when there was one.
+ */
+internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState {
+    val j = JSONObject(raw)
+    fun preset(key: String, default: LayoutPreset): LayoutPreset {
+        val p = j.optJSONObject(key) ?: return default
+        val loaded = LayoutPreset(p.optDouble("iconSize", default.iconSize.toDouble()).toFloat(),
+            p.optDouble("rowGap", default.rowGap.toDouble()).toFloat(),
+            p.optDouble("dockWidth", default.dockWidth.toDouble()).toFloat(),
+            p.optDouble("dockPosition", default.dockPosition.toDouble()).toFloat(),
+            p.optBoolean("dockAlignToGrid", true), DockPlacement.parse(p.optString("dockPlacement")),
+            // 0.6.5 development builds saved "statusTop" (the top of the screen).
+            p.optBoolean("statusAlignToGrid", !p.optBoolean("statusTop", false)),
+            p.optDouble("statusPosition", 0.0).toFloat(),
+            p.optDouble("columnGap", DEFAULT_COLUMN_GAP.toDouble()).toFloat(), p.optDouble("dockSpacing", 0.0).toFloat(),
+            p.optDouble("widgetScale", 1.0).toFloat(), p.optBoolean("pageTop", false)).sanitized()
+        return upgradePreset(loaded, j.optInt("schema", 1), key == "expanded")
+    }
+    val order = j.optJSONArray(if (j.optInt("schema", 1) >= 2) "pinned" else "order") ?: JSONArray()
+    val cells = j.optJSONArray("homeSlots").takeIf { j.optInt("schema", 1) >= 4 } ?: order
+    val schema = j.optInt("schema", 1)
+    require(schema <= STATE_SCHEMA) { "Unsupported saved-state schema $schema" }
+    // Schemas 6–8 saved 24-cell pages; the same cells keep their place on 36-cell pages (More rows).
+    val legacyGrid = schema in 6..8
+    val rawSlots = List(cells.length()) { cells.optString(it).takeIf { id -> id.isNotBlank() && id != "null" } }
+        .let { if (legacyGrid) migrateLegacyHomeSlots(it) else it }
+    val legacySlots = normalizeHomeSlots(rawSlots)
+    val rawLeadingSlots = if (schema >= 8) {
+        val leading = j.optJSONArray("leadingSlots") ?: error("Schema 8 requires a leading slot array")
+        val size = if (legacyGrid) LEGACY_HOME_CELLS else HOME_CELLS
+        require(leading.length() == size)
+        migrateLegacyLeadingSlots(List(size) { leading.optString(it).takeIf { id -> id.isNotBlank() && id != "null" } })
+    } else List(HOME_CELLS) { null }
+    val loadedDock = List(4) { j.optJSONArray("dock")?.optString(it)?.takeIf { it.isNotBlank() && it != "null" } }
+    val widgetArray = j.optJSONArray("widgets")
+    val placements = if (schema >= 6) {
+        require(widgetArray != null) { "Schema $schema requires a widget placement array" }
+        fun strictInt(objectValue: JSONObject, key: String): Int {
+            val number = objectValue.get(key) as? Number ?: error("$key must be an integer")
+            val value = number.toDouble()
+            require(value.isFinite() && value % 1.0 == 0.0 && value >= Int.MIN_VALUE && value <= Int.MAX_VALUE) {
+                "$key must be a finite integer"
+            }
+            return value.toInt()
+        }
+        List(widgetArray.length()) { index ->
+            val w = widgetArray.getJSONObject(index)
+            WidgetPlacement(strictInt(w, "slot"), strictInt(w, "id"), strictInt(w, "page"), strictInt(w, "column"), strictInt(w, "row"),
+                strictInt(w, "spanX"), strictInt(w, "spanY")).let { if (legacyGrid) migrateLegacyWidgetPlacement(it) else it }
+        }.also { loaded ->
+            require(loaded.map { it.slot }.distinct().size == loaded.size) { "Widget placement slots must be unique" }
+            loaded.forEach { placement ->
+                val baseGeometry = placement.slot >= 0 && placement.id != EMPTY_WIDGET && placement.page >= -1 &&
+                    placement.column >= 0 && placement.row >= 0 && placement.spanX in 1..GRID_COLUMNS &&
+                    placement.spanY in 1..GRID_ROWS && placement.column + placement.spanX <= GRID_COLUMNS
+                val insideGrid = placement.row + placement.spanY <= GRID_ROWS
+                val migratedOverflow = placement.page > 0 && placement.slot / 3 == placement.page && placement.slot % 3 == 2 &&
+                    placement.column == 0 && placement.row == GRID_ROWS && placement.spanX == GRID_COLUMNS && placement.spanY == 4
+                require(baseGeometry && (insideGrid || migratedOverflow)) { "Invalid widget placement" }
+            }
+        }
+    } else {
+        val ids = if (schema < 5) List(3) { index ->
+            (widgetArray?.optInt(index, -1) ?: -1).let {
+                if (it < 0) listOf(CLOCK_WIDGET, DATE_WIDGET, INFO_WIDGET)[index] else it
+            }
+        } else List(widgetArray?.length() ?: 0) { widgetArray!!.optInt(it, EMPTY_WIDGET) }
+        migrateSchema5Widgets(ids)
+    }.filterNot { placement -> schema < 8 && placement == WidgetPlacement(2, INFO_WIDGET, -1, 0, 0, 4, 6) }
+    val folders = if (schema >= 7) {
+        val array = j.optJSONArray("folders") ?: error("Schema 7 requires a folder array")
+        List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            val apps = item.getJSONArray("apps")
+            FolderEntry(item.getString("id"), item.getString("title"), List(apps.length()) { apps.getString(it) })
+        }.also { loaded ->
+            require(loaded.map(FolderEntry::id).distinct().size == loaded.size)
+            require(loaded.flatMap(FolderEntry::appIds).distinct().size == loaded.sumOf { it.appIds.size })
+            loaded.forEach { folder ->
+                require(isFolderId(folder.id) && folder.title.isNotBlank() && folder.appIds.size >= 2)
+                require(folder.appIds.none { it.isBlank() || isReservedFolderId(it) })
+            }
+            val children = loaded.flatMapTo(mutableSetOf(), FolderEntry::appIds)
+            val folderIds = loaded.mapTo(mutableSetOf(), FolderEntry::id)
+            val rawFolderRefs = (rawSlots + rawLeadingSlots).filterNotNull().filter(::isReservedFolderId)
+            require(rawFolderRefs.all(::isFolderId))
+            require(rawFolderRefs.size == folderIds.size && rawFolderRefs.toSet() == folderIds)
+            require((rawSlots + rawLeadingSlots).none { it in children } &&
+                loadedDock.none { it in children || (it != null && isReservedFolderId(it)) })
+        }
+    } else emptyList()
+    if (schema >= 8) {
+        val leadingIds = rawLeadingSlots.filterNotNull()
+        require(leadingIds.distinct().size == leadingIds.size) {
+            "An unfolded-only shortcut appears more than once"
+        }
+        val leadingApps = leadingIds.filterNot(::isReservedFolderId)
+        val otherApps = rawSlots.filterNotNull().filterNot(::isReservedFolderId) +
+            loadedDock.filterNotNull() + folders.flatMap(FolderEntry::appIds)
+        require(leadingApps.none { it in otherApps }) {
+            "An unfolded-only app shortcut appears on another surface"
+        }
+        val occupiedLeadingCells = rawLeadingSlots.indices
+            .filterTo(mutableSetOf()) { rawLeadingSlots[it] != null }
+            .mapTo(mutableSetOf()) { homeCellIndex(-1, it) }
+        require(placements.filter { it.page == -1 }.none { placement ->
+            placement.coveredIndices().any { it in occupiedLeadingCells }
+        }) { "An unfolded-only shortcut overlaps a widget" }
+    }
+    val restores = if (schema >= 7) {
+        val array = j.optJSONArray("restores") ?: JSONArray()
+        List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            WidgetRestore(item.getInt("slot"), item.getString("provider"), item.getLong("userSerial"),
+                item.getString("title"), item.getString("profileLabel"), item.optBoolean("work", false),
+                item.optString("sourceScope").takeIf { it.isNotBlank() && it != "null" })
+        }.also { loaded ->
+            require(loaded.map(WidgetRestore::slot).distinct().size == loaded.size)
+            loaded.forEach { restore ->
+                require(restore.slot >= 0 && restore.userSerial >= 0 && restore.title.isNotBlank() &&
+                    restore.profileLabel.isNotBlank() && ComponentName.unflattenFromString(restore.providerComponent) != null)
+            }
+            require(placements.filter { it.id == NEEDS_BINDING_WIDGET }.map { it.slot }.toSet() == loaded.map { it.slot }.toSet())
+        }
+    } else emptyList()
+    return LauncherState(homeSlots = if (schema in 2..5) migrateSchema5Apps(legacySlots) else legacySlots,
+        leadingSlots = rawLeadingSlots,
+        dock = loadedDock,
+        widgetPlacements = placements, folders = folders, widgetRestores = restores,
+        googleSearch = j.optBoolean("googleSearch", true),
+        labels = j.optBoolean("labels", true), compact = preset("compact", LayoutPreset()),
+        expanded = preset("expanded", LayoutPreset()), verticalStatus = j.optBoolean("verticalStatus", true),
+        leftHanded = j.optBoolean("leftHanded", false),
+        hiddenApps = j.optJSONArray("hiddenApps")?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
+        island = j.optBoolean("island", true),
+        folioPanels = j.optBoolean("folioPanels", true),
+        minPages = j.optInt("minPages", 1).coerceIn(1, 20),
+        statusStyle = StatusStyle.fromJson(j.optJSONObject("statusStyle")),
+        foldEffect = j.optBoolean("foldEffect", true), foldSnapshot = j.optBoolean("foldSnapshot", false), foldIntensity = j.optDouble("foldIntensity", 1.0).toFloat().coerceIn(.3f, 1.5f),
+        stayAwakeOnFold = j.optBoolean("stayAwakeOnFold", true),
+        panelBlur = j.optDouble("panelBlur", 1.0).toFloat().coerceIn(0f, 1f), notificationClock = j.optBoolean("notificationClock", true),
+        groupNotifications = j.optBoolean("groupNotifications", true),
+        standBy = j.optBoolean("standBy", true),
+        spotlightHidden = j.optJSONArray("spotlightHidden")?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
+        searchEngine = j.optString("searchEngine", "GOOGLE"),
+        islandEventsOff = j.optJSONArray(SettingKeys.ISLAND_EVENTS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
+        libraryCategories = j.optBoolean("libraryCategories", true),
+        libraryWork = j.optBoolean("libraryWork", true),
+        iconStyle = runCatching { IconStyle.valueOf(j.optString("iconStyle")) }.getOrDefault(IconStyle.DEFAULT),
+        iconTint = j.optLong("iconTint", 0xFFFFB340),
+        iconShape = runCatching { IconShape.valueOf(j.optString("iconShape")) }.getOrDefault(IconShape.DEFAULT),
+        iconPack = j.optString("iconPack").takeIf { it.isNotBlank() && it != "null" },
+        badgeStyle = runCatching { BadgeStyle.valueOf(j.optString("badgeStyle")) }.getOrDefault(BadgeStyle.DOT),
+        badgeColor = runCatching { BadgeColor.valueOf(j.optString("badgeColor")) }.getOrDefault(BadgeColor.RED),
+        badgeLook = runCatching { BadgeLook.valueOf(j.optString("badgeLook")) }.getOrDefault(BadgeLook.IOS),
+        badgeSize = runCatching { BadgeSize.valueOf(j.optString("badgeSize")) }.getOrDefault(BadgeSize.STANDARD),
+        searchPill = j.optBoolean("searchPill", true), swipeDownSearch = j.optBoolean("swipeDownSearch", true),
+        messagesApp = j.optString("messagesApp").takeIf { it.isNotBlank() && it != "null" },
+        messagesAvoidDouble = j.optBoolean(SettingKeys.MESSAGES_AVOID_DOUBLE, true),
+        islandAlerts = j.optBoolean(SettingKeys.ISLAND_ALERTS, false),
+        islandAlertAppsOff = j.optJSONArray(SettingKeys.ISLAND_ALERT_APPS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() } ?: emptySet(),
+        ccControls = j.optJSONArray("ccControls")?.let { a -> (0 until a.length()).map(a::getString).filter { name -> CcControl.entries.any { it.name == name } } }
+            ?: CcControl.DEFAULTS,
+        ccSize = runCatching { PanelSize.valueOf(j.optString("ccSize")) }.getOrDefault(PanelSize.STANDARD),
+        ccCentered = j.optBoolean("ccCentered", false), ncSplit = j.optBoolean("ncSplit", true),
+        widgetStacks = j.optJSONObject("widgetStacks")?.let { o -> o.keys().asSequence().mapNotNull { key ->
+            val ids = o.optJSONArray(key) ?: return@mapNotNull null
+            key.toIntOrNull()?.let { slot -> slot to (0 until ids.length()).map(ids::getInt) }
+        }.toMap() } ?: emptyMap(),
+        stackRotate = j.optBoolean("stackRotate", true),
+        railActivities = j.optBoolean("railActivitiesUnderStatus", false),
+        addNewAppsToHome = j.optBoolean("addNewAppsToHome", false),
+        layoutHistory = j.optBoolean("layoutHistory", false), dockRecentDots = j.optBoolean("dockRecentDots", false),
+        folderColumns = j.optInt("folderColumns", 0).takeIf { it in setOf(0, 3, 4) } ?: 0,
+        folderBackground = runCatching { FolderBackground.valueOf(j.optString("folderBackground")) }.getOrDefault(FolderBackground.GLASS),
+        labelSize = runCatching { LabelSize.valueOf(j.optString("labelSize")) }.getOrDefault(LabelSize.STANDARD),
+        motionSpeed = runCatching { MotionSpeed.valueOf(j.optString("motionSpeed")) }.getOrDefault(MotionSpeed.STANDARD),
+        widgetGlass = j.optDouble("widgetGlass", .26).toFloat().coerceIn(0f, 1f), glassOutline = j.optDouble("glassOutline", .16).toFloat().coerceIn(0f, 1f),
+        focusModes = focusModesFromJson(j.optJSONArray("focusModes")),
+        activeFocus = j.optString("activeFocus").takeIf { it.isNotEmpty() },
+        leftPage = j.optString("leftPage", "TODAY").takeIf { it in setOf("TODAY", "DISCOVER", "NONE") } ?: "TODAY",
+        todayUnfolded = j.optString("todayUnfolded", "PAGE").takeIf { it in setOf("PAGE", "BESIDE", "OFF") } ?: "PAGE",
+        systemWallpaper = j.optBoolean("systemWallpaper", false),
+        homeInk = j.optString("homeInk", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
+        tintedGlass = j.optBoolean("tintedGlass", true),
+        roundedCorners = j.optBoolean("roundedCorners", false), cornerRadius = j.optDouble("cornerRadius", 40.0).toFloat().coerceIn(16f, 72f), dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
+        iconTintFromWallpaper = j.optBoolean("iconTintFromWallpaper", false),
+        tintNotifications = j.optBoolean("tintNotifications", false), tintMedia = j.optBoolean("tintMedia", true),
+        dockMagnify = j.optBoolean("dockMagnify", false), appPanels = j.optBoolean("appPanels", true), haptics = j.optBoolean("haptics", true), lockCover = j.optBoolean("lockCover", true),
+        featureScopes = j.optJSONObject("featureScopes")?.let { o -> o.keys().asSequence().associateWith { id ->
+            o.optJSONObject(id)?.let { inner -> inner.keys().asSequence().associateWith { inner.getString(it) } }.orEmpty()
+        } } ?: emptyMap(),
+        notificationAppRow = j.optBoolean("notificationAppRow", true), pageScrub = j.optBoolean("pageScrub", true),
+        wallpaperMotion = j.optBoolean("wallpaperMotion", true), liveIcons = j.optBoolean("liveIcons", true),
+        liveIconLook = j.optString("liveIconLook", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
+        triggerActions = j.optJSONObject("triggerActions")?.let { o -> o.keys().asSequence().associateWith { o.getString(it) } } ?: emptyMap(),
+        todayWidgets = j.optJSONArray("todayWidgets")?.let { a -> (0 until a.length()).mapNotNull { i ->
+            a.optJSONObject(i)?.let { o -> runCatching { TodayWidget(o.getInt("id"), TodaySize.valueOf(o.getString("size"))) }.getOrNull() }
+        } } ?: DEFAULT_TODAY_WIDGETS,
+        folderColors = j.optJSONObject("folderColors")?.let { o -> o.keys().asSequence().associateWith { o.getLong(it) } } ?: emptyMap(),
+        pageStyles = j.optJSONObject("pageStyles")?.let { o -> o.keys().asSequence().mapNotNull { key ->
+            val page = key.toIntOrNull()?.takeIf { it >= 0 } ?: return@mapNotNull null
+            val style = o.optJSONObject(key) ?: return@mapNotNull null
+            page to PageStyle(style.optDouble("scale", 1.0).toFloat().coerceIn(.7f, 1.3f), if (style.has("labels")) style.optBoolean("labels") else null)
+        }.toMap() } ?: emptyMap(),
+        iconStacks = j.optJSONObject("iconStacks")?.let { o -> o.keys().asSequence().associateWith { key ->
+            o.optJSONArray(key)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } }.orEmpty()
+        }.filterValues { it.isNotEmpty() } } ?: emptyMap(),
+        dockEverywhere = j.optBoolean("dockEverywhere", false), islandEverywhere = j.optBoolean("islandEverywhere", false),
+        homeRows = j.optInt("homeRows", 0).takeIf { it == BASE_APP_ROWS } ?: 0,
+        homeFitCompact = j.optInt("homeFitCompact", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0,
+        homeFitExpanded = j.optInt("homeFitExpanded", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0)
+        .let { st ->
+            val saved = j.optJSONArray("installedTweaks")
+            when {
+                saved != null -> st.copy(installedTweaks = (0 until saved.length()).mapNotNull { saved.optString(it).takeIf(String::isNotBlank) }.toSet())
+                // Updating from before the Tweak Library: every tweak that's on counts as installed, so nothing changes.
+                legacyRaw != null -> st.copy(installedTweaks = TweakFeatures.filter { it.get(st) || it.id in st.featureScopes }.mapTo(mutableSetOf()) { it.id })
+                // A new install starts clean: tweaks are added from the Tweak Library when wanted.
+                else -> st.copy(installedTweaks = emptySet(), appPanels = false, dockMagnify = false, notificationAppRow = false,
+                    tintNotifications = false, tintMedia = false)
+            }
+        }
 }

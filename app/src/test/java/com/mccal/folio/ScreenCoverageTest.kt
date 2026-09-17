@@ -10,10 +10,20 @@ import org.junit.Test
 class ScreenCoverageTest {
     private val probe = System.getenv("FOLIO_COVERAGE_PROBE") != null
 
-    /** The rules for one window. Returns what broke (empty when the layout is fine). */
+    /** The rules for one window, with four app rows and with as many as fit (More rows). Returns what broke. */
     private fun problems(w: Float, h: Float, preset: LayoutPreset = LayoutPreset(), labels: Boolean = true,
         labelHeight: Float = 20f, status: Float = 160f): List<String> {
-        val g = homeGeometry(w, h, preset, labels, statusHeight = status, labelHeight = labelHeight)
+        val base = homeGeometry(w, h, preset, labels, statusHeight = status, labelHeight = labelHeight)
+        val fit = homeGeometry(w, h, preset, labels, statusHeight = status, labelHeight = labelHeight, appRows = base.fitAppRows,
+            fillSpace = true)
+        if (base.fitAppRows !in BASE_APP_ROWS..MAX_APP_ROWS) return listOf("fit rows ${base.fitAppRows}")
+        // Fewer rows re-center the page but never change the columns or icon size.
+        if (fit.gridWidth != base.gridWidth || fit.iconSize != base.iconSize)
+            return listOf("rows change the columns or icons")
+        return (rules(w, h, preset, base, labels, labelHeight) + rules(w, h, preset, fit, labels, labelHeight)).distinct()
+    }
+
+    private fun rules(w: Float, h: Float, preset: LayoutPreset, g: HomeGeometry, labels: Boolean, labelHeight: Float): List<String> {
         val out = mutableListOf<String>()
         val numbers = listOf(g.homeWidth, g.gridWidth, g.iconSize, g.rowHeight, g.widgetHeight, g.contentTop, g.dockTop,
             g.dockHeight, g.dockRowHeight, g.cellWidth, g.statusTop)
@@ -29,7 +39,11 @@ class ScreenCoverageTest {
         if (g.gridWidth + side > (if (g.expanded) g.homeWidth + 16f else w) + .5f) out += "grid ${g.gridWidth} too wide"
         val bottom = 44f + if (g.horizontalDock) g.dockBarHeight + 16f else 0f
         val page = if (g.splitColumns) maxOf(g.widgetHeight + 18f + 2f * g.rowHeight, 3f * g.rowHeight)
-            else g.widgetHeight + 18f + 4f * g.rowHeight
+            else g.widgetHeight + 18f + g.appRows * g.rowHeight
+        // Extra rows only tighten the space under labels down to 4 dp, never into the labels.
+        val labelSpace = if (labels) maxOf(20f, labelHeight) else 20f
+        if (g.rowGap > 0f && g.rowGap < preset.sanitized().rowGap && g.rowHeight - g.iconSize - labelSpace < 4f - .01f) out += "labels crowded"
+        if (g.horizontalDock && 4f * g.dockPitch + 16f > (if (g.dockBesideRail) w - preset.sanitized().dockWidth - 12f else w) + .5f) out += "dock bar too wide"
         // Tier A (480 dp or taller, text up to 1.3×): the whole page fits. Shorter windows and larger text scroll the
         // page instead (HomeWorkspace), like Android asks for, so only the touch-target rules apply there.
         val mustFit = h >= 480f && labelHeight <= 26f
@@ -65,8 +79,12 @@ class ScreenCoverageTest {
 
     @Test fun `options and large text keep the rules across the sweep`() = sweep("options", sequence {
         val presets = listOf(LayoutPreset(dockPlacement = DockPlacement.BOTTOM), LayoutPreset(dockPlacement = DockPlacement.SIDE),
-            LayoutPreset(statusAlignToGrid = false, statusPosition = 1f), LayoutPreset(dockAlignToGrid = false, dockPosition = 1f),
-            LayoutPreset(iconSize = 40f, rowGap = 28f), LayoutPreset(iconSize = 68f, rowGap = 28f, dockWidth = 84f))
+            LayoutPreset(statusAlignToGrid = false, statusPosition = 1f), LayoutPreset(pageTop = true), LayoutPreset(dockAlignToGrid = false, dockPosition = 1f),
+            LayoutPreset(iconSize = 40f, rowGap = 28f), LayoutPreset(iconSize = 68f, rowGap = 28f, dockWidth = 84f),
+            // Space between columns, Widget size and Space between dock apps at both ends.
+            LayoutPreset(columnGap = 8f), LayoutPreset(columnGap = 40f), LayoutPreset(widgetScale = .8f), LayoutPreset(widgetScale = 1.25f),
+            LayoutPreset(dockSpacing = 24f), LayoutPreset(dockSpacing = 24f, dockAlignToGrid = false, dockPosition = 1f),
+            LayoutPreset(dockSpacing = 24f, dockPlacement = DockPlacement.BOTTOM, iconSize = 68f, columnGap = 8f, widgetScale = 1.25f))
         for (w in 320..1600 step 24) for (h in 320..1200 step 24) {
             for (p in presets) yield(Triple(w.toFloat(), h.toFloat()) { problems(w.toFloat(), h.toFloat(), p) })
             // Hidden labels, and label text at 1.3×, 1.5× and 2× font scale.
@@ -124,6 +142,58 @@ class ScreenCoverageTest {
         org.junit.Assert.assertEquals(4, microAppCount(260f))
         org.junit.Assert.assertEquals(5, microAppCount(320f))
     }
+
+    /** Galaxy Z Fold8 (labels on, measured status, default settings): both screens have room for a fifth app row. */
+    @Test fun `fold8 cover and inner screens fit five app rows`() {
+        val cover = homeGeometry(475f, 751f, LayoutPreset(), true, statusHeight = 160f)
+        val inner = homeGeometry(932f, 704f, LayoutPreset(), true, statusHeight = 160f)
+        org.junit.Assert.assertEquals(5, cover.fitAppRows)
+        org.junit.Assert.assertEquals(5, inner.fitAppRows)
+        // The cover fits five at the usual spacing; the inner screen needs the space under labels tightened to 4 dp.
+        org.junit.Assert.assertEquals(8f, homeGeometry(475f, 751f, LayoutPreset(), true, statusHeight = 160f, appRows = 5).rowGap)
+        org.junit.Assert.assertEquals(4f, homeGeometry(932f, 704f, LayoutPreset(), true, statusHeight = 160f, appRows = 5).rowGap)
+        // Four rows keep today's spacing.
+        org.junit.Assert.assertEquals(8f, inner.rowGap)
+        // Split screen halves and short landscape windows stay at four.
+        org.junit.Assert.assertEquals(4, homeGeometry(751f, 475f, LayoutPreset(), true, statusHeight = 160f).fitAppRows)
+    }
+
+    /** Default Space between columns, Widget size and dock spacing lay the Fold8 out as before those settings. */
+    @Test fun `new spacing settings at their defaults keep the fold8 layout`() {
+        val cover = homeGeometry(475f, 751f, LayoutPreset(), true, statusHeight = 160f)
+        org.junit.Assert.assertEquals(listOf(363f, 90.75f, 66f, 176f, 0f), listOf(cover.gridWidth, cover.cellWidth, cover.iconSize, cover.widgetHeight, cover.columnsInset))
+        val inner = homeGeometry(932f, 704f, LayoutPreset(), true, statusHeight = 160f)
+        org.junit.Assert.assertEquals(listOf(348f, 87f, 66f, 169f, 0f), listOf(inner.gridWidth, inner.cellWidth, inner.iconSize, inner.widgetHeight, inner.columnsInset))
+        org.junit.Assert.assertEquals(dockIconSize(66f) + 22f, homeGeometry(704f, 932f, LayoutPreset(), true, statusHeight = 160f).dockPitch)
+        // Closer columns narrow the cells (the grid area stays put); wider ones shrink the icons.
+        val closer = homeGeometry(475f, 751f, LayoutPreset(columnGap = 8f), true, statusHeight = 160f)
+        org.junit.Assert.assertEquals(listOf(363f, 82.75f, 66f), listOf(closer.gridWidth, closer.cellWidth, closer.iconSize))
+        val apart = homeGeometry(475f, 751f, LayoutPreset(columnGap = 40f), true, statusHeight = 160f)
+        org.junit.Assert.assertEquals(listOf(90.75f, 42f), listOf(apart.cellWidth, apart.iconSize))
+        // Widget size scales the widget rows; dock spacing makes a free-standing dock taller.
+        org.junit.Assert.assertEquals(140.8f, homeGeometry(475f, 751f, LayoutPreset(widgetScale = .8f), true, statusHeight = 160f).widgetHeight, .01f)
+        val loose = LayoutPreset(dockAlignToGrid = false)
+        org.junit.Assert.assertTrue(homeGeometry(475f, 751f, loose.copy(dockSpacing = 12f), true, statusHeight = 160f).dockHeight >
+            homeGeometry(475f, 751f, loose, true, statusHeight = 160f).dockHeight)
+    }
+
+    /** Switching Rows between Automatic and 4 (or the other screen fitting fewer) never moves the dock or the apps. */
+    @Test fun `more rows keep the columns, icons and dock size and only re-center the page`() {
+        for ((w, h) in listOf(475f to 751f, 932f to 704f, 704f to 932f, 412f to 915f, 1200f to 900f, 800f to 1280f)) {
+            val g = homeGeometry(w, h, LayoutPreset(), true, statusHeight = 160f)
+            for (rows in BASE_APP_ROWS..g.fitAppRows) {
+                val shown = homeGeometry(w, h, LayoutPreset(), true, statusHeight = 160f, appRows = rows)
+                val tag = "${w}×$h $rows rows"
+                org.junit.Assert.assertEquals(tag, g.gridWidth, shown.gridWidth)
+                org.junit.Assert.assertEquals(tag, g.iconSize, shown.iconSize)
+                org.junit.Assert.assertEquals(tag, g.dockWidthOrBar(), shown.dockWidthOrBar())
+                // Every row that was shown keeps its spacing from the widgets (apps never change cells).
+                val a = HomeCellLayout.forPage(g, listOf(0 to 2)); val b = HomeCellLayout.forPage(shown, listOf(0 to 2))
+                org.junit.Assert.assertEquals(tag, a.y(3) - a.y(2), b.y(3) - b.y(2), 4.01f)
+            }
+        }
+    }
+    private fun HomeGeometry.dockWidthOrBar() = if (horizontalDock) dockBarHeight else dockRowHeight.coerceAtLeast(48f).let { 0f }
 
     /** A book-style hinge anywhere across a tall page: rows under it move below it, and a widget is never split. */
     @Test fun `a hinge anywhere across the page moves whole rows below it`() {

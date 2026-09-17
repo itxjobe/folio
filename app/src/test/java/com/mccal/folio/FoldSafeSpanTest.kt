@@ -55,4 +55,15 @@ class FoldSafeSpanTest {
             }
         }
     }
+
+    @Test fun `unfolded Home stays on its side of a book fold`() {
+        // Pixel Fold inner: without the fold rule the Home half would start left of the middle.
+        val flat = homeGeometry(841f, 701f, LayoutPreset(), true, statusHeight = 160f)
+        val folded = homeGeometry(841f, 701f, LayoutPreset(), true, statusHeight = 160f, foldAtCenter = true)
+        assertTrue(flat.homeWidth > 841f / 2f)
+        assertTrue(folded.homeWidth <= 841f / 2f && folded.expanded && folded.iconSize >= 48f)
+        // The Galaxy Z Fold8 is wide enough that nothing changes.
+        assertEquals(homeGeometry(932f, 704f, LayoutPreset(), true, statusHeight = 160f),
+            homeGeometry(932f, 704f, LayoutPreset(), true, statusHeight = 160f, foldAtCenter = true))
+    }
 }

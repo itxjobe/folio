@@ -73,9 +73,10 @@ internal fun resolveIPhoneApps(context: Context, apps: List<AppEntry>, messagesA
 /**
  * Puts [resolved] apps in iPhone's spots: the four app rows of page 1 (under its widget row) and the dock.
  * Chosen apps move from wherever they were; apps already in those spots move to the first free cells after
- * page 1, so nothing leaves Home. Apps inside folders, widgets and spots without a match are left alone.
+ * page 1, so nothing leaves Home (skipping rows pages don't show with [appRows] app rows). Apps inside folders, widgets
+ * and spots without a match are left alone.
  */
-internal fun arrangeLikeIPhone(layout: HomeLayout, resolved: Map<IPhoneApp, String>): HomeLayout {
+internal fun arrangeLikeIPhone(layout: HomeLayout, resolved: Map<IPhoneApp, String>, appRows: Int = MAX_APP_ROWS): HomeLayout {
     val inFolders = layout.folders.flatMap { it.appIds }.toSet()
     val wanted = resolved.filterValues { it !in inFolders }
     val wantedIds = wanted.values.toSet()
@@ -104,7 +105,7 @@ internal fun arrangeLikeIPhone(layout: HomeLayout, resolved: Map<IPhoneApp, Stri
         var index = HOME_CELLS
         while (true) {
             while (slots.size <= index) slots += null
-            if (slots[index] == null && index !in covered) { slots[index] = id; break }
+            if (slots[index] == null && index !in covered && homeCellShown(index, appRows)) { slots[index] = id; break }
             index++
         }
     }

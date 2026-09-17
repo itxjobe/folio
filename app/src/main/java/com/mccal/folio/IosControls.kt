@@ -73,8 +73,9 @@ internal fun IosChip(selected: Boolean, onClick: () -> Unit, label: @Composable 
 /** iOS slider: thin track filled in system blue with a round white thumb. */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-internal fun IosSlider(value: Float, onValueChange: (Float) -> Unit, valueRange: ClosedFloatingPointRange<Float>, modifier: Modifier = Modifier) {
-    val interaction = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+internal fun IosSlider(value: Float, onValueChange: (Float) -> Unit, valueRange: ClosedFloatingPointRange<Float>, modifier: Modifier = Modifier,
+    interactionSource: androidx.compose.foundation.interaction.MutableInteractionSource? = null) {
+    val interaction = interactionSource ?: androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Slider(value, onValueChange, modifier, valueRange = valueRange, interactionSource = interaction,
         thumb = { Box(Modifier.size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape)) },
         track = { state ->

@@ -50,6 +50,12 @@ internal val LauncherSheetsOpen = androidx.compose.runtime.mutableIntStateOf(0)
 /** Full-screen pages (Setup, Settings pages): nothing behind them is visible, so Home skips its blur while one is up. */
 internal val LauncherPagesOpen = androidx.compose.runtime.mutableIntStateOf(0)
 
+/** A Home layout slider being dragged in Settings, with its bounds in the Settings window (see [SettingsPeek]). */
+internal data class PeekSlider(val label: String, val valueLabel: String, val fraction: Float, val bounds: androidx.compose.ui.geometry.Rect)
+
+/** Set while a Home layout slider is dragged: Settings fades so the real Home shows the change, like iOS. */
+internal val SettingsPeek = androidx.compose.runtime.mutableStateOf<PeekSlider?>(null)
+
 /**
  * Top-safe insets that respect the real camera cutout. Folio hides the status bar on Home, which
  * makes `statusBarsPadding()` zero, so content slid under the camera; the display cutout is still
