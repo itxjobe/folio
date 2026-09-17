@@ -141,6 +141,12 @@ class IslandGeometryTest {
     }
 
     @Test fun noCutoutCentersOnTheWindow() {
+        // A camera closer to the top than the usual gap is still covered: the island starts above it.
+        val high = islandGeometry(intArrayOf(900, 6, 940, 46), 2000, 2f)
+        assertTrue(high.top < 3f)
+        assertTrue(high.top + high.pillH >= 23f + 5f - .01f)
+        val low = islandGeometry(intArrayOf(900, 40, 940, 80), 2000, 2f)
+        assertEquals(15f, low.top)
         val g = islandGeometry(null as IntArray?, 800, 2f)
         assertEquals(400f, g.centerXPx)
         assertEquals(islandWantWidth(IslandContent.Event(IslandEvent.Focus(true)), 0.dp).value, 190f)

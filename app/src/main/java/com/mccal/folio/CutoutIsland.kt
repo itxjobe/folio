@@ -255,7 +255,10 @@ internal fun islandGeometry(cutoutLtrb: IntArray?, windowWidthPx: Int, density: 
     // never be shorter than a comfortable pill.
     val camTop = (cutoutLtrb?.get(1) ?: (12 * density).toInt()) / density
     val camBottom = camTop + camH
-    val top = maxOf(ISLAND_EDGE_GAP, camTop - ISLAND_CAMERA_MARGIN)
+    // The island always starts above the camera, even when the camera sits closer to the edge than the usual gap
+    // (a punch-hole near the top, as on the Galaxy Z Fold7's inner screen); otherwise the lens peeks over it.
+    val top = if (cutoutLtrb == null) ISLAND_EDGE_GAP
+        else minOf(maxOf(ISLAND_EDGE_GAP, camTop - ISLAND_CAMERA_MARGIN), camTop - ISLAND_CAMERA_MIN_OVERLAP).coerceAtLeast(0f)
     val pillH = maxOf(camBottom + ISLAND_CAMERA_MARGIN - top, ISLAND_MIN_HEIGHT)
     // Width stays symmetric around the camera, capped by the room on the narrower side.
     val room = minOf(centerXPx, windowWidthPx - centerXPx) / density - ISLAND_SIDE_MARGIN
@@ -574,4 +577,6 @@ private const val ISLAND_EDGE_GAP = 8f
 /** Smallest gap between the island and the left or right screen edge. */
 private const val ISLAND_SIDE_MARGIN = 12f
 private const val ISLAND_CAMERA_MARGIN = 5f
+/** The least the island reaches past the camera's top edge. */
+private const val ISLAND_CAMERA_MIN_OVERLAP = 2f
 private const val ISLAND_MIN_HEIGHT = 34f
