@@ -98,16 +98,24 @@ fun upgradePreset(preset: LayoutPreset, schema: Int, expanded: Boolean): LayoutP
     else -> preset
 }
 
-/** Shortest height that still counts as regular size (the unfolded screen in either rotation; the cover's landscape is ~475dp). */
-const val REGULAR_MIN_HEIGHT_DP = 560f
+/** Android's medium window width class starts here (window size classes: 600, 840, 1200, 1600 dp). */
+const val ANDROID_MEDIUM_WIDTH_DP = 600f
 
 /**
- * Regular size class in both dimensions, like iOS size classes: never a device, display or orientation check.
+ * Folio's own height for the regular Home layout, not an Android size class (Android's medium height starts at
+ * 480 dp): Home's widget row, four app rows, status and dock need about this much. The unfolded screen clears it in
+ * either rotation; the cover in landscape (~475 dp) doesn't.
+ */
+const val HOME_REGULAR_MIN_HEIGHT_DP = 560f
+
+/**
+ * Whether a window gets Folio's regular Home layout (like an iOS regular size class in both dimensions): Android's
+ * medium width and Folio's own [HOME_REGULAR_MIN_HEIGHT_DP]. Never a device, display or orientation check.
  * [classScale] converts to dp at the phone's own density (see [classScale]), so a changed display size can't turn a
  * phone-sized screen into a tablet one.
  */
-fun isRegularSize(widthDp: Float, heightDp: Float, classScale: Float = 1f) =
-    widthDp * classScale >= 600f && heightDp * classScale >= REGULAR_MIN_HEIGHT_DP
+fun fitsRegularHomeLayout(widthDp: Float, heightDp: Float, classScale: Float = 1f) =
+    widthDp * classScale >= ANDROID_MEDIUM_WIDTH_DP && heightDp * classScale >= HOME_REGULAR_MIN_HEIGHT_DP
 
 /** Current density over the device's own ([stableDpi]); 1 when either is unknown. */
 fun classScale(densityDpi: Int, stableDpi: Int): Float =
@@ -116,23 +124,24 @@ fun classScale(densityDpi: Int, stableDpi: Int): Float =
 fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Boolean, statusHeight: Float = 0f, labelHeight: Float = 20f, inLibrary: Boolean = false, homeBottomSpace: Float = 44f,
     /** Whether round controls (search, back) sit at the bottom of the rail on Home; without them the dock may run lower. */
     railControls: Boolean = true,
-    /** See [isRegularSize]: size classes are judged at the phone's own density. */
+    /** See [fitsRegularHomeLayout]: size classes are judged at the phone's own density. */
     classScale: Float = 1f): HomeGeometry {
     val p = preset.sanitized()
     // Unfolded Duo layout only with regular size both ways; the cover in landscape is still compact.
     // Two Duo panels side by side need a window wider than tall. Taller than wide (portrait), iPhone Duo keeps one
     // centered Home page with the dock as a horizontal bar: the only pose where Apple keeps horizontal bars.
-    val regular = isRegularSize(width, height, classScale)
+    val regular = fitsRegularHomeLayout(width, height, classScale)
     val tallRegular = regular && height > width
     // Landscape phone screens keep the Side Bar dock: a bottom bar would take too much of a short screen.
     val horizontalDock = when (p.dockPlacement) {
         DockPlacement.AUTOMATIC -> tallRegular
         DockPlacement.SIDE -> false
-        DockPlacement.BOTTOM -> regular || height > width
+        // Short windows (split screen, pop-up windows) keep the Side Bar too, so the page still fits above the bar.
+        DockPlacement.BOTTOM -> regular || (height > width && height >= HOME_REGULAR_MIN_HEIGHT_DP)
     }
     // Everywhere but the upright unfolded screen, the status Side Bar stays and the bottom dock sits beside it.
     val dockBesideRail = horizontalDock && !tallRegular
-    val expanded = width * classScale >= 650f && height * classScale >= REGULAR_MIN_HEIGHT_DP && !tallRegular
+    val expanded = width * classScale >= 650f && height * classScale >= HOME_REGULAR_MIN_HEIGHT_DP && !tallRegular
     val homeWidth = if (expanded) minOf(460f, width * 0.56f) else width
     val dockBarHeight = if (horizontalDock) dockIconSize(p.iconSize) + 28f else 0f
     val homeBottomSpace = homeBottomSpace + if (horizontalDock) dockBarHeight + 16f else 0f
@@ -300,7 +309,7 @@ private const val LIBRARY_GAP_DP = 14f
  * Exactly 1 on phones, flip phones and the Galaxy Z Fold's inner screen; grows with the smaller of the two sides.
  */
 fun uiScale(widthDp: Float, heightDp: Float, classScale: Float = 1f): Float {
-    if (!isRegularSize(widthDp, heightDp, classScale)) return 1f
+    if (!fitsRegularHomeLayout(widthDp, heightDp, classScale)) return 1f
     // Judged at the device's own density: a phone set to a larger Smallest width / smaller Screen zoom has more dp,
     // not a bigger screen, and scaling it up would undo that choice (and shrink Home below the unfolded layout).
     val long = maxOf(widthDp, heightDp) * classScale

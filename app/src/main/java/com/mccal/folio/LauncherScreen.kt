@@ -499,7 +499,7 @@ fun LauncherScreen(
         onFinish = { cancelled -> finishDrag(cancelled) }, immediate = homeEdit.active)
         .twoFingerSwipeDown(FolioAction.entries.firstOrNull { it.name == state.triggerActions[FolioTrigger.TWO_FINGER_DOWN.name] }
             ?.takeIf { it != FolioAction.NONE && sheet.isEmpty() && !homeEdit.active }) { FolioActions.run(launcherActivity, it) }) { ProvideJiggle(homeEdit) {
-        val panelWide = androidx.compose.ui.platform.LocalConfiguration.current.isRegular()
+        val panelWide = androidx.compose.ui.platform.LocalConfiguration.current.fitsRegularHomeLayout()
         val tone = LocalWallpaperTone.current
         val homeInk = homeInkFor(state.homeInk, tone.prefersDarkText)
         val basePalette = LocalDuoPalette.current
@@ -527,9 +527,9 @@ fun LauncherScreen(
             // Short windows run the rail the full height, so keep the upright island's strip clear there. Regular-size
             // windows (unfolded portrait) keep Home centered: the island sits below the status and beside the dock bar.
             .union(rememberSideIslandInsets(state.island && androidx.compose.ui.platform.LocalConfiguration.current.let {
-                !it.isRegular() })))) {
+                !it.fitsRegularHomeLayout() })))) {
             val classScale = androidx.compose.ui.platform.LocalConfiguration.current.classScale
-            val wide = maxWidth.value * classScale >= 650f && maxHeight.value * classScale >= REGULAR_MIN_HEIGHT_DP
+            val wide = maxWidth.value * classScale >= 650f && maxHeight.value * classScale >= HOME_REGULAR_MIN_HEIGHT_DP
             val preset = if (wide) state.expanded else state.compact
             val density = LocalDensity.current
             val inLibrary = pager.currentPage == visibleHomePages

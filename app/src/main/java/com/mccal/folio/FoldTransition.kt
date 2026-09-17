@@ -55,7 +55,7 @@ import androidx.lifecycle.repeatOnLifecycle
 fun FoldTransitionHost(enabled: Boolean = true, intensity: Float = 1f, stayAwake: Boolean = true,
     snapshotMorph: Boolean = false, haptics: Boolean = true, content: @Composable () -> Unit) {
     // Which screen we're on, by size in both dimensions, so rotating the cover to landscape never looks like an unfold.
-    val expanded = LocalConfiguration.current.isRegular()
+    val expanded = LocalConfiguration.current.fitsRegularHomeLayout()
     val view = LocalView.current
     val context = LocalContext.current
     // Where the hinge is and which half moves, from the real fold and the display's rotation, so the effect is

@@ -46,7 +46,7 @@ class ScreenMatrixTest {
             val scale = uiScale(s.width, s.height)
             assertTrue(s.name, scale in 1f..1.45f)
             // Scaling never turns a regular window compact: the layout family matches the real window.
-            assertEquals(s.name, isRegularSize(s.width, s.height), isRegularSize(s.width / scale, s.height / scale))
+            assertEquals(s.name, fitsRegularHomeLayout(s.width, s.height), fitsRegularHomeLayout(s.width / scale, s.height / scale))
         }
     }
 
@@ -54,7 +54,7 @@ class ScreenMatrixTest {
         for (s in screens) for (labels in listOf(true, false)) {
             val scale = uiScale(s.width, s.height)
             val w = s.width / scale; val h = s.height / scale
-            val status = if (isRegularSize(w, h)) 180f else 0f
+            val status = if (fitsRegularHomeLayout(w, h)) 180f else 0f
             val g = homeGeometry(w, h, LayoutPreset(), labels, statusHeight = status)
             val tag = "${s.name} (${w.toInt()}×${h.toInt()})"
             assertTrue("$tag rows ${g.rowHeight}", g.rowHeight >= 48f)

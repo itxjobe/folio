@@ -349,7 +349,7 @@ private fun DiscoverDock(state: LauncherState, status: DeviceStatus, fullSize: S
     val context = LocalContext.current
     val fullWidth = fullSize.width / density.density
     val classScale = androidx.compose.ui.platform.LocalConfiguration.current.classScale
-    val preset = if (fullWidth * classScale >= 650f && fullSize.height / density.density * classScale >= REGULAR_MIN_HEIGHT_DP) state.expanded else state.compact
+    val preset = if (fullWidth * classScale >= 650f && fullSize.height / density.density * classScale >= HOME_REGULAR_MIN_HEIGHT_DP) state.expanded else state.compact
     val apps = remember(state.apps) { state.apps.associateBy { it.id } }
     val progress = DiscoverMotion.progress.floatValue
     val backgroundRevision = LauncherBackgroundCache.revision.intValue

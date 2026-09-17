@@ -125,9 +125,9 @@ class LayoutModelTest {
             if (g.splitColumns) assertTrue("halves overflow the width", 8f * g.cellWidth + g.zoneGap <= width - 68f - 44f + .01f)
             assertTrue(g.rowHeight >= 48f)
         }
-        assertTrue(isRegularSize(704f, 930f))
-        assertTrue(isRegularSize(932f, 680f))
-        assertFalse(isRegularSize(751f, 475f))
+        assertTrue(fitsRegularHomeLayout(704f, 930f))
+        assertTrue(fitsRegularHomeLayout(932f, 680f))
+        assertFalse(fitsRegularHomeLayout(751f, 475f))
     }
     @Test fun `two-column pages keep widgets whole and rows aligned`() {
         val g = homeGeometry(751f, 459f, LayoutPreset(), true, labelHeight = 21f)
@@ -212,7 +212,7 @@ class LayoutModelTest {
     @Test fun `a phone-sized screen keeps the phone layout when Smallest width is raised`() {
         // Reported: a Galaxy Z Fold8 cover (1248px wide, 420dpi) set to 600dp got the unfolded layout.
         val scale = classScale(densityDpi = 1248 * 160 / 600, stableDpi = 420)
-        assertFalse(isRegularSize(600f, 948f, scale))
+        assertFalse(fitsRegularHomeLayout(600f, 948f, scale))
         val cover = homeGeometry(600f, 948f, LayoutPreset(), labels = true, classScale = scale)
         assertFalse(cover.horizontalDock)
         assertFalse(cover.expanded)
@@ -223,7 +223,7 @@ class LayoutModelTest {
         assertEquals(1f, uiScale(1176f, 888f, fold))
         assertTrue(homeGeometry(1176f, 827f, LayoutPreset(), true, statusHeight = 160f, classScale = fold).let { it.expanded && !it.splitColumns })
         // The inner screen at its own density is still regular.
-        assertTrue(isRegularSize(932f, 704f, classScale(420, 420)))
+        assertTrue(fitsRegularHomeLayout(932f, 704f, classScale(420, 420)))
         assertEquals(1f, classScale(0, 420))
     }
 

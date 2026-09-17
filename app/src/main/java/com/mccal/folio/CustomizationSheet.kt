@@ -215,7 +215,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     // iPad Settings / One UI on the unfolded screen: sidebar and page side by side, in either orientation.
     // Regular size class (both dimensions roomy), not a device check: the inner screen in either orientation.
     val fullWidth = maxWidth
-    val split = isRegularSize(maxWidth.value, maxHeight.value, androidx.compose.ui.platform.LocalConfiguration.current.classScale)
+    val split = fitsRegularHomeLayout(maxWidth.value, maxHeight.value, androidx.compose.ui.platform.LocalConfiguration.current.classScale)
     val pageContent: @Composable ColumnScope.() -> Unit = {
             when (page) {
                 CustomizationPage.OVERVIEW -> if (split) {
@@ -1402,7 +1402,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         CardNote(when (p.dockPlacement) {
             DockPlacement.AUTOMATIC -> if (wide) "The dock stays on the Side Bar, and moves to the bottom when the screen is upright." else "The dock stays on the Side Bar."
             DockPlacement.SIDE -> "The dock stays on the Side Bar, even when the screen is upright."
-            DockPlacement.BOTTOM -> if (wide) "The dock sits along the bottom, under your pages." else "The dock sits along the bottom. In landscape it moves to the Side Bar, so every row of apps fits."
+            DockPlacement.BOTTOM -> if (wide) "The dock sits along the bottom, under your pages." else "The dock sits along the bottom. In landscape and small windows it moves to the Side Bar, so every row of apps fits."
         } + if (!p.statusAlignToGrid) " The dock always stays below the status." else "")
     }
     SettingsCard("Side Bar") {

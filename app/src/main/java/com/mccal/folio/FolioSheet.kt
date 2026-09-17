@@ -102,7 +102,7 @@ internal fun ModalBottomSheet(
     if (fullScreen) { FullScreenPage(onDismissRequest, content); return }
     // Regular size (inner screen, either orientation): an iPad-style form sheet centered over Home instead of a stretched bottom sheet.
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    if (configuration.isRegular()) {
+    if (configuration.fitsRegularHomeLayout()) {
         FormSheet(onDismissRequest, properties.shouldDismissOnBackPress, formWidth, modifier, content); return
     }
     MaterialTheme(colorScheme = FolioSheetColors, typography = MaterialTheme.typography) {

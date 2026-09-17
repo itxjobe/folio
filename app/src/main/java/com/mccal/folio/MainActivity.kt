@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                 "sheet".takeIf { LauncherSheetsOpen.intValue > 0 }, "Lock Cover".takeIf { lockCoverVisible.value && state.lockCover })
                 .joinToString(" + ").ifEmpty { null }
             androidx.compose.runtime.LaunchedEffect(overlayName) { Diagnostics.event(overlayName?.let { "Open: $it" } ?: "Nothing open over Home") }
-            val regular = androidx.compose.ui.platform.LocalConfiguration.current.isRegular()
+            val regular = androidx.compose.ui.platform.LocalConfiguration.current.fitsRegularHomeLayout()
             androidx.compose.runtime.LaunchedEffect(regular) { Diagnostics.event(if (regular) "Unfolded layout" else "Folded layout") }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
@@ -213,7 +213,7 @@ class MainActivity : ComponentActivity() {
                     if (scale == 1f) d else androidx.compose.ui.unit.Density(d.density * scale, d.fontScale)
                 },
                 LocalTintOptions provides androidx.compose.ui.platform.LocalConfiguration.current.let { config ->
-                    val screen = screenFor(config.isRegular())
+                    val screen = screenFor(config.fitsRegularHomeLayout())
                     TintOptions(FeatureScopes.on(state.featureScopes, "tintNotifications", state.tintNotifications, screen),
                         FeatureScopes.on(state.featureScopes, "tintMedia", state.tintMedia, screen),
                         FeatureScopes.on(state.featureScopes, "notificationAppRow", state.notificationAppRow, screen))
