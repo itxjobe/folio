@@ -72,10 +72,10 @@ internal fun SetupRing(done: Int, total: Int, size: Dp, track: Color, modifier: 
             val inset = stroke / 2
             val arc = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
             drawArc(track, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(stroke))
-            if (total > 0) drawArc(Color(0xFF30D158), -90f, 360f * done / total, false, Offset(inset, inset), arc,
+            if (total > 0) drawArc(FolioColors.Green, -90f, 360f * done / total, false, Offset(inset, inset), arc,
                 style = Stroke(stroke, cap = StrokeCap.Round))
         }
-        Text("$done/$total", fontSize = (size.value * .26f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF30D158))
+        Text("$done/$total", fontSize = (size.value * .26f).sp, fontWeight = FontWeight.SemiBold, color = FolioColors.Green)
     }
 }
 
@@ -91,13 +91,13 @@ internal fun SetupReminderCard(isDefaultHome: Boolean, blocked: Boolean, onMakeD
     val visible = show && !blocked
     androidx.activity.compose.BackHandler(visible) { show = false; SetupReminder.snooze(context, SetupReminder.CONTINUE_MS) }
     val dark = LocalDuoPalette.current.dark
-    val background = if (dark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
+    val background = if (dark) FolioColors.SecondaryBackground else Color(0xFFF2F2F7)
     val primary = if (dark) Color.White else Color.Black
     val secondary = if (dark) Color(0xFF98989F) else Color(0xFF6C6C70)
     val reduceMotion = LocalReduceMotion.current
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(visible,
-            enter = if (reduceMotion) fadeIn() else slideInVertically(MotionSpeed.spring(.86f, 420f)) { it } + fadeIn(),
+            enter = if (reduceMotion) fadeIn() else slideInVertically(FolioMotion.spring(FolioMotion.Settle)) { it } + fadeIn(),
             exit = if (reduceMotion) fadeOut() else slideOutVertically { it } + fadeOut()) {
             Column(Modifier.navigationBarsPadding().padding(12.dp).widthIn(max = 400.dp).fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp)).background(background).padding(18.dp)
@@ -116,7 +116,7 @@ internal fun SetupReminderCard(isDefaultHome: Boolean, blocked: Boolean, onMakeD
                     ReminderButton("Not Now", secondary.copy(alpha = .18f), primary, Modifier.weight(1f)) {
                         show = false; SetupReminder.snooze(context, SetupReminder.NOT_NOW_MS)
                     }
-                    ReminderButton("Continue", Color(0xFF0A84FF), Color.White, Modifier.weight(1f)) {
+                    ReminderButton("Continue", FolioColors.Blue, Color.White, Modifier.weight(1f)) {
                         show = false; SetupReminder.snooze(context, SetupReminder.CONTINUE_MS); onContinue()
                     }
                 }

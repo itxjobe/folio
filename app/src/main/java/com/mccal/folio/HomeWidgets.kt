@@ -376,7 +376,7 @@ internal fun WidgetActions(
             MenuDivider()
             MenuRow(if (customSize) "Hide Custom Size" else "Custom Size", Icons.Rounded.Tune) { customSize = !customSize }
             if (customSize) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (!feasible) Text(stringResource(R.string.move_this_widget_into_the_six_row_grid_b), color = Color(0xFFFF453A), fontSize = 13.sp)
+                if (!feasible) Text(stringResource(R.string.move_this_widget_into_the_six_row_grid_b), color = FolioColors.Red, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.width), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
@@ -424,7 +424,7 @@ internal fun WidgetActions(
                         Text("${index + 1}. ${stackLabel(card)}", Modifier.weight(1f), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (index > 0) TextButton(onClick = { onShowFirstInStack(card) }) { Text(stringResource(R.string.show_first)) }
                         IconButton(onClick = { onRemoveFromStack(card) }) {
-                            Icon(Icons.Rounded.RemoveCircleOutline, "Remove ${stackLabel(card)} from stack", tint = Color(0xFFFF453A))
+                            Icon(Icons.Rounded.RemoveCircleOutline, "Remove ${stackLabel(card)} from stack", tint = FolioColors.Red)
                         }
                     }
                 }

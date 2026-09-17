@@ -205,7 +205,7 @@ internal fun AppContextMenu(
 
 @Composable
 internal fun MenuRow(label: String, icon: ImageVector? = null, bitmap: Bitmap? = null, destructive: Boolean = false, onClick: () -> Unit) {
-    val tint = if (destructive) Color(0xFFFF453A) else Color.White
+    val tint = if (destructive) FolioColors.Red else Color.White
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = tint, fontSize = 16.sp, fontWeight = FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis,

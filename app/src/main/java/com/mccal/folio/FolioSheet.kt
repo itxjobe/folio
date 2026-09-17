@@ -109,7 +109,7 @@ internal fun ModalBottomSheet(
         androidx.compose.material3.ModalBottomSheet(
             onDismissRequest = onDismissRequest, modifier = modifier, sheetState = sheetState,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = Color(0xFF1C1C1E).copy(alpha = .97f), contentColor = Color.White,
+            containerColor = FolioColors.SecondaryBackground.copy(alpha = .97f), contentColor = Color.White,
             scrimColor = Color.Black.copy(alpha = .35f),
             dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(width = 36.dp, height = 5.dp)
                 .background(Color.White.copy(alpha = .3f), RoundedCornerShape(3.dp))) },
@@ -164,8 +164,13 @@ private fun FullScreenPage(onDismissRequest: () -> Unit, content: @Composable Co
             Box(Modifier.fillMaxSize()) {
                 // The page background stays as a faint trace; its text and controls fade out completely, so nothing
                 // half-readable competes with Home (only the dragged slider's capsule shows).
+                // Predictive back: the page eases right and shrinks a little with the swipe, like Android's own screens.
+                val back = androidx.compose.animation.core.animateFloatAsState(SheetBackProgress.floatValue,
+                    androidx.compose.animation.core.spring(stiffness = 1400f), label = "sheet back").value
                 androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
-                    translationX = size.width * slide.value
+                    translationX = size.width * slide.value + size.width * .08f * back
+                    scaleX = 1f - .1f * back; scaleY = scaleX
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape((28 * back).dp); clip = back > 0f
                 }, color = Color.Black.copy(alpha = fade.value), contentColor = Color.White) {
                     androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()
                         .graphicsLayer { alpha = ((fade.value - .14f) / .86f).coerceIn(0f, 1f) }
@@ -187,7 +192,7 @@ private fun PeekCapsule(peek: PeekSlider) {
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().navigationBarsPadding()
         .padding(horizontal = 96.dp).padding(bottom = 64.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
     androidx.compose.foundation.layout.Column(Modifier
-        .size(minOf(maxWidth, 440.dp), height).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1C1C1E).copy(alpha = .94f))
+        .size(minOf(maxWidth, 440.dp), height).clip(RoundedCornerShape(16.dp)).background(FolioColors.SecondaryBackground.copy(alpha = .94f))
         .padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
         androidx.compose.foundation.layout.Row {
             androidx.compose.material3.Text(peek.label, Modifier.weight(1f), color = Color.White, fontSize = 17.sp, maxLines = 1)
@@ -195,7 +200,7 @@ private fun PeekCapsule(peek: PeekSlider) {
         }
         Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
             Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = .22f))) {
-                Box(Modifier.fillMaxWidth(peek.fraction).height(4.dp).background(Color(0xFF0A84FF)))
+                Box(Modifier.fillMaxWidth(peek.fraction).height(4.dp).background(FolioColors.Blue))
             }
             // The thumb, where the finger is.
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -227,7 +232,7 @@ private fun FormSheet(onDismissRequest: () -> Unit, dismissOnBack: Boolean, widt
                             alpha = appear.value
                             translationY = (1f - appear.value) * size.height * .12f
                         },
-                        shape = RoundedCornerShape(14.dp), color = Color(0xFF1C1C1E), contentColor = Color.White) {
+                        shape = RoundedCornerShape(14.dp), color = FolioColors.SecondaryBackground, contentColor = Color.White) {
                         androidx.compose.foundation.layout.Column(Modifier.padding(top = 14.dp), content = content)
                     }
                 }
@@ -248,7 +253,7 @@ internal fun AlertDialog(onDismissRequest: () -> Unit, confirmButton: @Composabl
         FolioDialogWindow(dim = .3f)
         val appear = rememberEntrance(stiffness = 900f, dampingRatio = .85f)
         val base = MaterialTheme.typography
-        val blue = Color(0xFF0A84FF)
+        val blue = FolioColors.Blue
         fun buttons(weight: androidx.compose.ui.text.font.FontWeight) = base.copy(labelLarge = androidx.compose.ui.text.TextStyle(fontSize = 17.sp, fontWeight = weight))
         FoldAvoidingBox(Modifier.windowInsetsPadding(WindowInsets.safeDrawing), role = FoldRole.INFO) {
             MaterialTheme(colorScheme = FolioSheetColors.copy(primary = blue), typography = base) {

@@ -294,7 +294,7 @@ internal fun FocusLockNotice(trigger: Int, mode: FocusMode?, modifier: androidx.
         exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { -it }) {
         val m = mode ?: return@AnimatedVisibility
         androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.CircleShape)
-            .background(androidx.compose.ui.graphics.Color(0xFF1C1C1E).copy(alpha = .95f))
+            .background(FolioColors.SecondaryBackground.copy(alpha = .95f))
             .padding(horizontal = 16.dp, vertical = 10.dp).testTag("focus-lock-notice"), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.material3.Icon(m.icon(), null, tint = androidx.compose.ui.graphics.Color(m.color), modifier = androidx.compose.ui.Modifier.size(18.dp))
             androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.width(8.dp))

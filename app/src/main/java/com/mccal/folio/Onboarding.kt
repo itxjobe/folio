@@ -176,9 +176,9 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                         IosChip(selected = !systemWallpaper, onClick = { onWallpaper(false) }, label = { Text(stringResource(R.string.folio_dunes)) }, modifier = Modifier.weight(1f))
                     }
                     if (done && p.onAction != null) Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF30D158))
+                        Icon(Icons.Rounded.CheckCircle, null, tint = FolioColors.Green)
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.all_set), color = Color(0xFF30D158), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.all_set), color = FolioColors.Green, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -213,6 +213,6 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
     }
 }
 
-private val IosBlue = Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 private const val STEP = "onboardingStep"
 private const val STEP_KEY = "onboardingPage"

@@ -77,7 +77,7 @@ internal fun AudioDeviceCard(enabled: Boolean, blocked: Boolean) {
     val reduceMotion = LocalReduceMotion.current
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(visible,
-            enter = if (reduceMotion) fadeIn() else slideInVertically(MotionSpeed.spring(.86f, 420f)) { it } + fadeIn(),
+            enter = if (reduceMotion) fadeIn() else slideInVertically(FolioMotion.spring(FolioMotion.Settle)) { it } + fadeIn(),
             exit = if (reduceMotion) fadeOut() else slideOutVertically { it } + fadeOut()) {
             device?.let { DeviceCard(it) { open = false } }
         }
@@ -87,7 +87,7 @@ internal fun AudioDeviceCard(enabled: Boolean, blocked: Boolean) {
 @Composable
 private fun DeviceCard(device: IslandEvent.Bluetooth, onDone: () -> Unit) {
     val dark = LocalDuoPalette.current.dark
-    val background = if (dark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
+    val background = if (dark) FolioColors.SecondaryBackground else Color(0xFFF2F2F7)
     val primary = if (dark) Color.White else Color.Black
     val secondary = if (dark) Color(0xFF98989F) else Color(0xFF6C6C70)
     val title = device.name ?: if (device.speaker) "Speaker" else "Headphones"
@@ -107,17 +107,17 @@ private fun DeviceCard(device: IslandEvent.Bluetooth, onDone: () -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Box(Modifier.size(112.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF64D2FF), Color(0xFF0A84FF)))),
+        Box(Modifier.size(112.dp).clip(CircleShape).background(Brush.linearGradient(listOf(FolioColors.Cyan, FolioColors.Blue))),
             contentAlignment = Alignment.Center) {
             Icon(if (device.speaker) Icons.Rounded.Speaker else Icons.Rounded.Headphones, null, tint = Color.White, modifier = Modifier.size(60.dp))
         }
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF30D158), modifier = Modifier.size(18.dp))
+            Icon(Icons.Rounded.CheckCircle, null, tint = FolioColors.Green, modifier = Modifier.size(18.dp))
             Text("Connected", color = secondary, fontSize = 15.sp)
         }
         Spacer(Modifier.height(18.dp))
-        Box(Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
+        Box(Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(14.dp)).background(FolioColors.Blue)
             .clickable(role = Role.Button, onClick = onDone), contentAlignment = Alignment.Center) {
             Text("Done", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }

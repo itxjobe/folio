@@ -133,4 +133,13 @@ class MoreRowsTest {
         assertFalse(homeCellShown(homeCellIndex(0, 24), 4))
         assertTrue(homeCellShown(homeCellIndex(0, 24), 5))
     }
+
+    @Test fun `accessible moves cover every direction and only real pages`() {
+        val first = homeMoveOffsets(0).toMap()
+        org.junit.Assert.assertEquals(-1, first["Move Left"]); org.junit.Assert.assertEquals(GRID_COLUMNS, first["Move Down"])
+        org.junit.Assert.assertEquals(HOME_CELLS, first["Move to Next Page"])
+        org.junit.Assert.assertFalse("Move to Previous Page" in first)
+        org.junit.Assert.assertTrue("Move to Previous Page" in homeMoveOffsets(2).toMap())
+        org.junit.Assert.assertFalse(homeMoveOffsets(-1).any { "Page" in it.first })
+    }
 }

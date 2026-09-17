@@ -118,9 +118,9 @@ private fun StandByInfo(status: DeviceStatus, ink: Color, soft: Color, night: Bo
         // Up Next while nothing is playing: the next event, in the calendar's color (not tinted red at night).
         val next by produceState<UpNextEvent?>(null, tick) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { UpNext.events(context, limit = 1).firstOrNull() } }
         if (media == null) next?.let { e ->
-            Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(if (night) Color(0xFF1A0605) else Color(0xFF1C1C1E))
+            Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(if (night) Color(0xFF1A0605) else FolioColors.SecondaryBackground)
                 .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(if (night) soft else e.color?.let { Color(it) } ?: Color(0xFF0A84FF)))
+                Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(if (night) soft else e.color?.let { Color(it) } ?: FolioColors.Blue))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(e.title, color = ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -131,7 +131,7 @@ private fun StandByInfo(status: DeviceStatus, ink: Color, soft: Color, night: Bo
             }
         }
         if (media != null) Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(if (night) Color(0xFF1A0605) else Color(0xFF1C1C1E)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            .background(if (night) Color(0xFF1A0605) else FolioColors.SecondaryBackground).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             media.icon?.let { Image(it.asImageBitmap(), null, Modifier.size(52.dp).clip(RoundedCornerShape(12.dp))) }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {

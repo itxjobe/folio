@@ -74,7 +74,7 @@ internal fun TodayView(state: LauncherState, widgets: WidgetController, modifier
                         Text(stringResource(R.string.search), color = ink.secondary, fontSize = 17.sp)
                     }
                     Column(Modifier.padding(start = 4.dp, top = 6.dp)) {
-                        Text(today.format(DateTimeFormatter.ofPattern("EEEE")).uppercase(), color = Color(0xFFFF453A), fontSize = 13.sp,
+                        Text(today.format(DateTimeFormatter.ofPattern("EEEE")).uppercase(), color = FolioColors.Red, fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold, letterSpacing = .6.sp)
                         Text(today.format(DateTimeFormatter.ofPattern("MMMM d")), color = LocalHomeInk.current.primary, fontSize = if (wide) 40.sp else 34.sp,
                             fontWeight = FontWeight.Bold)

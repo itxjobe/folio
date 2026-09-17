@@ -21,10 +21,17 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Better bug reports:** Folio notes freezes and restarts, and Report a Bug can include them (kept on your phone).
 - **A live Roadmap:** see what's coming, updated from Folio's GitHub page.
 
+- **Move apps without dragging:** TalkBack actions and Alt+arrow keys move apps and folders around Home and between pages.
+- **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
+- **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
+- **Predictive back:** folders, the App Library and Settings follow your back swipe before closing.
+
 ### Changed
 - Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
 
 ### Fixed
+- With a keyboard, Tab and the arrow keys now move between apps on Home instead of stopping on empty spaces behind them.
+- If your saved Home layout can't be read, Folio now says so and offers to restore a backup or start fresh (keeping a copy), instead of quietly showing an empty Home.
 - Half folded, Home keeps off the hinge: unfolded pages stay on their side of a book fold, the bottom dock moves to one half, and on a table-style fold the status stays above the hinge and the dock goes below it.
 - On tall phones, Home sits centered in the screen instead of high up with empty space below.
 - On narrower phones, apps keep more space between them: icons never take more than 80% of their column.

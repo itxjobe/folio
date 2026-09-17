@@ -132,10 +132,10 @@ internal fun WhatsNewSheet(onDismiss: () -> Unit) {
                         release?.let {
                             androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.padding(top = 8.dp),
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                androidx.compose.material3.Text("Version ${it.version}", color = androidx.compose.ui.graphics.Color(0xFF64D2FF),
+                                androidx.compose.material3.Text("Version ${it.version}", color = FolioColors.Cyan,
                                     fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                                     modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                                        .background(androidx.compose.ui.graphics.Color(0xFF64D2FF).copy(alpha = .16f)).padding(horizontal = 10.dp, vertical = 4.dp))
+                                        .background(FolioColors.Cyan.copy(alpha = .16f)).padding(horizontal = 10.dp, vertical = 4.dp))
                                 it.date?.takeIf { d -> !d.equals("Unreleased", true) }?.let { d -> androidx.compose.material3.Text(d,
                                     color = androidx.compose.ui.graphics.Color.White.copy(alpha = .55f), fontSize = 14.sp,
                                     modifier = androidx.compose.ui.Modifier.padding(start = 8.dp)) }
@@ -195,7 +195,7 @@ internal fun WhatsNewSheet(onDismiss: () -> Unit) {
                 }
             }
             androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxWidth().padding(vertical = 16.dp).heightIn(min = 52.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(androidx.compose.ui.graphics.Color(0xFF0A84FF))
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(FolioColors.Blue)
                 .clickable(onClick = onDismiss).testTag("whats-new-continue"), contentAlignment = androidx.compose.ui.Alignment.Center) {
                 androidx.compose.material3.Text("Continue", color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)

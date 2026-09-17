@@ -142,6 +142,10 @@ data class LauncherState(
     val homeInk: String = "AUTO",
     /** iOS-style tinted materials: Home's glass takes on the wallpaper's color. */
     val tintedGlass: Boolean = true,
+    /** Wallpaper Tint for glass (Clear ↔ Tinted), 0–1; half is Folio's original tint. Used while [tintedGlass] is on. */
+    val glassTint: Float = .5f,
+    /** Accessibility › Reduce Transparency: glass becomes nearly solid (also follows Android's high contrast). */
+    val reduceTransparency: Boolean = false,
     /** Black rounded corners over Home, like the iPhone Duo concept (issue #8). */
     val roundedCorners: Boolean = false,
     /** Dock along the bottom on phone-sized screens (the cover) in portrait, instead of on the Side Bar. */
@@ -732,6 +736,9 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setSystemWallpaper(value: Boolean) = updateSettings(soon = false) { it.copy(systemWallpaper = value) }
     fun setHomeInk(value: String) = updateSettings(soon = false) { it.copy(homeInk = value) }
     fun setTintedGlass(value: Boolean) = updateSettings(soon = false) { it.copy(tintedGlass = value) }
+    /** One slider for both: all the way to Clear turns tinting off. */
+    fun setGlassTint(value: Float) = updateSettings(soon = true) { it.copy(tintedGlass = value > .01f, glassTint = if (value > .01f) value.coerceIn(0f, 1f) else it.glassTint) }
+    fun setReduceTransparency(value: Boolean) = updateSettings(soon = false) { it.copy(reduceTransparency = value) }
     fun setRoundedCorners(value: Boolean) = updateSettings(soon = false) { it.copy(roundedCorners = value) }
     fun setCornerRadius(value: Float) = updateSettings(soon = true) { it.copy(cornerRadius = value.coerceIn(16f, 72f)) }
     fun setWidgetGlass(value: Float) = updateSettings(soon = true) { it.copy(widgetGlass = value.coerceIn(0f, 1f)) }
@@ -1006,7 +1013,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("labelSize", s.labelSize.name).put("motionSpeed", s.motionSpeed.name)
             .put("widgetGlass", s.widgetGlass.toDouble()).put("glassOutline", s.glassOutline.toDouble())
             .put("focusModes", focusModesToJson(s.focusModes))
-            .put("activeFocus", s.activeFocus ?: "").put("leftPage", s.leftPage).put("todayUnfolded", s.todayUnfolded).put("systemWallpaper", s.systemWallpaper).put("homeInk", s.homeInk).put("tintedGlass", s.tintedGlass)
+            .put("activeFocus", s.activeFocus ?: "").put("leftPage", s.leftPage).put("todayUnfolded", s.todayUnfolded).put("systemWallpaper", s.systemWallpaper).put("homeInk", s.homeInk).put("tintedGlass", s.tintedGlass).put("glassTint", s.glassTint.toDouble()).put("reduceTransparency", s.reduceTransparency)
             .put("roundedCorners", s.roundedCorners).put("cornerRadius", s.cornerRadius.toDouble())
             .put("dimWallpaperDark", s.dimWallpaperDark).put("iconTintFromWallpaper", s.iconTintFromWallpaper)
             .put("tintNotifications", s.tintNotifications).put("tintMedia", s.tintMedia).put("dockMagnify", s.dockMagnify).put("appPanels", s.appPanels).put("haptics", s.haptics).put("lockCover", s.lockCover)
@@ -1251,6 +1258,8 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         systemWallpaper = j.optBoolean("systemWallpaper", false),
         homeInk = j.optString("homeInk", "AUTO").takeIf { it in setOf("AUTO", "LIGHT", "DARK") } ?: "AUTO",
         tintedGlass = j.optBoolean("tintedGlass", true),
+        glassTint = j.optDouble("glassTint", .5).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: .5f,
+        reduceTransparency = j.optBoolean("reduceTransparency", false),
         roundedCorners = j.optBoolean("roundedCorners", false), cornerRadius = j.optDouble("cornerRadius", 40.0).toFloat().coerceIn(16f, 72f), dimWallpaperDark = j.optBoolean("dimWallpaperDark", true),
         iconTintFromWallpaper = j.optBoolean("iconTintFromWallpaper", false),
         tintNotifications = j.optBoolean("tintNotifications", false), tintMedia = j.optBoolean("tintMedia", true),
@@ -1290,3 +1299,10 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
             }
         }
 }
+
+/** How strongly glass takes the wallpaper color: none when tinting is off; half the slider is the original .28. */
+val LauncherState.glassTintAmount: Float get() = if (tintedGlass) .56f * glassTint else 0f
+
+/** Reduce Transparency: nearly solid widgets, Side Bar and dock, with a clearer edge (the saved values stay as they are). */
+fun LauncherState.withSolidGlass(): LauncherState =
+    copy(widgetGlass = maxOf(widgetGlass, .9f), glassOutline = maxOf(glassOutline, .45f), statusStyle = statusStyle.copy(railGlass = maxOf(statusStyle.railGlass, .9f)))

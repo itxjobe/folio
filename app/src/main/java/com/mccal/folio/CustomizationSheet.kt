@@ -660,7 +660,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
             androidx.compose.animation.AnimatedVisibility(sidebarOpen,
                 enter = if (reduceMotion) androidx.compose.animation.fadeIn() else androidx.compose.animation.slideInHorizontally { -it },
                 exit = if (reduceMotion) androidx.compose.animation.fadeOut() else androidx.compose.animation.slideOutHorizontally { -it }) {
-                Box(Modifier.fillMaxHeight().background(androidx.compose.ui.graphics.Color(0xFF1C1C1E))) { sidebar() }
+                Box(Modifier.fillMaxHeight().background(FolioColors.SecondaryBackground)) { sidebar() }
             }
         }
     }
@@ -758,7 +758,7 @@ private fun HelpTip(icon: ImageVector, color: Long, title: String, detail: Strin
 
 
 
-private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 
 /** Tweak-style header: Folio's icon, name and version, like a jailbreak tweak's preference banner. */
 @Composable private fun TweakBanner() {
@@ -813,7 +813,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
         // Good Lock's RegiStar can take over the side key before Android's assistant setting is used.
         val registar = remember(tick) { runCatching { context.packageManager.getPackageInfo("com.samsung.android.app.galaxyregistry", 0) }.isSuccess }
         if (registar) Text("RegiStar (Good Lock) is installed. If it has its own side key action, it runs instead: set RegiStar's Press and hold to Digital assistant, or turn that action off.",
-            style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFF9F0A))
+            style = MaterialTheme.typography.bodySmall, color = FolioColors.Orange)
     }
     SettingsCard(stringResource(R.string.double_press)) {
         SideKeyStep("Double press: Google Wallet", "Side button › Double press › Open app › Wallet", wallet) { open(sideKeyDoublePressSettings(context) ?: sideKeySettings(context)) }
@@ -827,7 +827,7 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
             Text(title)
             CardNote(path)
         }
-        if (done) Icon(Icons.Rounded.CheckCircle, "Done", tint = androidx.compose.ui.graphics.Color(0xFF30D158))
+        if (done) Icon(Icons.Rounded.CheckCircle, "Done", tint = FolioColors.Green)
         else TextButton(onClick = onOpen) { Text(stringResource(R.string.open)) }
     }
 }
@@ -947,7 +947,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                     Text(perm.name, color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp)
                     Text("Used by: ${perm.usedBy}", color = androidx.compose.ui.graphics.Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
-                Text(if (perm.allowed) "Allowed" else "Off", color = if (perm.allowed) androidx.compose.ui.graphics.Color(0xFF30D158)
+                Text(if (perm.allowed) "Allowed" else "Off", color = if (perm.allowed) FolioColors.Green
                     else androidx.compose.ui.graphics.Color.White.copy(alpha = .5f), fontSize = 15.sp)
                 Icon(Icons.Rounded.ChevronRight, null, tint = androidx.compose.ui.graphics.Color.White.copy(alpha = .3f))
             }
@@ -1220,7 +1220,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     val tone = LocalWallpaperTone.current
     val ink = homeInkFor(state.homeInk, tone.prefersDarkText)
     val basePalette = LocalDuoPalette.current
-    val glass = if (state.tintedGlass) tintedGlass(basePalette.glass, tone.primary) else basePalette.glass
+    val glass = if (state.glassTintAmount > 0f) tintedGlass(basePalette.glass, tone.primary, state.glassTintAmount) else basePalette.glass
     // Home page 1 drawn at a real cover-screen size with Folio's own layout math and parts (widget cards, icons,
     // status rail, dock, search pill), then scaled down, so the preview matches Home instead of approximating it.
     val refW = 420f; val refH = 720f
@@ -1462,7 +1462,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                     color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp)
                 TextButton(onClick = { onWidget(placement.slot) }) { Text(stringResource(R.string.replace)) }
                 IconButton(onClick = { onRemoveWidget(placement.slot) }, modifier = Modifier.semantics { contentDescription = if (placement.page == -1) "Remove widget from Unfolded-only page" else "Remove widget" }) {
-                    Icon(Icons.Rounded.RemoveCircle, null, tint = androidx.compose.ui.graphics.Color(0xFFFF453A)) }
+                    Icon(Icons.Rounded.RemoveCircle, null, tint = FolioColors.Red) }
             }
             MenuDivider()
         }
@@ -1722,8 +1722,8 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
 
 /** Beta label beside a title, like TestFlight features. */
 @Composable private fun BetaTag() {
-    Text("BETA", color = androidx.compose.ui.graphics.Color(0xFFFF9F0A), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
-        modifier = Modifier.padding(start = 8.dp).border(1.dp, androidx.compose.ui.graphics.Color(0xFFFF9F0A), RoundedCornerShape(5.dp))
+    Text("BETA", color = FolioColors.Orange, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
+        modifier = Modifier.padding(start = 8.dp).border(1.dp, FolioColors.Orange, RoundedCornerShape(5.dp))
             .padding(horizontal = 5.dp, vertical = 1.dp))
 }
 
@@ -1783,15 +1783,24 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
     val presets = listOf("CLEAR" to .08f, "LIGHT" to .16f, "FROSTED" to .26f, "SOLID" to .55f)
     val rail = state.statusStyle.railGlass
     val current = presets.firstOrNull { (_, v) -> kotlin.math.abs(state.widgetGlass - v) < .005f && kotlin.math.abs(rail - v) < .005f }?.first ?: "CUSTOM"
+    val solid = LocalSolidGlass.current
     SettingsCard("Glass") {
-        IosMenuRow("Style", listOf("CLEAR" to "Clear", "LIGHT" to "Light", "FROSTED" to "Frosted", "SOLID" to "Solid") +
+        if (!solid) IosMenuRow("Style", listOf("CLEAR" to "Clear", "LIGHT" to "Light", "FROSTED" to "Frosted", "SOLID" to "Solid") +
             (if (current == "CUSTOM") listOf("CUSTOM" to "Custom") else emptyList()), current,
             { key -> presets.firstOrNull { it.first == key }?.let { model.setGlassPreset(it.second) } }, tag = "glass-style")
-        CustomizationSlider("Widgets", "${(state.widgetGlass * 100).toInt()}%", state.widgetGlass, 0f..0.8f, onChange = model::setWidgetGlass)
-        CustomizationSlider("Side Bar", "${(rail * 100).toInt()}%", rail, 0f..0.8f) { model.setStatusStyle(state.statusStyle.copy(railGlass = it)) }
-        CustomizationSlider("Outline", if (state.glassOutline < .01f) "Off" else "${(state.glassOutline * 100).toInt()}%", state.glassOutline, 0f..0.5f, onChange = model::setGlassOutline)
-        SettingsSwitch(stringResource(R.string.tint_glass_with_wallpaper_color), state.tintedGlass, model::setTintedGlass, "tinted-glass-switch")
-        CardNote("Frost is how see-through widgets and the Side Bar are; the outline is the thin light edge around them.")
+        if (!solid) {
+            CustomizationSlider("Widgets", "${(state.widgetGlass * 100).toInt()}%", state.widgetGlass, 0f..0.8f, onChange = model::setWidgetGlass)
+            CustomizationSlider("Side Bar", "${(rail * 100).toInt()}%", rail, 0f..0.8f) { model.setStatusStyle(state.statusStyle.copy(railGlass = it)) }
+            CustomizationSlider("Outline", if (state.glassOutline < .01f) "Off" else "${(state.glassOutline * 100).toInt()}%", state.glassOutline, 0f..0.5f, onChange = model::setGlassOutline)
+        }
+        // Clear ↔ Tinted, like iOS: all the way left is clear glass, the middle is Folio's usual wallpaper tint.
+        val tint = if (state.tintedGlass) state.glassTint else 0f
+        CustomizationSlider("Wallpaper Tint", when { tint < .01f -> "Clear"; tint > .99f -> "Tinted"; else -> "${(tint * 100).toInt()}%" },
+            tint, 0f..1f, default = .5f, peek = true, onChange = model::setGlassTint)
+        SettingsSwitch("Reduce Transparency", state.reduceTransparency, model::setReduceTransparency, "reduce-transparency-switch")
+        CardNote(if (solid && !state.reduceTransparency) "Glass is nearly solid because Android's high contrast is on."
+            else if (solid) "Widgets, the Side Bar and the dock are nearly solid, with a clearer edge. Glass settings return when this is off."
+            else "Frost is how see-through widgets and the Side Bar are; the outline is the thin light edge around them.")
     }
 }
 
@@ -1804,7 +1813,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
             Box(Modifier.size(56.dp)) {
                 Box(Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(androidx.compose.ui.graphics.Color(0xFF3A3A3C)))
                 val color = look.badgeColor.fixed?.let { androidx.compose.ui.graphics.Color(it) }
-                    ?: if (look.badgeColor == BadgeColor.SOFT) androidx.compose.ui.graphics.Color(0xFFE5E5EA) else androidx.compose.ui.graphics.Color(0xFFFF3B30)
+                    ?: if (look.badgeColor == BadgeColor.SOFT) androidx.compose.ui.graphics.Color(0xFFE5E5EA) else FolioColors.RedLight
                 IconBadge(count, state.badgeStyle, color, state.badgeLook, state.badgeSize.scale)
             }
         }
@@ -1889,7 +1898,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
                         else android.text.format.DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS) }
                         ?: "Updates come from Folio's GitHub releases"
                 }, style = MaterialTheme.typography.bodySmall,
-                    color = if (status is SoftwareUpdate.Status.Failed) androidx.compose.ui.graphics.Color(0xFFFF453A) else MaterialTheme.colorScheme.onSurfaceVariant)
+                    color = if (status is SoftwareUpdate.Status.Failed) FolioColors.Red else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1948,7 +1957,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
             if (notes.isNotEmpty()) {
                 (if (expanded) notes else notes.take(6)).forEach { line -> Text(line, style = MaterialTheme.typography.bodyMedium) }
                 if (notes.size > 6 || release.notesUrl.isNotBlank()) Text(if (!expanded && notes.size > 6) "More" else "Full Release Notes",
-                    color = androidx.compose.ui.graphics.Color(0xFF0A84FF), style = MaterialTheme.typography.bodyMedium,
+                    color = FolioColors.Blue, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
                         if (!expanded && notes.size > 6) expanded = true
                         else runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(release.notesUrl))) }

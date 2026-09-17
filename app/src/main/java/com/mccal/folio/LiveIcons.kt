@@ -362,15 +362,15 @@ internal data class LivePalette(val calendarBackground: Color, val calendarNumbe
     }
 }
 
-private val IconRedLight = Color(0xFFFF3B30)
+private val IconRedLight = FolioColors.RedLight
 /** The frosted tile behind Clear icons. */
 internal val ClearTile = Color.White.copy(alpha = .2f)
-private val IconDark = Color(0xFF1C1C1E)
+private val IconDark = FolioColors.SecondaryBackground
 private val IconFace = Color(0xFF2C2C2E)
-private val IconRed = Color(0xFFFF453A)
-private val IconOrange = Color(0xFFFF9F0A)
+private val IconRed = FolioColors.Red
+private val IconOrange = FolioColors.Orange
 
-internal val BadgeRed = Color(0xFFFF3B30)
+internal val BadgeRed = FolioColors.RedLight
 private val SoftNeutral = Color(0xFFE5E5EA)
 
 /** iOS-style badge: sits over the icon's top-right corner, a dot or a pill that widens for 2+ digits. */
@@ -382,7 +382,7 @@ internal fun androidx.compose.foundation.layout.BoxScope.IconBadge(count: Int, s
         val h = (if (style == BadgeStyle.COUNT) maxWidth * .34f else maxWidth * .22f) * scale
         val pill = androidx.compose.foundation.shape.CircleShape
         val fill = when (badgeLook) {
-            BadgeLook.GLASS -> Color(0xFF1C1C1E).copy(alpha = .78f)
+            BadgeLook.GLASS -> FolioColors.SecondaryBackground.copy(alpha = .78f)
             else -> color
         }
         val readable = when {

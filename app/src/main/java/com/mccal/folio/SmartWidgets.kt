@@ -55,19 +55,19 @@ internal fun UpNextCard(onEdit: () -> Unit) {
     }
     GlassCard(onClick = onEdit) {
         Column {
-            Text(today.format(DateTimeFormatter.ofPattern("EEEE")).uppercase(), color = Color(0xFFFF453A), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = .6.sp)
+            Text(today.format(DateTimeFormatter.ofPattern("EEEE")).uppercase(), color = FolioColors.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = .6.sp)
             Text(today.dayOfMonth.toString(), color = ink.primary, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, lineHeight = 32.sp)
         }
         when {
             !allowed -> Column(Modifier.clip(RoundedCornerShape(10.dp)).clickable { ask.launch(Manifest.permission.READ_CALENDAR) }) {
                 Icon(Icons.Rounded.CalendarToday, null, tint = ink.secondary, modifier = Modifier.size(18.dp))
                 Text("Show Up Next", color = ink.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text("Allow calendar access", color = Color(0xFF0A84FF), fontSize = 12.sp)
+                Text("Allow calendar access", color = FolioColors.Blue, fontSize = 12.sp)
             }
             events.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 events.take(2).forEach { e ->
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { UpNext.openEvent(context, e) }, verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(3.dp).height(30.dp).clip(RoundedCornerShape(2.dp)).background(e.color?.let { Color(it) } ?: Color(0xFF0A84FF)))
+                        Box(Modifier.width(3.dp).height(30.dp).clip(RoundedCornerShape(2.dp)).background(e.color?.let { Color(it) } ?: FolioColors.Blue))
                         Spacer(Modifier.width(6.dp))
                         Column {
                             Text(e.title, color = ink.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -77,7 +77,7 @@ internal fun UpNextCard(onEdit: () -> Unit) {
                 }
             }
             alarm != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Alarm, null, tint = Color(0xFFFF9F0A), modifier = Modifier.size(16.dp))
+                Icon(Icons.Rounded.Alarm, null, tint = FolioColors.Orange, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
                 Text(time(alarm), color = ink.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }

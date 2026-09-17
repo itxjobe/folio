@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 
 /** iOS-style controls for Folio's settings (the sheet is always dark glass). */
 private val IosGreen = Color(0xFF34C759)
-private val IosBlue = Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 private val IosTrackOff = Color(0xFF39393D)
 
 /** iOS switch: 51×31 green track with a white thumb that springs across. */
@@ -113,7 +113,7 @@ internal fun IosSearchField(query: String, onQuery: (String) -> Unit, placeholde
 /** iOS blue (or red) text action row inside a grouped list. */
 @Composable
 internal fun IosActionRow(text: String, tag: String? = null, destructive: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
-    val color = if (destructive) Color(0xFFFF453A) else Color(0xFF0A84FF)
+    val color = if (destructive) FolioColors.Red else FolioColors.Blue
     androidx.compose.material3.Text(text, color = if (enabled) color else Color.White.copy(alpha = .3f), fontSize = 17.sp,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier))

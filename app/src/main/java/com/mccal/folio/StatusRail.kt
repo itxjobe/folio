@@ -317,14 +317,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWifiFan(w: Floa
 
 private val BatteryCharging = Color(0xFF6EE39A)
 /** Activity-ring colors (iOS system green, cyan-blue and orange), with darker versions for light capsules. */
-private val RingGreen = Color(0xFF30D158)
+private val RingGreen = FolioColors.Green
 private val RingGreenOnLight = Color(0xFF248A3D)
-private val RingBlue = Color(0xFF64D2FF)
+private val RingBlue = FolioColors.Cyan
 private val RingBlueOnLight = Color(0xFF0071A4)
-private val RingOrange = Color(0xFFFF9F0A)
+private val RingOrange = FolioColors.Orange
 private val RingOrangeOnLight = Color(0xFFC93400)
 /** iOS shows Silent mode's bell in red. */
-private val Silent = Color(0xFFFF453A)
+private val Silent = FolioColors.Red
 private val SilentOnLight = Color(0xFFD70015)
 private val BatteryLow = Color(0xFFFFB35C)
 /** iOS's darker system green and orange, which keep their contrast on light backgrounds. */

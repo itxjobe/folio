@@ -206,7 +206,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                         first.icon?.let { Image(it.asImageBitmap(), first.appLabel, Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp))
                             .graphicsLayer { alpha = if (filterApp == null || selected) 1f else .45f }) }
                         if (group.size > 1) Box(Modifier.align(Alignment.TopEnd).offset(4.dp, (-4).dp).heightIn(min = 16.dp).widthIn(min = 16.dp)
-                            .background(Color(0xFFFF3B30), CircleShape).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                            .background(FolioColors.RedLight, CircleShape).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                             Text("${group.size}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp)
                         }
                     }
@@ -826,11 +826,11 @@ private fun EmptyNote(text: String, action: String?, onAction: () -> Unit) {
 
 private val ModuleGlass = FolioGlass.module
 private val NotifGlass = FolioGlass.card
-private val AccentBlue = Color(0xFF0A84FF)
-private val AccentGreen = Color(0xFF30D158)
-private val AccentOrange = Color(0xFFFF9F0A)
-private val AccentPurple = Color(0xFF5E5CE6)
-private val AccentRed = Color(0xFFFF453A)
+private val AccentBlue = FolioColors.Blue
+private val AccentGreen = FolioColors.Green
+private val AccentOrange = FolioColors.Orange
+private val AccentPurple = FolioColors.Indigo
+private val AccentRed = FolioColors.Red
 
 private class DeviceControls(private val context: Context) {
     private val camera = context.getSystemService(CameraManager::class.java)

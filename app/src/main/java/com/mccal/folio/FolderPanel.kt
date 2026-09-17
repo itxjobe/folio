@@ -1,7 +1,6 @@
 package com.mccal.folio
 
 import androidx.compose.ui.res.stringResource
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,12 +46,14 @@ internal fun FolderPanel(
     var closing by remember(folder.id) { mutableStateOf(false) }
     val close: () -> Unit = {
         if (!closing) { closing = true; scope.launch {
-            appear.animateTo(0f, MotionSpeed.spring(1f, 700f)); onDismiss()
+            appear.animateTo(0f, FolioMotion.spring(FolioMotion.Firm)); onDismiss()
         } }
     }
     val tile = remember(folder.id) { IconBounds.of(folder.id) }
     var panelBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
-    BackHandler { close() }
+    // Predictive back: the folder shrinks toward its icon as you swipe, and closes (or springs back) when you let go.
+    PredictiveBack(enabled = !closing, onProgress = { p -> scope.launch { appear.snapTo(1f - .35f * p) } },
+        onCancel = { scope.launch { appear.animateTo(1f, FolioMotion.spring(FolioMotion.Quick)) } }, onBack = close)
     DisposableEffect(folder.id) { onDispose { if (title.isNotBlank() && title != folder.title) onRename(title) } }
     DisposableEffect(drag, folder.id) {
         drag.activeSourceScope = folder.id
@@ -107,7 +108,7 @@ internal fun FolderPanel(
             .testTag("folder-panel-content"),
             color = when (folderLook.background) {
                 FolderBackground.GLASS -> FolioGlass.card
-                FolderBackground.SOLID -> Color(0xFF1C1C1E)
+                FolderBackground.SOLID -> FolioColors.SecondaryBackground
                 FolderBackground.CLEAR -> Color.Transparent
             }, contentColor = Color.White, shape = RoundedCornerShape(38.dp),
             border = if (folderLook.background == FolderBackground.CLEAR) null else FolioGlass.edge) {

@@ -335,7 +335,7 @@ fun LauncherScreen(
             confirmButton = { TextButton(onClick = { SettingsLink.page = CustomizationPage.BACKUP; customizationPage = CustomizationPage.BACKUP; sheet = "settings" }) { Text("Restore…") } },
             dismissButton = { Row {
                 TextButton(onClick = { problemDismissed = true }) { Text("Not Now") }
-                TextButton(onClick = { model.resetDamagedLayout() }) { Text("Start Fresh", color = Color(0xFFFF453A)) }
+                TextButton(onClick = { model.resetDamagedLayout() }) { Text("Start Fresh", color = FolioColors.Red) }
             } })
         else AlertDialog(onDismissRequest = { problemDismissed = true },
             title = { Text("Apps Couldn’t Be Loaded") },
@@ -355,7 +355,13 @@ fun LauncherScreen(
     }
     BackHandler(enabled = sheet == "widgets") { widgetPickerBack() }
     // Off while Spotlight or a top panel is open, so Back always closes those first, whatever order the handlers registered in.
-    BackHandler(enabled = sheet.isEmpty() && !launcherActivity.spotlightVisible.value && launcherActivity.topPanel.value == null) { if (resizeSlot != null) resizeSlot = null else if (drag.active) {
+    // App Library, predictive back: the library eases back as you swipe and returns to Home when you let go.
+    var libraryBack by remember { mutableFloatStateOf(0f) }
+    val libraryBackActive = sheet.isEmpty() && !launcherActivity.spotlightVisible.value && launcherActivity.topPanel.value == null &&
+        pager.currentPage == visibleHomePages && resizeSlot == null && !drag.active && selectedId == null && !homeEdit.active
+    PredictiveBack(enabled = libraryBackActive, onProgress = { libraryBack = it }, onCancel = { libraryBack = 0f },
+        onBack = { focus.clearFocus(); scope.launch { pager.animateScrollToPage(0); libraryBack = 0f } })
+    BackHandler(enabled = sheet.isEmpty() && !launcherActivity.spotlightVisible.value && launcherActivity.topPanel.value == null && !libraryBackActive) { if (resizeSlot != null) resizeSlot = null else if (drag.active) {
         val destination = if (drag.source?.target is DropTarget.Library) homePages else drag.originPage.coerceAtMost(homePages - 1)
         drag.clear(); scope.launch { pager.scrollToPage(destination) }
     } else if (selectedId != null) selectedId = null else if (homeEdit.active) homeEdit.stop()
@@ -527,7 +533,12 @@ fun LauncherScreen(
         val tone = LocalWallpaperTone.current
         val homeInk = homeInkFor(state.homeInk, tone.prefersDarkText)
         val basePalette = LocalDuoPalette.current
-        val palette = if (state.tintedGlass) remember(basePalette, tone.primary) { basePalette.copy(glass = tintedGlass(basePalette.glass, tone.primary)) } else basePalette
+        val tintAmount = state.glassTintAmount
+        val tinted = if (tintAmount > 0f) remember(basePalette, tone.primary, tintAmount) { basePalette.copy(glass = tintedGlass(basePalette.glass, tone.primary, tintAmount)) } else basePalette
+        // Reduce Transparency: nearly solid glass must still contrast with the text on it, so it's dark under white text
+        // and light under dark text (whatever the appearance), keeping a little of the wallpaper tint.
+        val palette = if (LocalSolidGlass.current) tinted.copy(glass = tintedGlass(
+            if (homeInk.dark) Color(0xFFF2F2F7) else FolioColors.SecondaryBackground, tone.primary, tintAmount * .5f)) else tinted
         val homeApps = remember(state.apps, state.hiddenApps) { HomeApps(state.apps.filter { it.id !in state.hiddenApps && it.available }) { onLaunchFrom(it, null) } }
         CompositionLocalProvider(LocalWidgetStacks provides state.widgetStacks, LocalStackRotate provides state.stackRotate, LocalHomeApps provides homeApps,
             LocalHomeInk provides homeInk, LocalDuoPalette provides palette,
@@ -735,7 +746,9 @@ fun LauncherScreen(
                         onActions = { selectedId = it.id }, onWidget = { if (focusLock != null) lockNotice++ else { widgetSlot = it; sheet = "widgetActions" } },
                         onFolder = { openFolderId = it },
                         onEmptyWidget = onEmptyLongPress,
+                        onMove = { id, offset -> if (focusLock != null) lockNotice++ else model.move(id, offset) },
                         onRefresh = model::refresh,
+                        libraryBack = { libraryBack },
                         leftPageContent = leftPageContent,
                         besideContent = if (todayMode && state.todayUnfolded == "BESIDE") todayContent else null,
                     )
@@ -756,7 +769,9 @@ fun LauncherScreen(
                         AppLibrary(state, libraryQuery, { libraryQuery = it }, onLaunch, model::setPinned,
                             // Unfolded portrait: the Side Bar's status capsule sits in the top corner, so the library keeps
                             // the same side margin Home does instead of running underneath it.
-                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize().padding(top = 16.dp, bottom = bottomSpace)
+                            onActions = { selectedId = it.id }, modifier = Modifier.fillMaxSize()
+                                .graphicsLayer { val b = libraryBack; scaleX = 1f - .14f * b; scaleY = scaleX; alpha = 1f - .35f * b; translationX = size.width * .08f * b }
+                                .padding(top = 16.dp, bottom = bottomSpace)
                                 .padding(libraryEdges(geometry.horizontalDock && !geometry.dockBesideRail && state.verticalStatus, preset.dockWidth, state.leftHanded)).testTag("library-page"),
                             drag = drag, page = visibleHomePages, onLaunchFrom = onLaunchFrom, onTurnOnWork = { model.turnOnWork(it) })
                     } else {
@@ -768,6 +783,7 @@ fun LauncherScreen(
                                 onWidget = { if (focusLock != null) lockNotice++ else { widgetSlot = it; sheet = "widgetActions" } },
                                 onFolder = { openFolderId = it },
                                 onEmptyWidget = onEmptyLongPress,
+                                onMove = { id, offset -> if (focusLock != null) lockNotice++ else model.move(id, offset) },
                                 onRefresh = model::refresh)
                         }
                     }
@@ -1557,7 +1573,7 @@ private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
         .padding(start = 16.dp, end = 4.dp).testTag("home-setup"), verticalAlignment = Alignment.CenterVertically) {
         Text("Preview", color = ink.secondary, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.width(12.dp))
-        Text("Use as Home", color = Color(0xFF0A84FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+        Text("Use as Home", color = FolioColors.Blue, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onUseAsHome)
                 .heightIn(min = 48.dp).wrapContentHeight().padding(horizontal = 8.dp).testTag("preview-use-as-home"))
         IconButton(onClick = onExit, Modifier.size(48.dp).testTag("preview-exit")) {

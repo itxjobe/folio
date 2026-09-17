@@ -107,16 +107,16 @@ class PinWidgetActivity : ComponentActivity() {
 @Composable
 private fun PinCard(onCancel: () -> Unit, error: String?, addLabel: String, tag: String, onAdd: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)).clickable(onClick = onCancel), contentAlignment = Alignment.BottomCenter) {
-        Column(Modifier.padding(16.dp).widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xFF1C1C1E))
+        Column(Modifier.padding(16.dp).widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(FolioColors.SecondaryBackground)
             .pointerInput(Unit) { detectTapGestures() }.padding(20.dp).testTag("$tag-card"),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             content()
-            error?.let { Text(it, color = Color(0xFFFF453A), fontSize = 14.sp, textAlign = TextAlign.Center) }
-            Box(Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
+            error?.let { Text(it, color = FolioColors.Red, fontSize = 14.sp, textAlign = TextAlign.Center) }
+            Box(Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(14.dp)).background(FolioColors.Blue)
                 .clickable(onClick = onAdd).testTag("$tag-add"), contentAlignment = Alignment.Center) {
                 Text(addLabel, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             }
-            Text("Cancel", color = Color(0xFF0A84FF), fontSize = 17.sp, modifier = Modifier.clickable(onClick = onCancel).padding(8.dp))
+            Text("Cancel", color = FolioColors.Blue, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onCancel).padding(8.dp))
         }
     }
 }
