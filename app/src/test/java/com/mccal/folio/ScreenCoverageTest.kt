@@ -22,6 +22,9 @@ class ScreenCoverageTest {
         if (g.rowHeight < 48f) out += "row ${g.rowHeight}"
         if (g.dockRowHeight < 48f) out += "dock row ${g.dockRowHeight}"
         if (g.homeWidth > w + .5f) out += "home wider than window"
+        // Breathing room between apps: at least a fifth of each column (and 8 dp).
+        val space = g.cellWidth - g.iconSize
+        if (space < maxOf(8f, g.cellWidth * .19f)) out += "apps only ${space} dp apart"
         val side = if (g.horizontalDock && !g.dockBesideRail) 0f else preset.sanitized().dockWidth + 28f
         if (g.gridWidth + side > (if (g.expanded) g.homeWidth + 16f else w) + .5f) out += "grid ${g.gridWidth} too wide"
         val bottom = 44f + if (g.horizontalDock) g.dockBarHeight + 16f else 0f
@@ -95,7 +98,9 @@ class ScreenCoverageTest {
             600f to 700f, 650f to 700f, 700f to 700f, 700f to 840f, 704f to 930f, 800f to 700f, 838f to 945f,
             840f to 700f, 841f to 701f, 852f to 883f, 932f to 704f, 1000f to 800f,
             // Tri-folds and other very large unfolded screens.
-            1200f to 900f, 1350f to 900f, 1500f to 1000f)
+            1200f to 900f, 1350f to 900f, 1500f to 1000f,
+            // Galaxy Z TriFold main and Z Fold8 Ultra inner, and their covers (estimated at 420 dpi; see ScreenMatrixTest).
+            823f to 603f, 859f to 954f, 411f to 960f)
         for ((w, h) in sizes) for (labels in listOf(true, false)) {
             yield(Triple(w, h) { problems(w, h, labels = labels) }); yield(Triple(h, w) { problems(h, w, labels = labels) })
         }
@@ -106,6 +111,19 @@ class ScreenCoverageTest {
         for ((w, h) in listOf(240f to 260f, 260f to 240f, 280f to 280f, 300f to 300f))
             yield(Triple(w, h) { problems(w, h).filter { it.startsWith("invalid") || it.startsWith("dock row") || it.startsWith("row") } })
     })
+
+    @Test fun `micro cover mode covers only tiny windows and its apps always fit`() {
+        for ((w, h) in listOf(240f to 260f, 260f to 260f, 280f to 280f, 300f to 300f, 320f to 320f, 300f to 420f))
+            org.junit.Assert.assertTrue("${w}×$h", isMicroWindow(w, h))
+        for ((w, h) in listOf(321f to 321f, 360f to 640f, 320f to 640f, 640f to 320f, 475f to 751f, 280f to 480f))
+            org.junit.Assert.assertFalse("${w}×$h", isMicroWindow(w, h))
+        for (w in 200..480) {
+            val n = microAppCount(w.toFloat())
+            org.junit.Assert.assertTrue("$w: $n apps", 2 * 18f + n * 48f + (n - 1).coerceAtLeast(0) * 10f <= w)
+        }
+        org.junit.Assert.assertEquals(4, microAppCount(260f))
+        org.junit.Assert.assertEquals(5, microAppCount(320f))
+    }
 
     /** A book-style hinge anywhere across a tall page: rows under it move below it, and a widget is never split. */
     @Test fun `a hinge anywhere across the page moves whole rows below it`() {

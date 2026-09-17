@@ -19,6 +19,10 @@ class ScreenMatrixTest {
         Screen("Medium Phone / Pixel 9", 411f, 923f), Screen("Pixel 9 Pro", 427f, 952f), Screen("Pixel 9 Pro XL", 448f, 997f),
         Screen("6.7\" Horizontal Fold-in (flip, open)", 360f, 879f), Screen("7.4\" Rollable", 610f, 925f),
         Screen("Galaxy Z Fold8 cover", 475f, 751f), Screen("Galaxy Z Fold8 inner", 932f, 704f),
+        // Galaxy Z TriFold and Z Fold8 Ultra: pixels from Samsung's specs (via GSMArena) at an assumed 420 dpi like
+        // the Fold8; no measured density is published yet, so these are estimates (the TriFold's main screen most of all).
+        Screen("Galaxy Z TriFold main (estimated)", 823f, 603f), Screen("Galaxy Z TriFold cover (estimated)", 411f, 960f),
+        Screen("Galaxy Z Fold8 Ultra inner (estimated)", 859f, 954f), Screen("Galaxy Z Fold8 Ultra cover (estimated)", 411f, 960f),
         Screen("Pixel Fold inner", 841f, 701f), Screen("Pixel 9 Pro Fold inner", 852f, 883f), Screen("8\" Fold-out", 838f, 945f),
         Screen("7\" WSVGA tablet", 1024f, 600f), Screen("Nexus 7", 600f, 960f), Screen("Nexus 9", 1024f, 768f),
         Screen("Medium Tablet / Pixel Tablet", 1280f, 800f), Screen("Pixel C", 1280f, 900f),

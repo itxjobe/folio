@@ -528,6 +528,17 @@ fun LauncherScreen(
             // windows (unfolded portrait) keep Home centered: the island sits below the status and beside the dock bar.
             .union(rememberSideIslandInsets(state.island && androidx.compose.ui.platform.LocalConfiguration.current.let {
                 !it.fitsRegularHomeLayout() })))) {
+            // Tier C: a tiny cover screen gets the focused Home instead of a full page shrunk past tappable sizes.
+            // Settings and first-run setup still open over the regular screen below.
+            if (isMicroWindow(maxWidth.value, maxHeight.value) && sheet.isEmpty() && !showFirstRun) {
+                val microApps = remember(state.dock, state.homeSlots, appsById) {
+                    (state.dock + state.homeSlots).filterNotNull().distinct().mapNotNull(appsById::get)
+                }
+                MicroHome(microApps, deviceStatus, maxWidth, maxHeight, onLaunch = onLaunch,
+                    onNotifications = { launcherActivity.openSystemShade(ShadePanel.NOTIFICATIONS) },
+                    onSearch = { launcherActivity.openSpotlight() }, onSettings = { sheet = "settings" })
+                return@BoxWithConstraints
+            }
             val classScale = androidx.compose.ui.platform.LocalConfiguration.current.classScale
             val wide = maxWidth.value * classScale >= 650f && maxHeight.value * classScale >= HOME_REGULAR_MIN_HEIGHT_DP
             val preset = if (wide) state.expanded else state.compact

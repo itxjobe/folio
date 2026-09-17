@@ -156,7 +156,9 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     // Keep the same icon rhythm when labels are hidden; allow larger system text to fit.
     val labelSpace = if (labels) maxOf(20f, labelHeight) else 20f
     fun rowFor(iconSize: Float, gap: Float) = maxOf(48f, iconSize + labelSpace) + gap
-    var icon = minOf(p.iconSize, (gridWidth / 4f - 10f).coerceAtLeast(32f))
+    // Icons take at most 80% of their column, so the space between apps grows with the screen instead of
+    // shrinking to a sliver on narrow phones.
+    var icon = minOf(p.iconSize, (gridWidth / 4f * .8f).coerceAtLeast(32f))
     var gap = p.rowGap
     var widget = minOf(176f, gridWidth / 2f - 5f).coerceAtLeast(88f)
     val fitHeight = height - 16f - homeBottomSpace
@@ -184,7 +186,8 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     val row = rowFor(icon, gap)
     // Center the page vertically. Two columns: the left half (widget row plus two app rows) is the taller one.
     val pageHeight = if (splitColumns) maxOf(widget + 18f + 2f * row, 3f * row) else widget + 18f + 4f * row
-    val contentTop = ((height - pageHeight - homeBottomSpace) / 2f).coerceIn(16f, 72f)
+    // Centered in the free space; tall phones may sit lower (up to 18% of the height) instead of leaving the bottom empty.
+    val contentTop = ((height - pageHeight - homeBottomSpace) / 2f).coerceIn(16f, maxOf(72f, height * .18f))
     // Search reclaims the redundant bottom controls' space for all four dock apps.
     // Extremely short windows still scroll rather than reduce touch targets below 48dp.
     // The status rail sits at the content top; in two columns the dock shares its edge with it, so it starts below.

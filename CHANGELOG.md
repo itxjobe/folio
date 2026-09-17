@@ -15,6 +15,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
 - Try Folio before making it your Home app: until then, Folio's icon opens Home as a preview, with Use as Home and an exit button. Back on the first page or the Home gesture takes you back to your Home Screen, and setup reminders wait until you choose Folio.
 - Dock and status position, for each screen (Home Screen & Dock › Position): the dock can be Automatic, always on the Side Bar, or along the bottom (landscape phones and small windows keep the Side Bar so every row fits). The status can sit level with your apps or anywhere you like with the Status height slider, and the dock's own height slider now covers the whole Side Bar; the dock always stays below the status.
+- Tiny cover screens (like some flip phones) get a focused Home: the time, your first dock apps, what's playing, and ways into Notification Center and Search. Tap the time for Notification Center, hold it for Settings.
 - Pull down from the top of the App Library for Notification Center and Control Center, like iOS.
 - Folders show the total of their apps' notification badges, like iOS.
 - Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
@@ -23,6 +24,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
 
 ### Fixed
+- On tall phones, Home sits centered in the screen instead of high up with empty space below.
+- On narrower phones, apps keep more space between them: icons never take more than 80% of their column.
+- Android's status bar no longer reappears over the Side Bar status after changing Display size, Smallest width or window size.
 - On folds with more than one hinge (tri-folds) and dual-screen phones, sheets, menus and alerts stay on one panel instead of crossing a hinge.
 - With a larger Smallest width (like 600 dp for the cover screen), the unfolded screen no longer gets bigger icons and the cover's two-column layout: Folio's tablet scaling now judges the screen at the phone's own density.
 - The Home Screen & Dock preview shows the unfolded layout on the Inner tab.

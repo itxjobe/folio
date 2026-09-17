@@ -615,6 +615,13 @@ class MainActivity : ComponentActivity() {
         LiveDiscover.setExternalResultPending(this, "main", "appearance-location", false)
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Folding, Display size, Smallest width or split screen can bring Android's status bar back over the Side Bar
+        // status; hide it again once the new layout is in place.
+        window.decorView.post { setStatusMode(model.state.value.verticalStatus) }
+    }
+
     private fun setStatusMode(vertical: Boolean) {
         LiveDiscover.host.get()?.statusMode(vertical)
         val controller = WindowCompat.getInsetsController(window, window.decorView)
