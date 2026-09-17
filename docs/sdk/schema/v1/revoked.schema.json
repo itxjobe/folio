@@ -59,7 +59,7 @@
         "properties": {
           "url": {
             "type": "string",
-            "pattern": "^https://",
+            "pattern": "^https://\\S+$",
             "maxLength": 2048
           },
           "reason": {

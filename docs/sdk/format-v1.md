@@ -49,10 +49,22 @@ Limits:
 | `icon` | path | `assets/icon.png`, square, at least 180 px. |
 | `depiction` | path | Usually `depiction.json`. |
 | `license` | string | SPDX id, e.g. `MIT`. GPL code isn't accepted in the Community source. |
+| `description` | text | One or two sentences, shown under the name. |
+| `provides` *(later)* | array of enum | `iconPack`, `wallpapers`, `widgets`, `folioTheme`: what an external app brings. |
+| `via` *(later)* | array of object | Required with kind `externalApp`: `{ "store": "playStore"\|"fdroid", "id": … }` or `{ "store": "obtainium", "repoUrl": … }`. |
 | `requires` | object | `{ "features": [capability ids] }`: the Folio capabilities this package configures. See [Capabilities](#capabilities). |
-| `origin` *(0.7.x)* | enum | Set by Folio, not authors: `folio-source`, `file`, `play-icon-pack`, `launcher-import`. |
 
-**Text values:** any *text* field is either a plain string, or an object of language tags with an `en` fallback: `{ "en": "Sunset Icons", "es": "Iconos Atardecer" }`.
+**Text values:** any *text* field is either a plain string, or an object of language tags with an `en` fallback:
+`{ "en": "Sunset Icons", "es": "Iconos Atardecer" }`. Tags look like `en`, `es` or `pt-BR`, there are at most 64 of them, and
+two tags that differ only in case are refused. Folio shows the exact tag if it has it, then the bare language, then any
+regional variant of it, then `en`. Text is at most 400 characters, except `name` (40) and a `markdown` block (4,000).
+
+**Where Folio records the origin:** `folio-source`, `file`, `play-icon-pack` or `launcher-import` is stored with the
+installed package, not in the manifest. Authors never set it, and a manifest that includes it has that field skipped.
+
+**Limits Folio enforces while reading:** `manifest.json` is at most 64 KB and `depiction.json` at most 256 KB; JSON nests
+at most 32 levels; `depends` and `conflicts` list at most 32 entries each. Files must be strict JSON (RFC 8259):
+comments, unquoted keys, single quotes, trailing commas, trailing text and duplicate keys are all refused.
 
 **Kinds:**
 
@@ -232,6 +244,10 @@ Scripts can only use actions whose permission they declare. New permissions come
 
 ## Versioning this format
 
-- **Additive changes** (new optional fields, new kinds or block types) keep `format: 1`. Older Folio versions ignore what they don't know.
+- **Additive changes** (new optional fields, new kinds or block types) keep `format: 1`. Older Folio versions ignore what they don't know:
+  - An unknown **field** is skipped, and the rest of the file is used.
+  - An unknown **block** in a page is skipped, so the rest of the page still shows.
+  - An unknown **kind, permission, section, screen or capability**, or a higher `format`, means the package needs a newer
+    Folio. Folio won't install it rather than guess: those values decide what a package may change.
 - **Breaking changes** use `format: 2`, with a new schema folder. Folio keeps reading v1.
 - **Compatibility:** every v1 package in `market/src/test/resources/corpus/v1/` must keep installing in every future Folio version.

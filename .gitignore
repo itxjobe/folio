@@ -17,3 +17,6 @@ discover-probe/
 *.p12
 *.pem
 *.key
+
+# Jazzer's generated corpus (seeds live in market/src/test/resources)
+.cifuzz-corpus/

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://folio.mccal.dev/schema/v1/manifest.schema.json",
+  "format": 1,
+  "id": "dev.example.mono-line-icons",
+  "name": { "en": "Mono Line Icons", "es": "Iconos Mono Línea", "pt-BR": "Ícones Mono Linha" },
+  "version": "2:1.4.0~beta2-1",
+  "author": { "name": "Example Studio", "url": "https://example.com" },
+  "minFolio": "0.7.0",
+  "section": "themes",
+  "kind": ["externalApp", "iconPackLink"],
+  "permissions": ["icons", "home.appearance"],
+  "screens": ["inner"],
+  "depends": ["com.mccal.folio.classic (>= 1.0)", "dev.example.base"],
+  "conflicts": ["dev.example.old-icons (<< 2:0)"],
+  "icon": "assets/icon.png",
+  "depiction": "depiction.json",
+  "license": "Apache-2.0",
+  "description": "Test fixture: an example listing for an icon pack app. Not a real package.",
+  "via": [
+    { "store": "playStore", "id": "com.example.monoline" },
+    { "store": "fdroid", "id": "com.example.monoline" },
+    { "store": "obtainium", "repoUrl": "https://github.com/example/monoline" }
+  ],
+  "provides": ["iconPack"],
+  "requires": { "features": ["icons.packs", "icons"] }
+}

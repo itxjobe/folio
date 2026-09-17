@@ -52,7 +52,8 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 400
-              }
+              },
+              "maxProperties": 64
             }
           ]
         },
@@ -75,7 +76,8 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 400
-              }
+              },
+              "maxProperties": 64
             }
           ]
         },
@@ -115,7 +117,8 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 400
-                    }
+                    },
+                    "maxProperties": 64
                   }
                 ]
               }
@@ -133,7 +136,7 @@
         },
         "url": {
           "type": "string",
-          "pattern": "^https://",
+          "pattern": "^https://\\S+$",
           "maxLength": 2048
         },
         "items": {
