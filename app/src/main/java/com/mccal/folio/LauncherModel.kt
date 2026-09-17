@@ -925,7 +925,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         val s = mutable.value
         fun preset(p: LayoutPreset) = JSONObject().put("iconSize", p.iconSize).put("rowGap", p.rowGap)
             .put("dockWidth", p.dockWidth).put("dockPosition", p.dockPosition).put("dockAlignToGrid", p.dockAlignToGrid)
-            .put("dockPlacement", p.dockPlacement.name).put("statusTop", p.statusTop)
+            .put("dockPlacement", p.dockPlacement.name).put("statusAlignToGrid", p.statusAlignToGrid).put("statusPosition", p.statusPosition)
         val widgets = JSONArray().also { array -> s.widgetPlacements.forEach { w -> array.put(JSONObject()
             .put("slot", w.slot).put("id", w.id).put("page", w.page).put("column", w.column).put("row", w.row)
             .put("spanX", w.spanX).put("spanY", w.spanY)) } }
@@ -1002,7 +1002,9 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 p.optDouble("dockWidth", default.dockWidth.toDouble()).toFloat(),
                 p.optDouble("dockPosition", default.dockPosition.toDouble()).toFloat(),
                 p.optBoolean("dockAlignToGrid", true), DockPlacement.parse(p.optString("dockPlacement")),
-                p.optBoolean("statusTop", false)).sanitized()
+                // 0.6.1 development builds saved "statusTop" (the top of the screen).
+                p.optBoolean("statusAlignToGrid", !p.optBoolean("statusTop", false)),
+                p.optDouble("statusPosition", 0.0).toFloat()).sanitized()
             return upgradePreset(loaded, j.optInt("schema", 1), key == "expanded")
         }
         val order = j.optJSONArray(if (j.optInt("schema", 1) >= 2) "pinned" else "order") ?: JSONArray()

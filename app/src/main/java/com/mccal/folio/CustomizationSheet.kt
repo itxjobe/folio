@@ -637,7 +637,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         // The space beside the list shows what the page changes, drawn from your real Home.
-                        if (page == CustomizationPage.HOME || page == CustomizationPage.STATUS)
+                        if (page == CustomizationPage.HOME && wide) UnfoldedHomePreview(backgrounds.previewBitmap, state, 200.dp)
+                        else if (page == CustomizationPage.HOME || page == CustomizationPage.STATUS)
                             MiniHomePreview(backgrounds.previewBitmap, state, 240.dp)
                         pageContent()
                     }
@@ -1197,7 +1198,9 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
 @Composable private fun MiniHomePreview(stagedBitmap: android.graphics.Bitmap?, state: LauncherState,
     previewHeight: androidx.compose.ui.unit.Dp, framed: Boolean = true,
     /** The Side Bar (status, dock and search): off for the second page of an unfolded preview, which has one Side Bar. */
-    sideBar: Boolean = true) {
+    sideBar: Boolean = true,
+    /** The cover's layout by default; the inner screen's for an unfolded preview. */
+    preset: LayoutPreset = state.compact) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val backgroundRevision = LauncherBackgroundCache.revision.intValue
     val committedBitmap = remember(backgroundRevision) { cachedLauncherBackground(context) }
@@ -1210,7 +1213,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     // Home page 1 drawn at a real cover-screen size with Folio's own layout math and parts (widget cards, icons,
     // status rail, dock, search pill), then scaled down, so the preview matches Home instead of approximating it.
     val refW = 420f; val refH = 720f
-    val geometry = homeGeometry(refW, refH, state.compact, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f)
+    val geometry = homeGeometry(refW, refH, preset, state.labels, statusHeight = if (state.verticalStatus) 180f else 0f, labelHeight = 20f)
     val placements = state.widgetPlacements.filter { it.page == 0 }
     val cells = HomeCellLayout.forPage(geometry, placements.map { it.row to it.spanY })
     val (iconSize, labels) = (state.pageStyles[0] ?: PageStyle()).apply(geometry, state.labels)
@@ -1262,10 +1265,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                         }
                     }
                     if (sideBar && state.verticalStatus) StatusRail(DeviceStatus(battery = 80, wifiConnected = true, wifiLevel = 4, cellularLevel = 4),
-                        Modifier.align(railAlign).then(railEdge).offset(y = geometry.statusTop.dp).width(state.compact.dockWidth.dp),
+                        Modifier.align(railAlign).then(railEdge).offset(y = geometry.statusTop.dp).width(preset.dockWidth.dp),
                         iconSize = dockIconSize(iconSize).dp, style = state.statusStyle)
                     if (sideBar && geometry.dockBesideRail) Box(Modifier.align(if (left) Alignment.BottomEnd else Alignment.BottomStart)
-                        .width((refW - state.compact.dockWidth - 28f).dp).padding(bottom = 58.dp), contentAlignment = Alignment.Center) { Row(Modifier
+                        .width((refW - preset.dockWidth - 28f).dp).padding(bottom = 58.dp), contentAlignment = Alignment.Center) { Row(Modifier
                         .height(geometry.dockBarHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         state.dock.forEach { id ->
@@ -1274,7 +1277,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                             }
                         }
                     } }
-                    else if (sideBar) Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(state.compact.dockWidth.dp)
+                    else if (sideBar) Column(Modifier.align(railAlign).then(railEdge).offset(y = geometry.dockTop.dp).width(preset.dockWidth.dp)
                         .height(geometry.dockHeight.dp).background(glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
                         .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         state.dock.forEach { id ->
@@ -1284,7 +1287,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                         }
                     }
                     if (sideBar && state.searchPill) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
-                        .then(if (left) Modifier.padding(start = (state.compact.dockWidth + 24f).dp) else Modifier.padding(end = (state.compact.dockWidth + 24f).dp))) {
+                        .then(if (left) Modifier.padding(start = (preset.dockWidth + 24f).dp) else Modifier.padding(end = (preset.dockWidth + 24f).dp))) {
                         HomeSearchPill {}
                     }
                 }
@@ -1392,18 +1395,20 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
     SettingsCard("Position") {
         IosMenuRow("Dock", listOf(DockPlacement.AUTOMATIC to "Automatic", DockPlacement.SIDE to "Side Bar", DockPlacement.BOTTOM to "Bottom"),
             p.dockPlacement, { model.setPreset(wide, p.copy(dockPlacement = it)) }, tag = "dock-placement")
-        IosMenuRow("Status", listOf(false to "Level with Apps", true to "Top"), p.statusTop,
-            { model.setPreset(wide, p.copy(statusTop = it)) }, tag = "status-position")
+        IosMenuRow("Status", listOf(true to "Level with Apps", false to "Custom"), p.statusAlignToGrid,
+            { model.setPreset(wide, p.copy(statusAlignToGrid = it)) }, tag = "status-position")
+        if (!p.statusAlignToGrid) CustomizationSlider("Status height", if (p.statusPosition < .01f) "Top" else "${(p.statusPosition * 100).toInt()}%",
+            p.statusPosition, 0f..1f) { model.setPreset(wide, p.copy(statusPosition = it)) }
         CardNote(when (p.dockPlacement) {
             DockPlacement.AUTOMATIC -> if (wide) "The dock stays on the Side Bar, and moves to the bottom when the screen is upright." else "The dock stays on the Side Bar."
             DockPlacement.SIDE -> "The dock stays on the Side Bar, even when the screen is upright."
             DockPlacement.BOTTOM -> if (wide) "The dock sits along the bottom, under your pages." else "The dock sits along the bottom. In landscape it moves to the Side Bar, so every row of apps fits."
-        } + if (p.statusTop) " The status starts at the top of the screen." else "")
+        } + if (!p.statusAlignToGrid) " The dock always stays below the status." else "")
     }
     SettingsCard("Side Bar") {
         CustomizationSlider("Width", "${p.dockWidth.toInt()} dp", p.dockWidth, 56f..84f) { model.setPreset(wide, p.copy(dockWidth = it)) }
         if (p.dockPlacement != DockPlacement.BOTTOM) SettingsSwitch(stringResource(R.string.align_dock_with_app_rows), p.dockAlignToGrid, { model.setPreset(wide, p.copy(dockAlignToGrid = it)) })
-        if (!p.dockAlignToGrid && p.dockPlacement != DockPlacement.BOTTOM) CustomizationSlider("Dock height on screen", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, .25f.. .75f) { model.setPreset(wide, p.copy(dockPosition = it)) }
+        if (!p.dockAlignToGrid && p.dockPlacement != DockPlacement.BOTTOM) CustomizationSlider("Dock height", "${(p.dockPosition * 100).toInt()}%", p.dockPosition, 0f..1f) { model.setPreset(wide, p.copy(dockPosition = it)) }
     }
     SheetGroup { IosActionRow(stringResource(R.string.reset_this_layout), destructive = true, onClick = { model.setPreset(wide, LayoutPreset()) }) }
     // Per-page looks (after Atria): each page can have its own icon size and labels.
@@ -1538,6 +1543,20 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             modifier = Modifier.padding(start = 16.dp, top = 10.dp).semantics { heading() })
         GroupedCard(MaterialTheme.colorScheme.surfaceContainerHigh, androidx.compose.ui.graphics.Color.White.copy(alpha = .12f),
             Modifier.fillMaxWidth(), content)
+    }
+}
+
+/** The open Fold for the Inner tab: two Home pages with one Side Bar, laid out with the inner screen's settings. */
+@Composable private fun UnfoldedHomePreview(bitmap: android.graphics.Bitmap?, state: LauncherState, height: androidx.compose.ui.unit.Dp) {
+    val corner = 18.dp
+    val bezel = 5.dp
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(Modifier.clip(RoundedCornerShape(corner + bezel)).background(androidx.compose.ui.graphics.Color(0xFF0B0B0C))
+            .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = .2f), RoundedCornerShape(corner + bezel)).padding(bezel)
+            .clip(RoundedCornerShape(corner)).clearAndSetSemantics { contentDescription = "Preview of Home on the inner screen" }) {
+            MiniHomePreview(bitmap, state, height, framed = false, sideBar = state.leftHanded, preset = state.expanded)
+            MiniHomePreview(bitmap, state, height, framed = false, sideBar = !state.leftHanded, preset = state.expanded)
+        }
     }
 }
 

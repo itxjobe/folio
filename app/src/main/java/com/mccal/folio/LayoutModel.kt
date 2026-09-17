@@ -11,14 +11,17 @@ data class LayoutPreset(
     val dockAlignToGrid: Boolean = true,
     /** Home Screen & Dock › Dock: per screen, like the other values here. */
     val dockPlacement: DockPlacement = DockPlacement.AUTOMATIC,
-    /** Home Screen & Dock › Status › Top: the status Side Bar starts at the top instead of level with the apps. */
-    val statusTop: Boolean = false,
+    /** Home Screen & Dock › Status: level with the first row of apps, or at [statusPosition]. */
+    val statusAlignToGrid: Boolean = true,
+    /** 0 = the top of the screen, 1 = as low as it goes while the dock still fits under it. */
+    val statusPosition: Float = 0f,
 ) {
     fun sanitized() = copy(
         iconSize = iconSize.coerceIn(40f, 68f),
         rowGap = rowGap.coerceIn(0f, 28f),
         dockWidth = dockWidth.coerceIn(56f, 84f),
-        dockPosition = dockPosition.coerceIn(0.25f, 0.75f),
+        dockPosition = dockPosition.coerceIn(0f, 1f),
+        statusPosition = statusPosition.coerceIn(0f, 1f),
     )
 }
 
@@ -173,12 +176,20 @@ fun homeGeometry(width: Float, height: Float, preset: LayoutPreset, labels: Bool
     // Center the page vertically. Two columns: the left half (widget row plus two app rows) is the taller one.
     val pageHeight = if (splitColumns) maxOf(widget + 18f + 2f * row, 3f * row) else widget + 18f + 4f * row
     val contentTop = ((height - pageHeight - homeBottomSpace) / 2f).coerceIn(16f, 72f)
-    val statusTop = if (p.statusTop) 16f else contentTop
     // Search reclaims the redundant bottom controls' space for all four dock apps.
     // Extremely short windows still scroll rather than reduce touch targets below 48dp.
     // The status rail sits at the content top; in two columns the dock shares its edge with it, so it starts below.
     val homeReserve = if (railControls) 124f else 28f
     val bottomReserve = if (inLibrary) 12f else homeReserve
+    // A custom status position runs from the top down to where the status still leaves room for four dock targets
+    // under it (or, with the dock at the bottom, until it would reach the dock bar). Before the status is measured it
+    // sits level with the apps.
+    val statusSpan = (statusHeight - 22f).coerceAtLeast(0f)
+    val statusTop = if (p.statusAlignToGrid || statusHeight <= 0f) contentTop else {
+        val lowest = if (horizontalDock) height - homeBottomSpace - statusSpan
+            else height - homeReserve - 4f * 48f - 16f - 10f - statusSpan
+        16f + p.statusPosition * (lowest - 16f).coerceAtLeast(0f)
+    }
     // [statusHeight] is the rail's full height (its location slot included) plus a 22dp margin, and the rail sits at
     // [contentTop], so the dock starts 10dp under the status capsule whatever the capsule holds (Focus, Silent, Rings…).
     // In very short windows the gap gives way first, never the capsule itself.
@@ -290,7 +301,9 @@ private const val LIBRARY_GAP_DP = 14f
  */
 fun uiScale(widthDp: Float, heightDp: Float, classScale: Float = 1f): Float {
     if (!isRegularSize(widthDp, heightDp, classScale)) return 1f
-    val long = maxOf(widthDp, heightDp)
-    val short = minOf(widthDp, heightDp)
+    // Judged at the device's own density: a phone set to a larger Smallest width / smaller Screen zoom has more dp,
+    // not a bigger screen, and scaling it up would undo that choice (and shrink Home below the unfolded layout).
+    val long = maxOf(widthDp, heightDp) * classScale
+    val short = minOf(widthDp, heightDp) * classScale
     return minOf(long / 960f, short / 700f).coerceIn(1f, 1.45f)
 }

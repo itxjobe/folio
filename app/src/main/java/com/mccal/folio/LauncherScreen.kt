@@ -597,6 +597,7 @@ fun LauncherScreen(
                 launcherActivity.backups.preview == null && !launcherActivity.backups.pickerPending &&
                 !launcherActivity.backgrounds.pickerPending && widgets.setupStatus == null &&
                 widgets.reconfigureWidgetId == null
+            val libraryPullZone = with(density) { 40.dp.toPx() }
             Box(Modifier.fillMaxSize().onGloballyPositioned {
                 gestureOriginInRoot = it.boundsInRoot().topLeft
                 gestureOriginInWindow = it.boundsInWindow().topLeft
@@ -609,7 +610,10 @@ fun LauncherScreen(
                 // stream untouched so scrollable widgets retain native gesture handling.
                 // A dock that is already scrolled, or magnifies under the finger, also gets first use of a downward drag.
                 canStartDownwardSwipe = { point ->
-                    if (pager.currentPage !in 0 until visibleHomePages) false else {
+                    // App Library: like iOS, Notification Center and Control Center pull down from the top edge; lower
+                    // down, a downward drag scrolls the library.
+                    if (pager.currentPage == visibleHomePages) point.y < libraryPullZone
+                    else if (pager.currentPage !in 0 until visibleHomePages) false else {
                         val region = drag.hit(point + gestureOriginInRoot, eligibleDragPages)
                         val rootOnScreen = IntArray(2).also(launcherRootView::getLocationOnScreen)
                         val screenPoint = point + gestureOriginInWindow +
@@ -625,7 +629,8 @@ fun LauncherScreen(
                 },
                 canStartGesture = { point -> geometry.expanded || homePages < 2 || !state.pageScrub || !scrubberBounds.contains(point + gestureOriginInRoot) },
                 onDownwardSwipe = { panel ->
-                    if (panel == ShadePanel.SEARCH) { if (state.swipeDownSearch) launcherActivity.openSpotlight() }
+                    // The App Library has its own search field, so a pull from its top middle does nothing.
+                    if (panel == ShadePanel.SEARCH) { if (state.swipeDownSearch && pager.currentPage != visibleHomePages) launcherActivity.openSpotlight() }
                     else launcherActivity.openSystemShade(panel)
                 },
                 onLeadingOverscroll = if (firstHome == 0 && discoverMode) onDiscover else null,
