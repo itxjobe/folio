@@ -225,7 +225,7 @@
           "icon": "lock",
           "color": "#30D158",
           "title": "More privacy controls",
-          "detail": "More ways to keep what's on your screen private, planned for 0.8.0.",
+          "detail": "Private Space support, and more ways to keep what's on your screen private, planned for 0.8.0.",
           "status": "planned"
         },
         {
