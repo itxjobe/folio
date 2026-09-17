@@ -6,6 +6,7 @@ The private key stays on this machine; Folio only ever carries the public half.
     ./scripts/beta-code.py newkey                      # writes supporter-key.pem, prints the public key
     ./scripts/beta-code.py mint --scopes beta,look     # one code, no expiry
     ./scripts/beta-code.py mint --scopes beta --expires 2027-01-01 --count 25
+    ./scripts/beta-code.py pool --scopes beta --count 200 > pool.sql   # load into the Ko-fi worker
 
 Paste the printed public key into BetaKeys.SUPPORTER (app/src/main/java/com/mccal/folio/Supporter.kt).
 Codes are checked on the phone against that key, so nothing here needs a server.
@@ -74,7 +75,7 @@ def base32(data):
     return "-".join(text[i:i + 5] for i in range(0, len(text), 5))
 
 
-def mint(key, scopes, tier, expires, count):
+def mint(key, scopes, tier, expires, count, sql_pool=None):
     bits = 0
     for scope in scopes:
         if scope not in SCOPES:
@@ -90,7 +91,11 @@ def mint(key, scopes, tier, expires, count):
         serial = secrets.randbits(32)
         payload = bytes([VERSION, bits, tier, day >> 8 & 0xFF, day & 0xFF]) + serial.to_bytes(4, "big")
         der = run(["openssl", "dgst", "-sha256", "-sign", key], stdin=payload)
-        print(base32(payload + raw_signature(der)))
+        code = base32(payload + raw_signature(der))
+        if sql_pool:
+            print(f"INSERT OR IGNORE INTO codes (code, pool) VALUES ('{code}', '{sql_pool}');")
+        else:
+            print(code)
 
 
 def main():
@@ -104,11 +109,20 @@ def main():
     make.add_argument("--tier", type=int, default=1, help="0-255, your own meaning (1 = coffee, 2 = more)")
     make.add_argument("--expires", help="YYYY-MM-DD; leave out for a code that never expires")
     make.add_argument("--count", type=int, default=1)
+    pool = sub.add_parser("pool", help="codes as SQL, to load into the Ko-fi worker")
+    pool.add_argument("--key", default="supporter-key.pem")
+    pool.add_argument("--scopes", default="beta", help=f"comma separated: {', '.join(SCOPES)}")
+    pool.add_argument("--tier", type=int, default=1)
+    pool.add_argument("--expires", help="YYYY-MM-DD; leave out for a code that never expires")
+    pool.add_argument("--count", type=int, default=100)
+    pool.add_argument("--pool", help="pool name in the worker (default: the scopes joined by +)")
     args = parser.parse_args()
     if args.command == "newkey":
         newkey(args.key)
-    else:
-        mint(args.key, [s.strip() for s in args.scopes.split(",") if s.strip()], args.tier, args.expires, args.count)
+        return
+    scopes = [s.strip() for s in args.scopes.split(",") if s.strip()]
+    pool_name = (args.pool or "+".join(scopes)) if args.command == "pool" else None
+    mint(args.key, scopes, args.tier, args.expires, args.count, pool_name)
 
 
 if __name__ == "__main__":
