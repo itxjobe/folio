@@ -64,6 +64,37 @@ class LabSettingsParityTest {
         assertTrue("the lab still has to draw the third column", "tweakPage(" in style)
     }
 
+    @Test fun `the pages the lab draws are the app's own cards, in the app's own words`() {
+        val data = json()
+        assumeTrue("settings.json predates generated pages", data.has("pages"))
+        val pages = data.getJSONObject("pages")
+        assertTrue("the lab should draw most of the settings pages, not a handful", pages.length() >= 10)
+
+        val body = sheet.readText()
+        val strings = File(root, "app/src/main/res/values/strings.xml").readText()
+        var checked = 0
+        for (tag in pages.keys()) {
+            val cards = pages.getJSONArray(tag)
+            for (i in 0 until cards.length()) {
+                val card = cards.getJSONObject(i)
+                val controls = card.getJSONArray("controls")
+                for (j in 0 until controls.length()) {
+                    val control = controls.getJSONObject(j)
+                    val text = control.optString("title").ifEmpty { control.optString("text") }
+                    // A line that's built at run time keeps only its literal parts, so it won't be found whole.
+                    if (text.isEmpty() || control.optBoolean("dynamic")) continue
+                    val escaped = text.replace("&", "&amp;").replace("'", "\\'")
+                    assertTrue(
+                        "the lab says \"$text\" on $tag, and the app doesn't",
+                        body.contains("\"$text\"") || strings.contains(">$escaped<") || strings.contains(">$text<"),
+                    )
+                    checked++
+                }
+            }
+        }
+        assertTrue("nothing was actually compared", checked >= 30)
+    }
+
     @Test fun `the setup steps and permissions are the app's own`() {
         val data = json()
         val steps = data.getJSONArray("setupSteps").titles()
