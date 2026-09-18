@@ -1,9 +1,14 @@
 package com.mccal.folio
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 import android.content.Context
 import com.mccal.folio.market.BuiltInSource
 import com.mccal.folio.market.FileStore
 import com.mccal.folio.market.FolioPackage
+import com.mccal.folio.market.FolioVersion
 import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.InstalledPackage
@@ -27,7 +32,12 @@ import java.io.File
  *
  * Sources over the network come in Phase 6; until then the only source is Folio's own, which needs no network at all.
  */
-internal class MarketSession(context: Context, launcher: MarketLauncher) {
+internal class MarketSession(
+    context: Context,
+    launcher: MarketLauncher,
+    /** Where reading, unpacking and applying happen. A test replaces it so it doesn't have to wait on a thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) {
     private val appContext = context.applicationContext
 
     val source = BuiltInSource(
@@ -42,7 +52,10 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
 
     private val store = InstalledStore(files)
     private val safeMode = PackageSafeMode(files)
-    private val installer = PackageInstaller(store, MarketHost(launcher), safeMode)
+    private val installer = PackageInstaller(
+        store, MarketHost(launcher), safeMode,
+        folioVersion = FolioVersion.fromAppVersion(WhatsNew.currentVersion(context)),
+    )
 
     /** Whether this build can read an unsigned source served from the phone: Folio Dev only. */
     val localDevAllowed = MarketFeature.isDevBuild(appContext.packageName)
@@ -56,6 +69,8 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
         ),
         list = SourceList(files),
         http = UrlHttpClient(),
+        io = io,
+        knownRevocations = { source.revocations() },
     )
 
     /** The package list, or null when the bundled files are unreadable, which only a broken build can cause. */
@@ -69,19 +84,28 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
      * Revoked packages keep their place with the reason, so nothing disappears without an explanation.
      */
     fun entries(): List<MarketEntry> = buildList {
-        index()?.packages?.forEach { add(MarketEntry(it, builtIn)) }
+        // Folio's own revocation list rules everywhere: it can pull one of Folio's packages, and it can pull a
+        // package offered by a source that hasn't admitted it yet.
+        val ours = source.revocations()
+        index()?.packages?.forEach { add(MarketEntry(it, builtIn, ours?.reasonFor(it.id, it.version))) }
         for (status in sources.cached()) {
             val snapshot = status.snapshot ?: continue
             val unsigned = status.source.kind == Source.Kind.LOCAL_DEV
             snapshot.index.packages.forEach { entry ->
-                add(MarketEntry(entry, status.source, snapshot.revokedReason(entry), unsigned))
+                val reason = snapshot.revokedReason(entry) ?: ours?.reasonFor(entry.id, entry.version)
+                add(MarketEntry(entry, status.source, reason, unsigned))
             }
         }
     }
 
-    /** Downloads and installs a package from a source the user added. */
-    suspend fun get(entry: MarketEntry): InstallResult = when (entry.source.kind) {
-        Source.Kind.BUILT_IN -> get(entry.entry)
+    /**
+     * Downloads and installs a package. A package the source has pulled is refused here as well as in the store, so
+     * there is no screen that can install one, and reading, unpacking and applying always happen off the main thread.
+     */
+    suspend fun get(entry: MarketEntry): InstallResult = when {
+        entry.revokedReason != null ->
+            InstallResult.Failed(InstallResult.Reason.REVOKED, "${entry.name} was pulled by its source: ${entry.revokedReason}")
+        entry.source.kind == Source.Kind.BUILT_IN -> withContext(io) { get(entry.entry) }
         else -> sources.download(entry.entry, entry.source, installer)
     }
 
@@ -104,8 +128,9 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
     fun read(bytes: ByteArray): PackageInstaller.ReadResult = installer.read(bytes)
 
     /** Installs a file someone opened. It's recorded as coming from a file, not from a source. */
-    fun installFile(bytes: ByteArray): InstallResult =
+    suspend fun installFile(bytes: ByteArray): InstallResult = withContext(io) {
         installer.install(bytes, origin = InstalledPackage.Origin.FILE)
+    }
 
     fun remove(id: String): Boolean = installer.remove(id)
 

@@ -53,7 +53,7 @@ sealed interface InstallResult {
 
     data class Failed(val reason: Reason, val message: String) : InstallResult
 
-    enum class Reason { HASH, SIZE, ARCHIVE, MANIFEST, MISMATCH, CONFLICT, DEPENDS, APPLY }
+    enum class Reason { HASH, SIZE, ARCHIVE, MANIFEST, MISMATCH, CONFLICT, DEPENDS, APPLY, REVOKED, NEEDS_NEWER }
 }
 
 /**
@@ -68,6 +68,8 @@ class PackageInstaller(
     private val host: PackageHost,
     private val safeMode: PackageSafeMode = PackageSafeMode(store.keyValue),
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+    /** This build's release number, for a package's `minFolio`. Null skips that check, which only a test does. */
+    private val folioVersion: FolioVersion? = null,
 ) {
     /**
      * Reads [bytes] as a package and applies it. [expected] is the index entry it came from, when there was one: its
@@ -94,10 +96,21 @@ class PackageInstaller(
         return apply(pkg, origin, sourceUrl)
     }
 
-    private fun apply(pkg: FolioPackage, origin: InstalledPackage.Origin, sourceUrl: String?): InstallResult {
+    private fun apply(
+        pkg: FolioPackage,
+        origin: InstalledPackage.Origin,
+        sourceUrl: String?,
+        builtIn: Boolean = false,
+    ): InstallResult {
         val missing = pkg.manifest.missingCapabilities(host.capabilities).map { it.id } +
             pkg.changes.flatMap { it.capabilities }.filterNot { it in host.capabilities }.map { it.id }
         if (missing.isNotEmpty()) return InstallResult.NeedsNewerFolio(missing.distinct())
+        // Capabilities catch a package that names something this build hasn't got; `minFolio` catches one that needs a
+        // later Folio's behaviour without naming anything. Both mean the same thing to the user.
+        val needs = pkg.manifest.minFolio
+        if (!builtIn && folioVersion != null && needs > folioVersion) {
+            return InstallResult.NeedsNewerFolio(listOf("Folio $needs"))
+        }
         val already = store.installed()
         already.firstOrNull { it.id != pkg.id && pkg.manifest.conflicts.any { c -> c.id == it.id && c.matches(it.version) } }
             ?.let { return InstallResult.Failed(InstallResult.Reason.CONFLICT, "that package replaces ${it.name}") }
@@ -159,7 +172,10 @@ class PackageInstaller(
             is ReadResult.NeedsNewerFolio -> return InstallResult.NeedsNewerFolio(read.missing)
             is ReadResult.Failed -> return InstallResult.Failed(read.reason, read.message)
         }
-        return apply(pkg, InstalledPackage.Origin.FOLIO_SOURCE, sourceUrl = null)
+        // A package that ships inside this APK can't need a later Folio than the one it's part of, whatever its
+        // manifest says: Folio's own packages name the release they're written for, and the version number is only
+        // bumped when that release goes out.
+        return apply(pkg, InstalledPackage.Origin.FOLIO_SOURCE, sourceUrl = null, builtIn = true)
     }
 
     /** Takes a package off, putting back whatever it replaced. */

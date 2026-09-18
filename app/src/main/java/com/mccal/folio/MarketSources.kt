@@ -7,6 +7,7 @@ import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.RefreshResult
 import com.mccal.folio.market.RepoClient
+import com.mccal.folio.market.RevocationList
 import com.mccal.folio.market.Source
 import com.mccal.folio.market.SourceKey
 import com.mccal.folio.market.SourceList
@@ -50,6 +51,11 @@ internal class MarketSources(
     private val list: SourceList,
     private val http: HttpClient,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /**
+     * The revocation list Folio ships with. A source listed there is refused before Folio calls it at all, which is
+     * the only way to disown a source that has been taken over between releases.
+     */
+    private val knownRevocations: () -> RevocationList? = { null },
 ) {
     fun sources(): List<Source> = list.added()
 
@@ -86,7 +92,8 @@ internal class MarketSources(
 
     suspend fun refresh(url: String, force: Boolean): RefreshResult = withContext(io) {
         val source = sources().firstOrNull { it.url == normalizeSourceUrl(url) }
-        val result = if (source?.kind == Source.Kind.LOCAL_DEV) client.refreshLocalDev(url) else client.refresh(url, force)
+        val result = if (source?.kind == Source.Kind.LOCAL_DEV) client.refreshLocalDev(url)
+        else client.refresh(url, force, knownRevocations())
         val name = (result as? RefreshResult.Updated)?.snapshot?.index?.name?.english
             ?: (result as? RefreshResult.Unchanged)?.snapshot?.index?.name?.english
         name?.let { list.rename(url, it) }

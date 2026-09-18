@@ -119,25 +119,38 @@ internal fun MarketScreen(
 
     fun refresh() { revision++ }
 
+    /**
+     * Says something in the banner. Undo belongs to the install it came from, so any other message takes it away:
+     * an Undo left over from an earlier install would remove a package the user is happy with.
+     */
+    fun say(text: String?) { message = text; undo = null }
+
+    /** What the banner says about a finished install, and whether it can still be undone. */
+    fun announce(name: String, result: InstallResult) {
+        when (result) {
+            is InstallResult.Installed -> { message = "${result.installed.name} is on"; undo = result }
+            is InstallResult.NeedsNewerFolio -> say("$name needs a newer Folio")
+            is InstallResult.Failed -> say(result.message)
+        }
+        refresh()
+    }
+
     fun apply(entry: MarketEntry) {
         confirming = null
+        // One at a time. Two installs at once would each write the list of what's installed from a copy read before
+        // the other started, so one package would be applied to Home and forgotten, with no way left to remove it.
+        if (busyId != null) return
         busyId = entry.id
         scope.launch {
-            when (val result = session.get(entry)) {
-                is InstallResult.Installed -> {
-                    undo = result
-                    message = "${result.installed.name} is on"
-                }
-                is InstallResult.NeedsNewerFolio -> message = "${entry.name} needs a newer Folio"
-                is InstallResult.Failed -> message = result.message
-            }
+            val result = session.get(entry)
+            announce(entry.name, result)
             busyId = null
-            refresh()
         }
     }
 
     fun remove(id: String, name: String) {
-        if (session.remove(id)) { undo = null; message = "$name removed" }
+        if (busyId != null) return
+        if (session.remove(id)) say("$name removed")
         refresh()
     }
 
@@ -153,8 +166,8 @@ internal fun MarketScreen(
             when (val read = session.read(bytes)) {
                 is com.mccal.folio.market.PackageInstaller.ReadResult.Ok -> importing = bytes to read.pkg
                 is com.mccal.folio.market.PackageInstaller.ReadResult.NeedsNewerFolio ->
-                    message = "That package needs a newer Folio"
-                is com.mccal.folio.market.PackageInstaller.ReadResult.Failed -> message = read.message
+                    say("That package needs a newer Folio")
+                is com.mccal.folio.market.PackageInstaller.ReadResult.Failed -> say(read.message)
             }
         }
     }
@@ -212,7 +225,7 @@ internal fun MarketScreen(
                                 scope.launch {
                                     val result = session.sources.addLocalDev(DEFAULT_LOCAL_SOURCE)
                                     statuses = session.sources.cached()
-                                    message = refreshMessage(Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result)
+                                    say(refreshMessage(Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result))
                                     refresh()
                                 }
                             },
@@ -221,14 +234,14 @@ internal fun MarketScreen(
                                     val result = session.sources.refresh(source.url, force = true)
                                     if (result is RefreshResult.NeedsTrust) trusting = result
                                     statuses = session.sources.cached()
-                                    message = refreshMessage(source, result)
+                                    say(refreshMessage(source, result))
                                     refresh()
                                 }
                             },
                             onForgetSource = { source ->
                                 session.sources.forget(source.url)
                                 statuses = session.sources.cached()
-                                message = "${source.label} removed"
+                                say("${source.label} removed")
                                 refresh()
                             },
                             entries = entries,
@@ -250,6 +263,7 @@ internal fun MarketScreen(
                             entry = open.entry,
                             session = session,
                             installed = installed[open.id],
+                            revoked = open.revokedReason,
                             sourceName = open.source.label,
                             showBack = !split,
                             onBack = { openId = null },
@@ -288,14 +302,13 @@ internal fun MarketScreen(
                         ),
                         onGet = {
                             importing = null
-                            message = session.installFile(bytes).let { result ->
-                                when (result) {
-                                    is InstallResult.Installed -> { undo = result; "${result.installed.name} is on" }
-                                    is InstallResult.NeedsNewerFolio -> "That package needs a newer Folio"
-                                    is InstallResult.Failed -> result.message
+                            if (busyId == null) {
+                                busyId = pkg.manifest.id
+                                scope.launch {
+                                    announce(pkg.manifest.name.english, session.installFile(bytes))
+                                    busyId = null
                                 }
                             }
-                            refresh()
                         },
                         onCancel = { importing = null },
                     )
@@ -318,10 +331,10 @@ internal fun MarketScreen(
                             scope.launch {
                                 when (val result = session.sources.inspect(typed)) {
                                     is RefreshResult.NeedsTrust -> trusting = result
-                                    is RefreshResult.Failed -> message = result.message
+                                    is RefreshResult.Failed -> say(result.message)
                                     else -> {
                                         statuses = session.sources.cached()
-                                        message = "That source is already set up"
+                                        say("That source is already set up")
                                     }
                                 }
                             }
@@ -347,7 +360,7 @@ internal fun MarketScreen(
                                 val result = session.sources.trust(request.url, request.key)
                                 statuses = session.sources.cached()
                                 sourceUrl = ""
-                                message = refreshMessage(Source(request.url), result)
+                                say(refreshMessage(Source(request.url), result))
                                 refresh()
                             }
                         },
@@ -629,8 +642,10 @@ private fun MarketRow(
         }
         when {
             busy -> Text("Working…", color = Color.White.copy(alpha = .55f), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp))
-            // A revoked package can be removed but never installed again.
-            entry.revokedReason != null && installed == null -> Text("Unavailable", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            // A revoked package can be removed but never installed again - including as an update, which is how a
+            // pulled package used to slip back in.
+            entry.revokedReason != null && installed != null -> MarketActionButton("Remove", name, onRemove)
+            entry.revokedReason != null -> Text("Unavailable", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
             entry.entry.needs.isNotEmpty() -> Text("Needs a newer Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
             update -> MarketActionButton("Update", name, onGet)
             installed != null -> MarketActionButton("Remove", name, onRemove)
@@ -699,6 +714,7 @@ private fun MarketPackagePage(
     entry: IndexPackage,
     session: MarketSession,
     installed: InstalledPackage?,
+    revoked: String?,
     sourceName: String,
     showBack: Boolean,
     onBack: () -> Unit,
@@ -735,7 +751,15 @@ private fun MarketPackagePage(
         }
 
         Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            MarketActionButton(if (installed != null) "Remove" else "Get", name, if (installed != null) onRemove else onGet)
+            when {
+                // Pulled by its source. Removing what's already on is still allowed; getting it is not.
+                revoked != null && installed == null -> Column(Modifier.testTag("package-unavailable")) {
+                    Text("Unavailable", color = Color(0xFFFFB340), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Its source pulled it: $revoked", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                }
+                installed != null -> MarketActionButton("Remove", name, onRemove)
+                else -> MarketActionButton("Get", name, onGet)
+            }
             Spacer(Modifier.width(8.dp))
             Text(
                 if (installed != null) "Version ${installed.version}" else "Built in",

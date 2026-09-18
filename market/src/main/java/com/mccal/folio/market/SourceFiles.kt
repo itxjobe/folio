@@ -167,7 +167,14 @@ data class RevocationList(val timestamp: Long, val packages: List<RevokedPackage
         entry.id == id && entry.versions.any { it == null || DebVersion.parse(it)?.equals(version) == true }
     }?.reason
 
-    fun reasonForSource(url: String): String? = sources.firstOrNull { it.url.equals(url, ignoreCase = true) }?.reason
+    /**
+     * Why a source was pulled. The address is compared with and without its last slash: Folio stores every source
+     * address ending in one, and nothing tells a publisher their list has to spell it that way.
+     */
+    fun reasonForSource(url: String): String? {
+        val wanted = url.trimEnd('/')
+        return sources.firstOrNull { it.url.trimEnd('/').equals(wanted, ignoreCase = true) }?.reason
+    }
 
     companion object {
         const val MAX_CHARS = 1024 * 1024

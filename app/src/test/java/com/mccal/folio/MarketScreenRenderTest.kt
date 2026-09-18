@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 
 import androidx.compose.ui.test.performClick
@@ -29,9 +30,14 @@ import org.robolectric.annotation.Config
 class MarketScreenRenderTest {
     @get:Rule val compose = createComposeRule()
 
+    /** Installing reads and writes files, so it happens off the main thread: the banner arrives a moment later. */
+    private fun awaitText(text: String) = compose.waitUntil(5_000) {
+        compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+    }
+
     private fun session(): MarketSession {
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
-        return MarketSession(context, NoopLauncher())
+        return MarketSession(context, NoopLauncher(), kotlinx.coroutines.Dispatchers.Unconfined)
     }
 
     private class NoopLauncher : MarketLauncher {
@@ -59,7 +65,7 @@ class MarketScreenRenderTest {
         compose.onNodeWithTag("market-tab-packages").performClick()
         compose.onNodeWithContentDescription("Get Cabinet").performClick()
         compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
-        compose.onNodeWithText("Cabinet is on").assertExists()
+        awaitText("Cabinet is on")
         compose.onNodeWithText("Undo").assertExists()
     }
 
@@ -117,7 +123,7 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Your apps or their data").assertExists()
         assertEquals(emptyList<com.mccal.folio.market.InstalledPackage>(), session.installed())
         compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
-        compose.onNodeWithText("Cabinet is on").assertExists()
+        awaitText("Cabinet is on")
         assertEquals(listOf("com.mccal.folio.cabinet"), session.installed().map { it.id })
     }
 
