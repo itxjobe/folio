@@ -7,6 +7,7 @@ paid: Folio keeps the code and the date it runs out, and that's all.
 
     python3 tools/folio-code.py keygen                       # once: makes the key and prints what goes in the app
     python3 tools/folio-code.py keygen --passphrase          # same, with the key encrypted on disk
+    python3 tools/folio-code.py protect                      # encrypt the key you already have
     python3 tools/folio-code.py mint market                  # a code for the Market that never runs out
     python3 tools/folio-code.py mint market --days 90        # one that runs out in 90 days
     python3 tools/folio-code.py mint '*' --days 365          # everything, for a year
@@ -84,6 +85,52 @@ def keygen(protect: bool) -> None:
     print("Fingerprint:", hashlib.sha256(spki).hexdigest().upper()[:32])
 
 
+def protect() -> None:
+    """Encrypts the key that already exists, in place.
+
+    The new file is written beside the old one and checked before anything is replaced, so a wrong passphrase or a
+    full disk leaves the key as it was. The passphrase is asked for here and never stored: losing it is the same as
+    losing the key, so it belongs in a password manager next to the backup.
+    """
+    if not KEY.exists():
+        sys.exit(f"No {KEY} here. Run this from the folder holding the key (~/.folio).")
+    if encrypted(KEY):
+        sys.exit(f"{KEY} is already encrypted.")
+
+    phrase = getpass.getpass("New passphrase: ")
+    if len(phrase) < 8:
+        sys.exit("That's short enough to guess. Nothing was changed.")
+    if phrase != getpass.getpass("Again: "):
+        sys.exit("Those don't match. Nothing was changed.")
+
+    os.environ["FOLIO_KEY_PASSPHRASE"] = phrase
+    encrypted_file = pathlib.Path(str(KEY) + ".enc")
+    result = subprocess.run(
+        ["openssl", "pkcs8", "-topk8", "-v2", "aes-256-cbc", "-in", str(KEY), "-out", str(encrypted_file),
+         "-passout", "env:FOLIO_KEY_PASSPHRASE"], capture_output=True,
+    )
+    if result.returncode != 0 or not encrypted_file.exists():
+        encrypted_file.unlink(missing_ok=True)
+        sys.exit("openssl couldn't encrypt the key. Nothing was changed.\n" + result.stderr.decode())
+
+    # It has to still be the same key, and still usable, before the old file goes.
+    before = base64.b64encode(public_spki(KEY)).decode()
+    check = subprocess.run(
+        ["openssl", "ec", "-in", str(encrypted_file), "-pubout", "-outform", "DER",
+         "-passin", "env:FOLIO_KEY_PASSPHRASE"], capture_output=True,
+    )
+    if check.returncode != 0 or base64.b64encode(check.stdout).decode() != before:
+        encrypted_file.unlink(missing_ok=True)
+        sys.exit("The encrypted copy didn't read back as the same key. Nothing was changed.")
+
+    encrypted_file.replace(KEY)
+    KEY.chmod(0o600)
+    print(f"{KEY} is encrypted now. Minting will ask for the passphrase.")
+    print("\nTwo things to do, in this order:")
+    print("  1. Put the passphrase in your password manager. Without it the key is gone, and so is every code.")
+    print("  2. Replace your offline backup with this file - the old backup is still unencrypted.")
+
+
 def mint(feature: str, days: int) -> None:
     if not KEY.exists():
         sys.exit(f"No {KEY}. Run: python3 tools/folio-code.py keygen")
@@ -136,6 +183,7 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     maker = commands.add_parser("keygen", help="make the supporter key (once)")
     maker.add_argument("--passphrase", action="store_true", help="encrypt the key on disk; every mint then needs it")
+    commands.add_parser("protect", help="encrypt the key that already exists")
     minter = commands.add_parser("mint", help="make a code")
     minter.add_argument("feature", help="market, or * for everything")
     minter.add_argument("--days", type=int, default=0, help="days until it runs out; 0 means never")
@@ -146,6 +194,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "keygen":
         keygen(args.passphrase)
+    elif args.command == "protect":
+        protect()
     elif args.command == "mint":
         mint(args.feature, args.days)
     else:

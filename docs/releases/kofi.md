@@ -78,9 +78,13 @@ So nobody can forge a code. Three things that are worth being clear-eyed about, 
 Keeping the key safe, in order of how much it buys:
 
 1. **Back it up offline.** Losing it is worse than leaking it: every code already handed out dies with it.
-2. **Encrypt it on disk:** `python3 tools/folio-code.py keygen --passphrase` for a new key, or
-   `openssl pkcs8 -topk8 -v2 aes-256-cbc -in folio-supporter.pem -out folio-supporter.pem.enc` for the one that
-   exists. Minting then asks for the passphrase, or reads `FOLIO_KEY_PASSPHRASE`.
+2. **Encrypt it on disk:** `cd ~/.folio && python3 ~/dev/folio-0.7.0/tools/folio-code.py protect`. It asks for a
+   passphrase twice, writes the encrypted copy beside the old file, checks it reads back as the same key, and only
+   then replaces it - a wrong passphrase or a full disk leaves the key exactly as it was. Minting afterwards asks for
+   the passphrase, or reads `FOLIO_KEY_PASSPHRASE`. A new key can start that way with `keygen --passphrase`.
+
+   The passphrase belongs in a password manager: **without it the key is gone**, and losing the key is worse than
+   leaking it. Replace the offline backup afterwards, since the old backup is still unencrypted.
 3. **Never let it near a server.** `tools/kofi-webhook/` hands out pre-minted codes for exactly this reason.
 4. **CI checks the repository for private keys** on every push (`tools/check-secrets.sh`). `.gitignore` covers the
    usual names, but ignoring a file doesn't stop `git add -f` or a key pasted into a document.
