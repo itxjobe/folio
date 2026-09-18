@@ -52,6 +52,18 @@ class LabSettingsParityTest {
         assertTrue("customization-market" in lab.map { it.second })
     }
 
+    @Test fun `the lab splits Settings at the same widths the app does`() {
+        val scene = File(root, "docs/mockups/lab/scenes/settings.js")
+        assumeTrue("the Mockup Lab isn't on this machine", scene.isFile)
+        val style = scene.readText()
+        val rule = File(root, "app/src/main/java/com/mccal/folio/SizeClass.kt").readText()
+        // Both say 920: the app in settingsColumns, the lab in the scene's own container query. A mockup drawn at a
+        // different threshold would show a layout the phone never produces.
+        assertTrue("the app's three-column threshold moved", "widthDp >= 920f" in rule)
+        assertTrue("the lab's three-column threshold moved", "min-width:920px" in style)
+        assertTrue("the lab still has to draw the third column", "tweakPage(" in style)
+    }
+
     @Test fun `the setup steps and permissions are the app's own`() {
         val data = json()
         val steps = data.getJSONArray("setupSteps").titles()

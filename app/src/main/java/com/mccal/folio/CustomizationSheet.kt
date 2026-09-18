@@ -226,7 +226,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     // Regular size class (both dimensions roomy), not a device check: the inner screen in either orientation.
     val fullWidth = maxWidth
     val split = isRegularSize(maxWidth.value, maxHeight.value, androidx.compose.ui.platform.LocalConfiguration.current.classScale)
-    val pageContent: @Composable ColumnScope.() -> Unit = {
+    // Takes the page to draw rather than reading the open one, so the split view can show a list and the thing you
+    // picked from it side by side. Inside, `page` means "the page this column is drawing".
+    val pageContent: @Composable ColumnScope.(CustomizationPage) -> Unit = { page ->
             when (page) {
                 CustomizationPage.OVERVIEW -> if (split) {
                     TweakBanner()
@@ -677,20 +679,30 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         SettingsNavBar(if (page == CustomizationPage.OVERVIEW) null else nestedBackLabel ?: stringResource(R.string.folio), onBack, onClose)
         if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
         Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp), content = pageContent)
+            verticalArrangement = Arrangement.spacedBy(10.dp)) { pageContent(page) }
     } else {
-        // iPad Settings keeps both columns in portrait as well as landscape, as long as the window is wide enough for
-        // two readable ones; under that the page gets the width and the list opens over it from the sidebar button
-        // (iPhone Duo split views). 700 dp is the same threshold the Market and the Mockup Lab use.
-        val tiled = maxWidth >= 700.dp
         // Half folded with the fold running down the screen, the divider goes on the fold, so no row sits on the
         // crease (iPhone Duo: controls move away from the fold). Flat, it's a share of the width.
         val hinge = LocalHinge.current?.takeIf { it.active && it.vertical }
         val density = LocalDensity.current
         val onFold = hinge?.let { with(density) { it.startPx.toDp() } }?.takeIf { it >= 280.dp && it <= fullWidth * .7f }
-        // Tiled it shares the width; as an overlay it can be a little wider so rows don't wrap.
+        val columns = settingsColumns(
+            maxWidth.value, maxHeight.value, androidx.compose.ui.platform.LocalConfiguration.current.classScale,
+            nested = page.parent != CustomizationPage.OVERVIEW,
+            onFold = onFold != null,
+        )
+        val tiled = columns >= 2
+        val threeColumns = columns == 3
+        // Tiled it shares the width; as an overlay it can be a little wider so rows don't wrap. With three, the list
+        // of settings gives up some width so the other two stay readable.
         val sidebarWidth = onFold
-            ?: if (tiled) (fullWidth * .4f).coerceIn(280.dp, 380.dp) else minOf(360.dp, fullWidth * .6f)
+            ?: when {
+                threeColumns -> (fullWidth * .28f).coerceIn(260.dp, 320.dp)
+                tiled -> (fullWidth * .4f).coerceIn(280.dp, 380.dp)
+                else -> minOf(360.dp, fullWidth * .6f)
+            }
+        val middleWidth = ((fullWidth - sidebarWidth) * .44f).coerceIn(280.dp, 380.dp)
+        val middleScroll = rememberScrollState()
         var sidebarOpen by rememberSaveable { mutableStateOf(tiled || page == CustomizationPage.OVERVIEW) }
         var shownPage by remember { mutableStateOf(page) }
         // Opening a page slides the list away; coming back to the top brings it back, since the list is all that page has.
@@ -708,13 +720,28 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 }
             }
         }
+        val divider: @Composable () -> Unit = {
+            Box(Modifier.fillMaxHeight().width(.5.dp).background(androidx.compose.ui.graphics.Color.White.copy(alpha = .14f)))
+        }
         Row(Modifier.fillMaxSize()) {
             if (tiled) {
                 sidebar()
-                Box(Modifier.fillMaxHeight().width(.5.dp).background(androidx.compose.ui.graphics.Color.White.copy(alpha = .14f)))
+                divider()
+            }
+            // The list you picked from stays where it was, and what you picked opens to the right of it - the way
+            // Mail and Notes use an iPad's width. Only for a page that came from a list, so a column is never empty.
+            if (threeColumns) {
+                Column(Modifier.width(middleWidth).fillMaxHeight().padding(horizontal = 20.dp)) {
+                    Spacer(Modifier.height(44.dp))
+                    nestedBackLabel?.let { SettingsLargeTitle(it) }
+                    Column(Modifier.weight(1f).edgeFade(middleScroll).verticalScroll(middleScroll).padding(bottom = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) { pageContent(page.parent) }
+                }
+                divider()
             }
             Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 20.dp)) {
-                SettingsNavBar(nestedBackLabel, onBack, onClose,
+                // With the list still on screen there's nothing for Back to reveal, so the bar keeps only Done.
+                SettingsNavBar(if (threeColumns) null else nestedBackLabel, onBack, onClose,
                     leading = if (tiled) null else ({ SidebarButton { sidebarOpen = !sidebarOpen } }))
                 if (page != CustomizationPage.OVERVIEW) SettingsLargeTitle(title)
                 Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -722,7 +749,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         // The space beside the list shows what the page changes, drawn from your real Home.
                         if (page == CustomizationPage.HOME || page == CustomizationPage.STATUS)
                             MiniHomePreview(backgrounds.previewBitmap, state, 240.dp)
-                        pageContent()
+                        pageContent(page)
                     }
                 }
             }
