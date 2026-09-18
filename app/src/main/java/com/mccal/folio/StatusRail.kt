@@ -14,6 +14,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.material3.Text
@@ -91,9 +94,13 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
     ICONS(R.string.icons), MINIMAL(R.string.battery_only), NONE(R.string.hidden),
 }
 
-/** The Gauge's arc: it opens at the top, leaving room for the percentage above it. */
-private const val GAUGE_START = 145f
-private const val GAUGE_SWEEP = 250f
+/**
+ * The Gauge's ring, split in two: gaps at the top for the percentage and at the bottom for the signal's dots.
+ * Angles are Compose's: 0 is 3 o'clock and they grow clockwise.
+ */
+private const val GAUGE_SIDE = 120f
+private const val GAUGE_LEFT_START = 120f
+private const val GAUGE_RIGHT_START = 300f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -267,26 +274,41 @@ fun StatusRail(
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(visualSize * .42f))
                     }
                     StatusGlyph.GAUGE -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.TopCenter) {
-                        // One mark: the number sits in the arc's opening, the connection below it, inside the arc.
+                        // A ring split in two: the number sits in the gap at the top, the signal's dots in the gap at
+                        // the bottom. The battery fills from the top down the left, then up the right.
+                        // The ring sweeps to a new level and fades between colours instead of jumping, and holds still
+                        // for anyone who has asked Android for less motion.
+                        val still = LocalReduceMotion.current
+                        val level by animateFloatAsState(((status.battery ?: 0).coerceIn(0, 100)) / 100f,
+                            if (still) snap() else tween(FolioMotion.GAUGE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                            label = "gauge level")
+                        val arcColor by animateColorAsState(batteryColor,
+                            if (still) snap() else tween(FolioMotion.GAUGE_MS), label = "gauge colour")
                         Canvas(Modifier.fillMaxSize()) {
                             val w = size.width
                             val center = Offset(w / 2, w / 2)
-                            val radius = w * .46f
+                            val radius = w * .44f
                             val corner = Offset(center.x - radius, center.y - radius)
                             val box = Size(radius * 2, radius * 2)
                             val stroke = Stroke(width = w * .085f, cap = StrokeCap.Round)
-                            drawArc(ink.copy(alpha = faint(.22f)), GAUGE_START, GAUGE_SWEEP, false, corner, box, style = stroke)
-                            status.battery?.let { level ->
-                                drawArc(batteryColor, GAUGE_START, GAUGE_SWEEP * level / 100f, false, corner, box, style = stroke)
+                            val track = ink.copy(alpha = faint(.22f))
+                            drawArc(track, GAUGE_LEFT_START, GAUGE_SIDE, false, corner, box, style = stroke)
+                            drawArc(track, GAUGE_RIGHT_START, GAUGE_SIDE, false, corner, box, style = stroke)
+                            if (status.battery != null) {
+                                val halves = level * 2f
+                                val left = minOf(halves, 1f) * GAUGE_SIDE
+                                if (left > 0f) drawArc(arcColor, GAUGE_LEFT_START + GAUGE_SIDE, -left, false, corner, box, style = stroke)
+                                val right = (halves - 1f).coerceAtLeast(0f) * GAUGE_SIDE
+                                if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
-                            // The connection sits under the number and clear of the arc.
-                            translate(0f, w * .10f) {
-                                scale(.62f, center) {
+                            // The connection sits between the two gaps, small enough to keep clear of the ring.
+                            translate(0f, w * .06f) {
+                                scale(.66f, center) {
                                     when {
                                         wifiVisual is WifiSignalVisual.Connected -> {
                                             drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
-                                            for (i in 0..4) drawCircle(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .026f,
-                                                Offset(center.x + (i - 2) * w * .085f, w * .74f))
+                                            for (i in 0..4) drawCircle(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .03f,
+                                                Offset(center.x + (i - 2) * w * .095f, w * .78f))
                                         }
                                         cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
                                         else -> Unit
@@ -295,7 +317,7 @@ fun StatusRail(
                             }
                         }
                         Text(status.battery?.toString() ?: "\u2014", color = if (status.charging && style.colorfulBattery) charging else ink,
-                            fontSize = (visualSize.value * .26f / fontScale).sp, fontWeight = FontWeight.SemiBold,
+                            fontSize = (visualSize.value * .27f / fontScale).sp, fontWeight = FontWeight.SemiBold,
                             maxLines = 1, softWrap = false)
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
