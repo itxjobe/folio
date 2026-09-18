@@ -52,7 +52,7 @@ internal object SettingsMemory {
     var sidebarScroll = 0
 }
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK, ISLAND_APPS;
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, MARKET, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK, ISLAND_APPS;
 
     /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
     val parent: CustomizationPage get() = when (this) {
@@ -77,6 +77,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     onAppearanceManual: (String, Double, Double) -> Unit, onAppearanceDeviceLocation: () -> Unit,
     onAppearanceClear: () -> Unit, backgrounds: LauncherBackgroundController, homePage: Int = 0,
     onShadeSetup: () -> Unit = {},
+    onOpenMarket: () -> Unit = {},
     onShowWelcome: () -> Unit = {},
     onShowWhatsNew: () -> Unit = {},
 ) {
@@ -100,6 +101,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         CustomizationPage.LOCK -> "Lock Cover"
         CustomizationPage.CREDITS -> "Credits"
         CustomizationPage.TWEAKS -> "Tweaks"
+        CustomizationPage.MARKET -> "Market"
         CustomizationPage.FOCUS -> "Focus"
         CustomizationPage.THEMES -> "Themes"
         CustomizationPage.FOCUS_MODE -> state.focusModes.firstOrNull { it.id == focusId }?.name ?: "Focus"
@@ -124,6 +126,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     val setupSteps = rememberSetupSteps(isDefaultHome, onMakeDefault, onShadeSetup, state.messagesApp, model::setMessagesApp, state.systemWallpaper, model::setSystemWallpaper)
     val setupLeft = setupSteps.count { it.required && !it.done }
     val onBack = { onPage(page.parent) }
+    val sheetContext = androidx.compose.ui.platform.LocalContext.current
     val nestedBackLabel = when (page.parent) { CustomizationPage.TWEAKS -> "Tweaks"; CustomizationPage.TWEAK_LIBRARY -> "Tweak Library"; CustomizationPage.FOCUS -> "Focus"; CustomizationPage.ISLAND -> "Dynamic Island"; else -> null }
 
     // The settings list. On the phone it's the first page; in the split view it's the sidebar, with the open page highlighted.
@@ -165,17 +168,10 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.AutoAwesome, 0xFFBF5AF2, "Tweaks", "customization-tweaks",
                             "${state.installedTweaks.size} installed", selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
                         // The Market (0.7.0), while it's being built: Folio Dev shows it, the release doesn't.
-                        val marketContext = androidx.compose.ui.platform.LocalContext.current
-                        if (com.mccal.folio.market.MarketFeature.isEnabled(marketContext.packageName)) {
+                        if (com.mccal.folio.market.MarketFeature.isEnabled(sheetContext.packageName)) {
                             MenuDivider()
-                            TweakRow(Icons.Rounded.Storefront, 0xFF0A84FF, "Market", "customization-market", chevron = !sidebar) {
-                                runCatching {
-                                    marketContext.startActivity(
-                                        android.content.Intent(marketContext, MarketActivity::class.java)
-                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                                    )
-                                }
-                            }
+                            TweakRow(Icons.Rounded.Storefront, 0xFF0A84FF, "Market", "customization-market",
+                                selected = selected == CustomizationPage.MARKET, chevron = !sidebar) { onPage(CustomizationPage.MARKET) }
                         }
                     }
                     SheetGroup {
@@ -608,6 +604,25 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     CrashReportsCard()
+                }
+                CustomizationPage.MARKET -> {
+                    Text("Themes and tweaks as packages you can get and remove. Folio's own come with the app; sources you add are signed by whoever publishes them.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                    SheetGroup { IosActionRow("Open the Market", onClick = onOpenMarket) }
+                    SheetGroupLabel("Featured style")
+                    val marketPrefs = remember(sheetContext) { rememberedMarketPrefs(sheetContext) }
+                    var featuredStyle by remember { mutableStateOf(marketPrefs.featuredStyle) }
+                    IosSegmented(
+                        options = com.mccal.folio.market.FeaturedStyle.entries.map { it to it.label },
+                        selected = featuredStyle,
+                        onSelect = { chosen -> featuredStyle = chosen; marketPrefs.featuredStyle = chosen },
+                        tag = "market-featured-style",
+                    )
+                    Text(featuredStyle.description,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                    SheetGroup {
+                        IosActionRow("Show the introduction again") { marketPrefs.introductionSeen = false }
+                    }
                 }
                 CustomizationPage.TWEAKS -> {
                     Text("Features inspired by iOS jailbreak tweaks, re-created for Folio. Get the ones you want from the Tweak Library; they show up here.",

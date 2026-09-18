@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -79,7 +80,13 @@ internal enum class MarketTab(val label: String, val icon: ImageVector) {
  * page when there's room ([isRegularSize]), so folding never loses your place.
  */
 @Composable
-internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, onClose: () -> Unit) {
+internal fun MarketScreen(
+    session: MarketSession,
+    installedTweaks: Set<String>,
+    onClose: () -> Unit,
+    /** Folio's own Settings, shown in the Settings tab. Without it the tab shows the Market's settings on their own. */
+    settingsContent: (@Composable () -> Unit)? = null,
+) {
     // Saveable, so folding, rotating or leaving and coming back keeps the tab and the package that was open.
     var tab by rememberSaveable { mutableStateOf(MarketTab.FEATURED) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -111,6 +118,8 @@ internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, 
         refresh()
     }
 
+    BackHandler(enabled = openId != null) { openId = null }
+
     if (introducing) {
         MarketIntroduction(
             style = style,
@@ -120,14 +129,16 @@ internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, 
         return
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).windowInsetsPadding(WindowInsets.safeDrawing)) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val split = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale) && maxWidth.value >= 700f
         val packages = index?.packages.orEmpty()
         val open = openId?.let { id -> packages.firstOrNull { it.id == id } }
 
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f)) {
-                if (split || open == null) {
+                if (tab == MarketTab.SETTINGS && settingsContent != null) {
+                    Box(Modifier.fillMaxSize()) { settingsContent() }
+                } else if (split || open == null) {
                     Box(if (split) Modifier.width(360.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
                         MarketList(
                             tab = tab,
@@ -490,3 +501,11 @@ private object NoLauncher : MarketLauncher {
     override fun setFeatureScope(id: String, screen: FolioScreen, value: ScopeValue) = Unit
     override fun applyTheme(theme: FolioTheme) = Unit
 }
+
+/**
+ * Which sheet the Folio app icon opens. The Market holds Settings as a tab, so the icon opens the Market once it
+ * exists — but anything that asked for a particular Settings page (a permission prompt, an update) still gets
+ * Settings, because that's what it asked for.
+ */
+internal fun sheetForAppIcon(linkedPage: CustomizationPage?, currentPage: CustomizationPage, marketEnabled: Boolean): String =
+    if (linkedPage == null && currentPage == CustomizationPage.OVERVIEW && marketEnabled) "market" else "settings"

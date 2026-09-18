@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,5 +79,22 @@ class MarketScreenRenderTest {
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-sources").performClick()
         compose.onNodeWithText("Built into the app. 9 packages, no network.").assertIsDisplayed()
+    }
+
+    @Test fun `the Settings tab shows Folio's own settings when the launcher gives them`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        compose.setContent {
+            MarketScreen(session, emptySet(), onClose = {}, settingsContent = { androidx.compose.material3.Text("Folio settings live here") })
+        }
+        compose.onNodeWithTag("market-tab-settings").performClick()
+        compose.onNodeWithText("Folio settings live here").assertIsDisplayed()
+    }
+
+    @Test fun `the app icon opens the Market, unless something asked for a Settings page`() {
+        assertEquals("market", sheetForAppIcon(null, CustomizationPage.OVERVIEW, marketEnabled = true))
+        assertEquals("settings", sheetForAppIcon(null, CustomizationPage.OVERVIEW, marketEnabled = false))
+        assertEquals("settings", sheetForAppIcon(CustomizationPage.PERMISSIONS, CustomizationPage.OVERVIEW, marketEnabled = true))
+        assertEquals("settings", sheetForAppIcon(null, CustomizationPage.SOFTWARE_UPDATE, marketEnabled = true))
     }
 }

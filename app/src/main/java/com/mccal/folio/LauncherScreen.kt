@@ -322,8 +322,8 @@ fun LauncherScreen(
     LaunchedEffect(settingsRequests) { if (settingsRequests > 0) {
         drag.clear(); widgetSession = null; resizeSlot = null; selectedId = null; homeEdit.stop()
         if (SoftwareUpdate.openRequested) { SoftwareUpdate.openRequested = false; customizationPage = CustomizationPage.SOFTWARE_UPDATE }
-        SettingsLink.page?.let { customizationPage = it; SettingsLink.page = null }
-        sheet = "settings"
+        val linked = SettingsLink.page?.also { customizationPage = it; SettingsLink.page = null }
+        sheet = sheetForAppIcon(linked, customizationPage, com.mccal.folio.market.MarketFeature.isEnabled(launcherActivity.packageName))
     } }
     LaunchedEffect(searchRequests) { if (searchRequests > 0) { drag.clear(); widgetSession = null; resizeSlot = null; sheet = ""; widgetPackage = null; widgetExactTarget = false; selectedId = null
         if (!state.googleSearch || !onGoogleSearch(null)) pager.animateScrollToPage(homePages)
@@ -848,7 +848,7 @@ fun LauncherScreen(
                     sheet = ""; widgetPackage = null; widgetExactTarget = false
                 }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
-                    containerColor = MaterialTheme.colorScheme.surface, fullScreen = sheet.startsWith("settings")) {
+                    containerColor = MaterialTheme.colorScheme.surface, fullScreen = sheet.startsWith("settings") || sheet == "market") {
                     ModalDialogBackHandler {
                         if ((sheet == "settings" || sheet == "settings:wallpaper") &&
                             activeCustomizationPage != CustomizationPage.OVERVIEW) {
@@ -877,8 +877,10 @@ fun LauncherScreen(
                                 onActions = { selectedId = it.id; sheet = "" }, editing = true, modifier = Modifier.weight(1f).fillMaxWidth(),
                                 onTurnOnWork = { model.turnOnWork(it) })
                         }
-                        "settings", "settings:wallpaper" -> CustomizationSheet(state, wide, model, isDefaultHome,
-                            page = activeCustomizationPage, onPage = { customizationPage = it; sheet = "settings" },
+                        "settings", "settings:wallpaper", "market" -> {
+                          val settingsSheet: @Composable (String) -> Unit = { host ->
+                            CustomizationSheet(state, wide, model, isDefaultHome,
+                            page = activeCustomizationPage, onPage = { customizationPage = it; sheet = host },
                             onMakeDefault = { sheet = ""; onMakeDefault() },
                             onClose = { sheet = "" }, onEditPins = { sheet = "pins" },
                             onWidget = { widgetSlot = it; widgetPackage = null; widgetProfileSerial = null; widgetExactTarget = false; sheet = "widgets" },
@@ -894,7 +896,19 @@ fun LauncherScreen(
                             onShowWelcome = { sheet = ""; onShowWelcome() },
                             onShowWhatsNew = { sheet = ""; onShowWhatsNew() },
                             backgrounds = launcherActivity.backgrounds,
+                            onOpenMarket = { customizationPage = CustomizationPage.OVERVIEW; sheet = "market" },
                             onWallpaperPreview = { sheet = ""; onWallpaperPreview() }, homePage = pager.currentPage.coerceIn(0, homePages - 1))
+                          }
+                          if (sheet == "market") {
+                              // The Market lives here, so its Settings tab is Folio's own Settings rather than a jump.
+                              val marketSession = remember(model) { MarketSession(launcherActivity, ModelLauncher(model)) }
+                              LaunchedEffect(marketSession) { marketSession.noteCrash() }
+                              MarketScreen(marketSession, state.installedTweaks, onClose = { sheet = "" },
+                                  settingsContent = { settingsSheet("market") })
+                          } else {
+                              settingsSheet("settings")
+                          }
+                        }
                         "widgetActions" -> model.placement(widgetSlot)?.let { placement ->
                             val topPitch = (geometry.widgetHeight + 18f) / 2f
                             val gridSizing = WidgetGridSizing(GRID_COLUMNS, GRID_ROWS, geometry.cellWidth,

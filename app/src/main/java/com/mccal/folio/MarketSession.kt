@@ -69,3 +69,7 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
         return store.find(id)
     }
 }
+
+/** The Market's settings, for screens that only need those (Settings › Market) rather than the whole session. */
+internal fun rememberedMarketPrefs(context: Context): MarketPrefs =
+    MarketPrefs(FileStore(File(context.applicationContext.filesDir, "market")))
