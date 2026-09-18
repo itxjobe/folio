@@ -19,6 +19,19 @@ class MarketPrefs(private val store: KeyValueStore) {
         get() = FeaturedStyle.from(store.get(FEATURED_STYLE))
         set(value) = store.set(FEATURED_STYLE, value.id)
 
+    /**
+     * Whether Folio checks the sources you added in the background. Off by default: Folio is local-first, so with this
+     * off it only goes online when you open the store and refresh.
+     */
+    var backgroundRefresh: Boolean
+        get() = store.get(BACKGROUND_REFRESH) == "1"
+        set(value) = store.set(BACKGROUND_REFRESH, if (value) "1" else null)
+
+    /** Whether a background refresh waits for an unmetered network. On by default, so it never spends mobile data. */
+    var refreshOnWifiOnly: Boolean
+        get() = store.get(WIFI_ONLY) != "0"
+        set(value) = store.set(WIFI_ONLY, if (value) null else "0")
+
     /** The introduction is shown once, after updating to 0.7.0, and again if the user asks for it in Settings. */
     var introductionSeen: Boolean
         get() = store.get(INTRO_SEEN) == "1"
@@ -27,5 +40,7 @@ class MarketPrefs(private val store: KeyValueStore) {
     private companion object {
         const val FEATURED_STYLE = "market:featured-style"
         const val INTRO_SEEN = "market:intro-seen"
+        const val BACKGROUND_REFRESH = "market:background-refresh"
+        const val WIFI_ONLY = "market:wifi-only"
     }
 }

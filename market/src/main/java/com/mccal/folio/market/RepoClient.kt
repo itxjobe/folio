@@ -46,6 +46,11 @@ sealed interface RefreshResult {
 class RepoClient(
     private val http: HttpClient,
     private val store: SourceStore,
+    /**
+     * Whether [refreshLocalDev] works at all. Folio Dev passes true so someone building a package can serve it from
+     * the phone; the release build passes false, and then there is no code path that reads an unsigned index.
+     */
+    private val allowLocalDev: Boolean = false,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
     /**
@@ -180,6 +185,35 @@ class RepoClient(
         return if (indexText == cachedIndex) RefreshResult.Unchanged(snapshot) else RefreshResult.Updated(snapshot)
     }
 
+    /**
+     * Reads an unsigned index straight off a source on this phone, for someone building a package
+     * (`folio-pkg serve` plus `adb reverse`). No signature, no key, no rollback or freshness checks — none of them
+     * mean anything when the source is a file on your own desk.
+     *
+     * Only Folio Dev can do this: the release build is built with [allowLocalDev] false, and only `localhost` is
+     * allowed even then, so this can never reach a source on the internet.
+     */
+    fun refreshLocalDev(url: String): RefreshResult {
+        if (!allowLocalDev) return RefreshResult.Failed(RefreshResult.Reason.INSECURE, "local sources need Folio Dev")
+        val base = normalizeSourceUrl(url)
+        if (!isLocal(base)) return RefreshResult.Failed(RefreshResult.Reason.INSECURE, "a local source has to be on this phone")
+        val bytes = when (val result = http.get(base + "index.json", RepoIndex.MAX_CHARS)) {
+            is HttpResult.Body -> result.bytes
+            is HttpResult.TooLarge -> return RefreshResult.Failed(RefreshResult.Reason.SIZE, "that list is too big")
+            else -> return RefreshResult.Failed(RefreshResult.Reason.NETWORK, "nothing is being served at that address")
+        }
+        val index = when (val parsed = RepoIndex.parse(bytes.decodeToString())) {
+            is ParseResult.Ok -> parsed.value
+            is ParseResult.Unsupported -> return RefreshResult.Failed(RefreshResult.Reason.PARSE, "that list needs a newer Folio")
+            is ParseResult.Invalid -> return RefreshResult.Failed(RefreshResult.Reason.PARSE, parsed.errors.first())
+        }
+        val now = clock()
+        store.cache(base, "index", bytes.decodeToString())
+        store.save(base, store.state(base).copy(lastRefresh = now))
+        val entry = SourceEntry("0".repeat(16), now, MIN_LOCAL_MAX_AGE, FileRef("index.json", sha256Hex(bytes), bytes.size))
+        return RefreshResult.Updated(SourceSnapshot(base, entry, index, revocation = null, fetchedAt = now, notes = listOf(UNSIGNED_NOTE)))
+    }
+
     /** The last good copy, so the store keeps working offline and a failed refresh changes nothing. */
     fun cachedSnapshot(url: String): SourceSnapshot? {
         val base = normalizeSourceUrl(url)
@@ -217,5 +251,13 @@ class RepoClient(
 
         /** Background refreshes wait six hours; pull to refresh passes `force`. */
         const val MIN_REFRESH_SECONDS = 6 * 60 * 60L
+
+        /** What a local source's packages are labelled with, so nothing unsigned is ever mistaken for signed. */
+        const val UNSIGNED_NOTE = "Unsigned: served from this phone"
+        private const val MIN_LOCAL_MAX_AGE = 3600L
+
+        /** Only the phone itself. `adb reverse` puts the desktop's server here. */
+        internal fun isLocal(url: String): Boolean =
+            url.startsWith("http://localhost:") || url.startsWith("http://127.0.0.1:") || url.startsWith("https://localhost:")
     }
 }

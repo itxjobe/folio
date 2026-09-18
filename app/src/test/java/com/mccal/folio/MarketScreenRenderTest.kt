@@ -76,12 +76,15 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Open Folio Settings").assertIsDisplayed()
     }
 
-    @Test fun `Sources says what Folio has and what is coming`() {
+    @Test fun `Sources lists Folio's own and offers to add one`() {
         val session = session()
         session.prefs.introductionSeen = true
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-sources").performClick()
-        compose.onNodeWithText("Built into the app. 9 packages, no network.").assertIsDisplayed()
+        compose.onNodeWithText("Built into the app · 9 packages · no network").assertExists()
+        compose.onNodeWithText("Add a source").performClick()
+        // Adding one starts by asking for the address; nothing is trusted yet.
+        compose.onNodeWithTag("market-add-source", useUnmergedTree = true).assertExists()
     }
 
     @Test fun `the Settings tab shows Folio's own settings when the launcher gives them`() {

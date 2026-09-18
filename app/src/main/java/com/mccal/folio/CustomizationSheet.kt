@@ -623,6 +623,26 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     SheetGroup {
                         IosActionRow("Show the introduction again") { marketPrefs.introductionSeen = false }
                     }
+                    SheetGroupLabel("Refreshing")
+                    var background by remember { mutableStateOf(marketPrefs.backgroundRefresh) }
+                    var wifiOnly by remember { mutableStateOf(marketPrefs.refreshOnWifiOnly) }
+                    SheetGroup {
+                        SwitchRow("Check sources in the background", if (background) "Once a day" else "Off", background) {
+                            background = it
+                            marketPrefs.backgroundRefresh = it
+                            MarketRefreshJob.schedule(sheetContext)
+                        }
+                        if (background) {
+                            MenuDivider()
+                            SwitchRow("Only on Wi-Fi", if (wifiOnly) "Never uses mobile data" else "Any network", wifiOnly) {
+                                wifiOnly = it
+                                marketPrefs.refreshOnWifiOnly = it
+                                MarketRefreshJob.schedule(sheetContext)
+                            }
+                        }
+                    }
+                    Text("With this off, Folio only goes online when you open the Market and refresh a source yourself.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                 }
                 CustomizationPage.TWEAKS -> {
                     Text("Features inspired by iOS jailbreak tweaks, re-created for Folio. Get the ones you want from the Tweak Library; they show up here.",
@@ -720,6 +740,19 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
     Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Show or hide the settings list", onClick = onClick)
         .testTag("settings-sidebar-toggle"), contentAlignment = Alignment.Center) {
         Icon(Icons.Rounded.ViewSidebar, null, tint = IosBlue, modifier = Modifier.size(26.dp))
+    }
+}
+
+/** A row with a title, a line under it and a switch: the shape most Folio settings take. */
+@Composable private fun SwitchRow(title: String, value: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp)
+            value?.let {
+                Text(it, color = androidx.compose.ui.graphics.Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            }
+        }
+        IosSwitch(checked, onChange, Modifier.testTag("switch-${title.lowercase().replace(' ', '-')}"))
     }
 }
 

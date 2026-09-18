@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,7 +68,10 @@ import com.mccal.folio.market.FeaturedStyle
 import com.mccal.folio.market.PackageManifest
 import com.mccal.folio.market.PackagePermission
 import com.mccal.folio.market.PackageSafety
+import kotlinx.coroutines.launch
+import com.mccal.folio.market.RefreshResult
 import com.mccal.folio.market.RepoIndex
+import com.mccal.folio.market.Source
 import com.mccal.folio.market.Section
 
 /** The Market's tabs. Adding a source over the network comes in Phase 6; Sources shows what Folio has today. */
@@ -99,6 +103,11 @@ internal fun MarketScreen(
     var introducing by rememberSaveable { mutableStateOf(!session.prefs.introductionSeen) }
     var style by rememberSaveable { mutableStateOf(session.prefs.featuredStyle) }
     var confirming by rememberSaveable { mutableStateOf<String?>(null) }
+    var addingSource by rememberSaveable { mutableStateOf(false) }
+    var sourceUrl by rememberSaveable { mutableStateOf("") }
+    var trusting by remember { mutableStateOf<RefreshResult.NeedsTrust?>(null) }
+    var statuses by remember { mutableStateOf(session.sources.cached()) }
+    val scope = rememberCoroutineScope()
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     // Re-read after every change, so the list always shows what's really installed.
@@ -128,6 +137,21 @@ internal fun MarketScreen(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = openId != null) { openId = null }
+
+    // A .foliopkg someone opened: read it once, then the same confirm sheet as anything else.
+    var importing by remember { mutableStateOf<Pair<ByteArray, com.mccal.folio.market.FolioPackage>?>(null) }
+    LaunchedEffect(Unit) {
+        val bytes = MarketImport.pending
+        MarketImport.pending = null
+        if (bytes != null) {
+            when (val read = session.read(bytes)) {
+                is com.mccal.folio.market.PackageInstaller.ReadResult.Ok -> importing = bytes to read.pkg
+                is com.mccal.folio.market.PackageInstaller.ReadResult.NeedsNewerFolio ->
+                    message = "That package needs a newer Folio"
+                is com.mccal.folio.market.PackageInstaller.ReadResult.Failed -> message = read.message
+            }
+        }
+    }
 
     // A shared folio:// link opens straight on that package, once.
     LaunchedEffect(Unit) {
@@ -162,6 +186,32 @@ internal fun MarketScreen(
                         MarketList(
                             tab = tab,
                             index = index,
+                            statuses = statuses,
+                            localDevAllowed = session.localDevAllowed,
+                            onAddSource = { addingSource = true },
+                            onAddLocalDev = {
+                                scope.launch {
+                                    val result = session.sources.addLocalDev(DEFAULT_LOCAL_SOURCE)
+                                    statuses = session.sources.cached()
+                                    message = refreshMessage(Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result)
+                                    refresh()
+                                }
+                            },
+                            onRefreshSource = { source ->
+                                scope.launch {
+                                    val result = session.sources.refresh(source.url, force = true)
+                                    if (result is RefreshResult.NeedsTrust) trusting = result
+                                    statuses = session.sources.cached()
+                                    message = refreshMessage(source, result)
+                                    refresh()
+                                }
+                            },
+                            onForgetSource = { source ->
+                                session.sources.forget(source.url)
+                                statuses = session.sources.cached()
+                                message = "${source.label} removed"
+                                refresh()
+                            },
                             packages = packages,
                             installed = installed,
                             openId = openId,
@@ -199,6 +249,90 @@ internal fun MarketScreen(
                 )
             }
             MarketTabs(tab) { tab = it; openId = null }
+        }
+        importing?.let { (bytes, pkg) ->
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { importing = null }) {
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
+                        .clickable(enabled = false) {},
+                ) {
+                    MarketInstallSheet(
+                        manifest = pkg.manifest,
+                        origin = InstallOrigin(
+                            line = "From a file you opened.",
+                            checksum = null,
+                            warning = "Nobody signed this file. Only open packages from someone you trust.",
+                        ),
+                        onGet = {
+                            importing = null
+                            message = session.installFile(bytes).let { result ->
+                                when (result) {
+                                    is InstallResult.Installed -> { undo = result; "${result.installed.name} is on" }
+                                    is InstallResult.NeedsNewerFolio -> "That package needs a newer Folio"
+                                    is InstallResult.Failed -> result.message
+                                }
+                            }
+                            refresh()
+                        },
+                        onCancel = { importing = null },
+                    )
+                }
+            }
+        }
+        if (addingSource) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { addingSource = false }) {
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
+                        .clickable(enabled = false) {},
+                ) {
+                    MarketAddSourceSheet(
+                        url = sourceUrl,
+                        onUrl = { sourceUrl = it },
+                        onNext = {
+                            val typed = sourceUrl
+                            addingSource = false
+                            scope.launch {
+                                when (val result = session.sources.inspect(typed)) {
+                                    is RefreshResult.NeedsTrust -> trusting = result
+                                    is RefreshResult.Failed -> message = result.message
+                                    else -> {
+                                        statuses = session.sources.cached()
+                                        message = "That source is already set up"
+                                    }
+                                }
+                            }
+                        },
+                        onCancel = { addingSource = false },
+                    )
+                }
+            }
+        }
+        trusting?.let { request ->
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f))) {
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E)),
+                ) {
+                    MarketTrustSheet(
+                        url = request.url,
+                        key = request.key,
+                        previous = request.previous,
+                        onTrust = {
+                            trusting = null
+                            scope.launch {
+                                val result = session.sources.trust(request.url, request.key)
+                                statuses = session.sources.cached()
+                                sourceUrl = ""
+                                message = refreshMessage(Source(request.url), result)
+                                refresh()
+                            }
+                        },
+                        onCancel = { trusting = null },
+                    )
+                }
+            }
         }
         confirming?.let { id ->
             packages.firstOrNull { it.id == id }?.let { entry ->
@@ -248,6 +382,12 @@ private fun MarketTabs(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
 private fun MarketList(
     tab: MarketTab,
     index: RepoIndex?,
+    statuses: List<SourceStatus>,
+    localDevAllowed: Boolean,
+    onAddSource: () -> Unit,
+    onAddLocalDev: () -> Unit,
+    onRefreshSource: (Source) -> Unit,
+    onForgetSource: (Source) -> Unit,
     packages: List<IndexPackage>,
     installed: Map<String, InstalledPackage>,
     openId: String?,
@@ -281,7 +421,18 @@ private fun MarketList(
             }
         }
         if (tab == MarketTab.SOURCES) {
-            item(key = "sources") { MarketSources(index) }
+            item(key = "sources") {
+                MarketSourcesTab(
+                    builtInName = index?.name?.english ?: "Folio",
+                    builtInCount = packages.size,
+                    statuses = statuses,
+                    localDevAllowed = localDevAllowed,
+                    onAdd = onAddSource,
+                    onAddLocalDev = onAddLocalDev,
+                    onRefresh = onRefreshSource,
+                    onForget = onForgetSource,
+                )
+            }
         }
         if (tab == MarketTab.SETTINGS) {
             item(key = "settings") { MarketSettings(style = style, onStyle = onStyle, onIntroduce = onIntroduce) }
@@ -351,31 +502,6 @@ private fun MarketRow(
                 onClick = if (installed != null) onRemove else onGet,
             )
         }
-    }
-}
-
-/**
- * Sources: where packages come from. Folio's own comes with the app and needs no network; adding one over the network,
- * with its key pinned by fingerprint, is Phase 6.
- */
-@Composable
-private fun MarketSources(index: RepoIndex?) {
-    Column {
-        SheetGroupLabel("Sources")
-        SheetGroup(Modifier.padding(bottom = 10.dp)) {
-            Column(Modifier.padding(14.dp)) {
-                Text(index?.name?.english ?: "Folio", color = Color.White, fontSize = 16.sp)
-                Text(
-                    "Built into the app. ${index?.packages?.size ?: 0} packages, no network.",
-                    color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
-                )
-            }
-        }
-        Text(
-            "Sources other people publish come next: Folio shows a source's key fingerprint before you trust it, and " +
-                "refuses one that changes its key without asking you.",
-            color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 16.dp),
-        )
     }
 }
 

@@ -20,6 +20,21 @@ Contacts (optional) are searched on the device from Spotlight only. When Bluetoo
 
 Android controls widget-binding approval and Home-app selection. Providers can require separate setup or permissions.
 
+## The Market (0.7.0)
+
+- **Folio's own packages need no network at all.** The themes and tweaks in the store ship inside the app.
+- **A source is only contacted once you add it.** Folio reads static files over HTTPS — a signed entry file, the
+  package list, an optional revocation list, and any package you choose to get. It never calls a repository API.
+- **A refresh is at most five requests, no more often than every six hours**, and it sends `If-None-Match` so an
+  unchanged source answers with nothing. Background refreshing is **off** unless you turn it on, and waits for Wi-Fi
+  unless you say otherwise.
+- **Nothing identifies you.** Requests carry `User-Agent: Folio` and nothing else: no account, no id, no cookies. A
+  source can see that some copy of Folio asked for a file, the way any web server can.
+- **A package is data, not code.** It configures things Folio already does; it gets no Android permissions, and it
+  can't reach your apps, notifications, contacts, calendar or the network. Each package's page lists what it changes
+  before you get it.
+- **Removing a source forgets it**, along with its pinned key and its cached list.
+
 ## Google and other apps
 
 Discover and Google search use the installed Google app. Apps, search results, articles, and widgets may use their providers' network services and accounts. Those apps' policies and settings apply; Folio does not proxy their traffic or collect their content.

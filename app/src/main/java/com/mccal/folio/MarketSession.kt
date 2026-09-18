@@ -8,6 +8,12 @@ import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.InstalledPackage
 import com.mccal.folio.market.InstalledStore
+import com.mccal.folio.market.MarketFeature
+import com.mccal.folio.market.RepoClient
+import com.mccal.folio.market.Source
+import com.mccal.folio.market.SourceList
+import com.mccal.folio.market.SourceStore
+import com.mccal.folio.market.UrlHttpClient
 import com.mccal.folio.market.MarketPrefs
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.PackageSafeMode
@@ -37,8 +43,46 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
     private val safeMode = PackageSafeMode(files)
     private val installer = PackageInstaller(store, MarketHost(launcher), safeMode)
 
+    /** Whether this build can read an unsigned source served from the phone: Folio Dev only. */
+    val localDevAllowed = MarketFeature.isEnabled(appContext.packageName) && appContext.packageName.endsWith(".dev")
+
+    /** Sources the user added. Folio Dev can also point at a source served from the phone (unsigned, localhost only). */
+    val sources = MarketSources(
+        client = RepoClient(
+            http = UrlHttpClient(),
+            store = SourceStore(files),
+            allowLocalDev = localDevAllowed,
+        ),
+        list = SourceList(files),
+        http = UrlHttpClient(),
+    )
+
     /** The package list, or null when the bundled files are unreadable, which only a broken build can cause. */
     fun index(): RepoIndex? = source.index()
+
+    /** Folio's own source, as a [Source], so built-in packages carry a source like any other. */
+    val builtIn = Source("folio://built-in/", name = "Folio", kind = Source.Kind.BUILT_IN)
+
+    /**
+     * Every package the store can show: Folio's own first, then each source the user added, from its cached list.
+     * Revoked packages keep their place with the reason, so nothing disappears without an explanation.
+     */
+    fun entries(): List<MarketEntry> = buildList {
+        index()?.packages?.forEach { add(MarketEntry(it, builtIn)) }
+        for (status in sources.cached()) {
+            val snapshot = status.snapshot ?: continue
+            val unsigned = status.source.kind == Source.Kind.LOCAL_DEV
+            snapshot.index.packages.forEach { entry ->
+                add(MarketEntry(entry, status.source, snapshot.revokedReason(entry), unsigned))
+            }
+        }
+    }
+
+    /** Downloads and installs a package from a source the user added. */
+    suspend fun get(entry: MarketEntry): InstallResult = when (entry.source.kind) {
+        Source.Kind.BUILT_IN -> get(entry.entry)
+        else -> sources.download(entry.entry, entry.source, installer)
+    }
 
     fun installed(): List<InstalledPackage> = store.installed()
 
@@ -54,6 +98,13 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
         val files = source.filesFor(entry.id) ?: return InstallResult.Failed(InstallResult.Reason.ARCHIVE, "Folio couldn't find that package")
         return installer.installBuiltIn(files)
     }
+
+    /** Reads a `.foliopkg` someone opened, without applying it: the confirm sheet shows what's inside. */
+    fun read(bytes: ByteArray): PackageInstaller.ReadResult = installer.read(bytes)
+
+    /** Installs a file someone opened. It's recorded as coming from a file, not from a source. */
+    fun installFile(bytes: ByteArray): InstallResult =
+        installer.install(bytes, origin = InstalledPackage.Origin.FILE)
 
     fun remove(id: String): Boolean = installer.remove(id)
 
@@ -73,3 +124,6 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
 /** The Market's settings, for screens that only need those (Settings › Market) rather than the whole session. */
 internal fun rememberedMarketPrefs(context: Context): MarketPrefs =
     MarketPrefs(FileStore(File(context.applicationContext.filesDir, "market")))
+
+/** Where `folio-pkg serve` plus `adb reverse tcp:8787 tcp:8787` puts a source being written. */
+internal const val DEFAULT_LOCAL_SOURCE = "http://localhost:8787/"

@@ -1,0 +1,158 @@
+package com.mccal.folio
+
+import com.mccal.folio.market.HttpClient
+import com.mccal.folio.market.HttpResult
+import com.mccal.folio.market.InstallResult
+import com.mccal.folio.market.InstalledStore
+import com.mccal.folio.market.MemoryStore
+import com.mccal.folio.market.PackageInstaller
+import com.mccal.folio.market.RefreshResult
+import com.mccal.folio.market.RepoClient
+import com.mccal.folio.market.Source
+import com.mccal.folio.market.SourceKey
+import com.mccal.folio.market.SourceList
+import com.mccal.folio.market.SourceStore
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.Signature
+import java.security.spec.ECGenParameterSpec
+import java.util.Base64
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+
+/**
+ * Adding a source and getting a package from it, end to end: the key is shown before it's trusted, the list is read,
+ * and a downloaded package is checked against what the source promised before it's opened.
+ */
+class MarketSourcesTest {
+    private val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "CHANGELOG.md").exists() }
+    private val cabinetDir = File(root, "docs/sdk/source/packages/cabinet")
+    private val base = "https://maya.example/folio/"
+    private val keys: KeyPair = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
+    private val key = requireNotNull(SourceKey.parse(Base64.getEncoder().encodeToString(keys.public.encoded)))
+    private val now = 1_789_000_000L
+
+    private class Host : HttpClient {
+        val files = HashMap<String, ByteArray>()
+        val requests = mutableListOf<String>()
+        override fun get(url: String, maxBytes: Int, etag: String?): HttpResult {
+            requests += url
+            val bytes = files[url] ?: return HttpResult.Failed("not found", 404)
+            if (bytes.size > maxBytes) return HttpResult.TooLarge
+            return HttpResult.Body(bytes, null)
+        }
+    }
+
+    /** The same hash the source pins with; computed here so the test doesn't reach into the module's internals. */
+    private fun sha256Hex(bytes: ByteArray) = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+        .joinToString("") { "%02x".format(it) }
+
+    private val host = Host()
+    private val store = MemoryStore()
+    private val sources = MarketSources(
+        client = RepoClient(host, SourceStore(store)) { now },
+        list = SourceList(store),
+        http = host,
+        io = kotlinx.coroutines.Dispatchers.Unconfined,
+    )
+
+    /** A package packed the way the publishing tool will, plus an index and a signed entry that pin it. */
+    private fun publish() {
+        val pkg = ByteArrayOutputStream().also { out ->
+            ZipOutputStream(out).use { zip ->
+                for (name in listOf("manifest.json", "depiction.json", "tweaks.json")) {
+                    zip.putNextEntry(ZipEntry(name)); zip.write(File(cabinetDir, name).readBytes()); zip.closeEntry()
+                }
+            }
+        }.toByteArray()
+        host.files[base + "packages/cabinet.foliopkg"] = pkg
+        val manifest = File(cabinetDir, "manifest.json").readText().replace("\"\$schema\": \"https://folio.mccal.dev/schema/v1/manifest.schema.json\",", "")
+        val index = """
+            {"format":1,"name":"Maya's packages","packages":[
+              {"id":"com.mccal.folio.cabinet","version":"1.0.0","url":"packages/cabinet.foliopkg",
+               "sha256":"${sha256Hex(pkg)}","size":${pkg.size},"manifest":$manifest}]}
+        """.trimIndent()
+        host.files[base + "index.json"] = index.toByteArray()
+        val entry = """
+            {"format":1,"keyId":"${key.keyId}","timestamp":${now - 60},"maxAge":604800,
+             "index":{"path":"index.json","sha256":"${sha256Hex(index.toByteArray())}","size":${index.toByteArray().size}}}
+        """.trimIndent()
+        host.files[base + "entry.json"] = entry.toByteArray()
+        host.files[base + "entry.json.sig"] = Base64.getEncoder().encodeToString(
+            Signature.getInstance(SourceKey.ALGORITHM).run { initSign(keys.private); update(entry.toByteArray()); sign() },
+        ).toByteArray()
+        host.files[base + "key.pub"] = key.base64.toByteArray()
+    }
+
+    @Test fun `adding a source shows its key first, then reads its list`() = runTest {
+        publish()
+        val inspected = sources.inspect(base)
+        assertTrue("$inspected", inspected is RefreshResult.NeedsTrust)
+        val request = inspected as RefreshResult.NeedsTrust
+        assertEquals(key, request.key)
+        assertNull(request.previous)
+        // Nothing is trusted or added until the fingerprint is confirmed.
+        assertTrue(sources.sources().isEmpty())
+
+        val trusted = sources.trust(base, request.key)
+        assertTrue("$trusted", trusted is RefreshResult.Updated)
+        assertEquals(listOf(base), sources.sources().map { it.url })
+        assertEquals("Maya's packages", sources.sources().single().name)
+        assertEquals(1, sources.cached().single().packages.size)
+    }
+
+    @Test fun `a package from a source is checked against what the source promised`() = runTest {
+        publish()
+        sources.trust(base, key)
+        val entry = sources.cached().single().packages.single()
+        val host2 = RecordingHost()
+        val installer = PackageInstaller(InstalledStore(MemoryStore()), host2)
+        val result = sources.download(entry, sources.sources().single(), installer)
+        assertTrue("$result", result is InstallResult.Installed)
+        assertEquals("Cabinet", (result as InstallResult.Installed).installed.name)
+        assertEquals(base, result.installed.sourceUrl)
+        assertTrue(host2.applied.isNotEmpty())
+    }
+
+    @Test fun `a download that doesn't match the index is refused`() = runTest {
+        publish()
+        sources.trust(base, key)
+        val entry = sources.cached().single().packages.single()
+        // The host serves something else at the same address.
+        host.files[base + "packages/cabinet.foliopkg"] = "not the package".toByteArray()
+        val installer = PackageInstaller(InstalledStore(MemoryStore()), RecordingHost())
+        val result = sources.download(entry, sources.sources().single(), installer)
+        assertEquals(InstallResult.Reason.SIZE, (result as InstallResult.Failed).reason)
+    }
+
+    @Test fun `removing a source forgets its list and its key`() = runTest {
+        publish()
+        sources.trust(base, key)
+        assertEquals(1, sources.cached().size)
+        sources.forget(base)
+        assertTrue(sources.sources().isEmpty())
+        assertTrue(sources.cached().isEmpty())
+        // Adding it again asks about the key again.
+        assertTrue(sources.inspect(base) is RefreshResult.NeedsTrust)
+    }
+
+    @Test fun `an http source is refused`() = runTest {
+        val result = sources.inspect("http://maya.example/folio/")
+        assertEquals(RefreshResult.Reason.INSECURE, (result as RefreshResult.Failed).reason)
+        assertTrue(host.requests.isEmpty())
+    }
+
+    private class RecordingHost : com.mccal.folio.market.PackageHost {
+        override val capabilities = com.mccal.folio.market.Capability.entries.toSet()
+        val applied = mutableListOf<com.mccal.folio.market.PackageChange>()
+        override fun apply(change: com.mccal.folio.market.PackageChange): String = "before".also { applied += change }
+        override fun restore(change: com.mccal.folio.market.PackageChange, snapshot: String) = Unit
+    }
+}

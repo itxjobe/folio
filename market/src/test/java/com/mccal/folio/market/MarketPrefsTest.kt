@@ -27,4 +27,15 @@ class MarketPrefsTest {
         assertEquals(FeaturedStyle.CALM, MarketPrefs(FileStore(dir)).featuredStyle)
         assertTrue("the choice is written to a file", dir.isDirectory && dir.list()!!.isNotEmpty())
     }
+
+    @Test fun `background refresh is off, and waits for Wi-Fi when it's on`() {
+        val prefs = MarketPrefs(MemoryStore())
+        assertTrue("Folio is local-first, so this starts off", !prefs.backgroundRefresh)
+        assertTrue("and never spends mobile data by default", prefs.refreshOnWifiOnly)
+        prefs.backgroundRefresh = true
+        prefs.refreshOnWifiOnly = false
+        assertTrue(prefs.backgroundRefresh && !prefs.refreshOnWifiOnly)
+        prefs.backgroundRefresh = false
+        assertTrue(!prefs.backgroundRefresh)
+    }
 }

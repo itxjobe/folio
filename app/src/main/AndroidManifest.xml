@@ -168,6 +168,24 @@
                 <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
+        <!-- A .foliopkg file opened or shared with Folio. It's unsigned, so the Market says so before anything runs. -->
+        <activity android:name=".PackageImportActivity" android:exported="true" android:excludeFromRecents="true"
+            android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.package"
+            android:noHistory="true" android:label="Folio Package">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+        <service android:name=".MarketRefreshJob" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- "Add to Home Screen" for widgets an app asks to pin (only delivered to the default Home app). -->
         <activity android:name=".PinWidgetActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.pin" android:noHistory="true">

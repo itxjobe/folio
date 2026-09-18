@@ -41,6 +41,34 @@ import com.mccal.folio.market.PackageSafety
 @Composable
 internal fun MarketInstallSheet(entry: IndexPackage, builtIn: Boolean, onGet: () -> Unit, onCancel: () -> Unit) {
     val manifest = entry.manifest ?: return
+    MarketInstallSheet(
+        manifest = manifest,
+        origin = InstallOrigin(
+            line = if (builtIn) "Built into Folio, so there's nothing to download." else "Downloaded from a source you added.",
+            provenance = entry.provenance?.let { "Built from ${it.repo} @ ${it.commit}" },
+            checksum = entry.sha256,
+        ),
+        onGet = onGet,
+        onCancel = onCancel,
+    )
+}
+
+/** Where a package came from, in the words the sheet shows. */
+internal data class InstallOrigin(
+    val line: String,
+    val provenance: String? = null,
+    val checksum: String? = null,
+    /** Shown in amber when there's something to be careful about, like a file nobody signed. */
+    val warning: String? = null,
+)
+
+@Composable
+internal fun MarketInstallSheet(
+    manifest: com.mccal.folio.market.PackageManifest,
+    origin: InstallOrigin,
+    onGet: () -> Unit,
+    onCancel: () -> Unit,
+) {
     val safety = PackageSafety.of(manifest)
     val name = manifest.name.english
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).testTag("market-install-sheet")) {
@@ -76,14 +104,12 @@ internal fun MarketInstallSheet(entry: IndexPackage, builtIn: Boolean, onGet: ()
         SheetGroupLabel("Where it came from")
         SheetGroup {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    if (builtIn) "Built into Folio, so there's nothing to download." else "Downloaded from a source you added.",
-                    color = Color.White.copy(alpha = .85f), fontSize = 14.sp,
-                )
-                entry.provenance?.let {
-                    Text("Built from ${it.repo} @ ${it.commit}", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                origin.warning?.let {
+                    Text(it, color = Color(0xFFFFB340), fontSize = 14.sp)
                 }
-                entry.sha256?.let {
+                Text(origin.line, color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                origin.provenance?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
+                origin.checksum?.let {
                     Text("Checksum ${it.take(16)}…", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
             }

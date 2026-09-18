@@ -147,6 +147,8 @@ dependencies {
     testImplementation("org.json:json:20260814") // real org.json for StatusStyle round-trip tests
     // Renders Compose on the JVM, so a screen can be checked without a phone attached.
     testImplementation("org.robolectric:robolectric:4.17")
+    // runTest, so the Market's network calls can be tested without a real dispatcher.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation(platform("androidx.compose:compose-bom:2025.06.01"))
