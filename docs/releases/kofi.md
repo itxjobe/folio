@@ -59,6 +59,36 @@ Left to do, on Ko-fi itself:
 
 More codes whenever they're wanted: `cd ~/.folio && python3 ~/dev/folio-0.7.0/tools/folio-code.py mint market`.
 
+## Who can make a code
+
+Only whoever has `~/.folio/folio-supporter.pem`. A code is an ECDSA P-256 signature over its own text: the public half
+in the app can check one, and can't be used to make one. Editing a code - a later date, a different feature - breaks
+the signature, and there's a test for that.
+
+So nobody can forge a code. Three things that are worth being clear-eyed about, because they aren't forgery:
+
+- **A code can be passed around.** That's deliberate. If it ever matters, mint dated ones (`--days 90`) or a code per
+  person through `tools/kofi-webhook/`.
+- **Folio is MIT, and the check runs on the phone.** Anyone can build from source with the check removed. No
+  client-side check survives that, and pretending otherwise would mean shipping something closed. The answer is that
+  the free core is worth having on its own, so there's little to gain.
+- **Beta Updates opens the Market too**, by design - the whole point is testers. If early access should be the only
+  early door, that switch has to close first.
+
+Keeping the key safe, in order of how much it buys:
+
+1. **Back it up offline.** Losing it is worse than leaking it: every code already handed out dies with it.
+2. **Encrypt it on disk:** `python3 tools/folio-code.py keygen --passphrase` for a new key, or
+   `openssl pkcs8 -topk8 -v2 aes-256-cbc -in folio-supporter.pem -out folio-supporter.pem.enc` for the one that
+   exists. Minting then asks for the passphrase, or reads `FOLIO_KEY_PASSPHRASE`.
+3. **Never let it near a server.** `tools/kofi-webhook/` hands out pre-minted codes for exactly this reason.
+4. **CI checks the repository for private keys** on every push (`tools/check-secrets.sh`). `.gitignore` covers the
+   usual names, but ignoring a file doesn't stop `git add -f` or a key pasted into a document.
+
+If it ever does leak: mint a new key, put its public half in `EarlyAccess.PUBLIC_KEY`, ship it, and say so in the
+release notes. Every code made with the old key stops working at that release, including the honest ones - so
+supporters need new codes, which is the real cost of a leak.
+
 ## Getting a code to a supporter
 
 Ko-fi has three ways in, in order of how little work they are:

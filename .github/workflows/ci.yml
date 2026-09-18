@@ -26,6 +26,9 @@ jobs:
           java-version: 17
       # Also validates the Gradle wrapper jar.
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      # Before anything slow: a key in the repository is the one mistake that can't be taken back by deleting it.
+      - name: No private keys in the repository
+        run: bash tools/check-secrets.sh
       - name: Unit tests, lint and debug build
         run: ./gradlew :app:testDebugUnitTest :market:testDebugUnitTest :app:lintDebug :market:lintDebug :app:assembleDebug
 

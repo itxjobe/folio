@@ -6,6 +6,7 @@ the phone against the public key built into the app. There is no account, no ser
 paid: Folio keeps the code and the date it runs out, and that's all.
 
     python3 tools/folio-code.py keygen                       # once: makes the key and prints what goes in the app
+    python3 tools/folio-code.py keygen --passphrase          # same, with the key encrypted on disk
     python3 tools/folio-code.py mint market                  # a code for the Market that never runs out
     python3 tools/folio-code.py mint market --days 90        # one that runs out in 90 days
     python3 tools/folio-code.py mint '*' --days 365          # everything, for a year
@@ -13,11 +14,21 @@ paid: Folio keeps the code and the date it runs out, and that's all.
 
 The private key never leaves the machine it's made on and is never committed. Codes are meant to be shareable - a
 supporter passing one to a friend is fine, it's a thank-you rather than a licence - so mint by feature, not by person.
+
+What signing does and doesn't do: nobody can make a code without the private key, so the only way to get one is to be
+given one. It doesn't stop a code being passed around, and it can't stop someone building Folio from source with the
+check removed - the app is MIT, and a check that runs on the phone is always the phone's to skip. It's an honour
+system with a lock on the front door, which is the right shape for a thank-you.
+
+With --passphrase the key is encrypted on disk and every mint needs it. Set FOLIO_KEY_PASSPHRASE to avoid typing it,
+or leave it unset and be asked.
 """
 
 import argparse
 import base64
+import getpass
 import hashlib
+import os
 import pathlib
 import subprocess
 import sys
@@ -28,18 +39,43 @@ PREFIX = "folio-early"
 DAY = 24 * 60 * 60
 
 
+def encrypted(key: pathlib.Path) -> bool:
+    head = key.read_text(errors="ignore")[:200]
+    return "ENCRYPTED" in head or "BEGIN PRIVATE KEY" not in head and "Proc-Type" in head
+
+
+def passin(key: pathlib.Path) -> list[str]:
+    """How openssl should read the passphrase, or nothing when the key isn't encrypted."""
+    if not encrypted(key):
+        return []
+    phrase = os.environ.get("FOLIO_KEY_PASSPHRASE") or getpass.getpass("Passphrase for the supporter key: ")
+    os.environ["FOLIO_KEY_PASSPHRASE"] = phrase
+    return ["-passin", "env:FOLIO_KEY_PASSPHRASE"]
+
+
 def public_spki(key: pathlib.Path) -> bytes:
     return subprocess.run(
-        ["openssl", "ec", "-in", str(key), "-pubout", "-outform", "DER"],
+        ["openssl", "ec", "-in", str(key), "-pubout", "-outform", "DER", *passin(key)],
         check=True, capture_output=True,
     ).stdout
 
 
-def keygen() -> None:
+def keygen(protect: bool) -> None:
     if KEY.exists():
         sys.exit(f"{KEY} already exists. Move it aside if you really mean to make a new key - a new key makes every "
                  "code already handed out stop working.")
     subprocess.run(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(KEY)], check=True)
+    if protect:
+        phrase = os.environ.get("FOLIO_KEY_PASSPHRASE") or getpass.getpass("Passphrase for the new key: ")
+        if not phrase:
+            sys.exit("An empty passphrase would leave the key as it was; not doing that.")
+        os.environ["FOLIO_KEY_PASSPHRASE"] = phrase
+        subprocess.run(
+            ["openssl", "pkcs8", "-topk8", "-v2", "aes-256-cbc", "-in", str(KEY), "-out", str(KEY) + ".enc",
+             "-passout", "env:FOLIO_KEY_PASSPHRASE"], check=True,
+        )
+        pathlib.Path(str(KEY) + ".enc").replace(KEY)
+        print("The key is encrypted on disk; minting will ask for the passphrase.\n")
     KEY.chmod(0o600)
     spki = public_spki(KEY)
     print(f"Wrote {KEY}. Keep it offline, and don't commit it.\n")
@@ -53,10 +89,13 @@ def mint(feature: str, days: int) -> None:
         sys.exit(f"No {KEY}. Run: python3 tools/folio-code.py keygen")
     expires = 0 if days <= 0 else int(time.time()) + days * DAY
     payload = f"{PREFIX}:{feature}:{expires}"
-    signature = subprocess.run(
-        ["openssl", "dgst", "-sha256", "-sign", str(KEY)],
-        input=payload.encode(), check=True, capture_output=True,
-    ).stdout
+    signing = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", str(KEY), *passin(KEY)],
+        input=payload.encode(), capture_output=True,
+    )
+    if signing.returncode != 0:
+        sys.exit("Couldn't sign with that key. If it's encrypted, the passphrase was wrong.")
+    signature = signing.stdout
     code = f"{payload}.{base64.b64encode(signature).decode()}"
     print(code)
     print(f"\n  feature : {feature}", file=sys.stderr)
@@ -73,7 +112,8 @@ def verify(code: str, feature: str) -> None:
     if len(parts) != 3 or parts[0] != PREFIX:
         sys.exit("That isn't the shape of a Folio code.")
     pub = pathlib.Path("folio-supporter.pub.pem")
-    pub.write_bytes(subprocess.run(["openssl", "ec", "-in", str(KEY), "-pubout"], check=True, capture_output=True).stdout)
+    pub.write_bytes(subprocess.run(["openssl", "ec", "-in", str(KEY), "-pubout", *passin(KEY)],
+                                   check=True, capture_output=True).stdout)
     sig = pathlib.Path("folio-code.sig")
     sig.write_bytes(base64.b64decode(signature))
     result = subprocess.run(
@@ -94,7 +134,8 @@ def verify(code: str, feature: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("keygen", help="make the supporter key (once)")
+    maker = commands.add_parser("keygen", help="make the supporter key (once)")
+    maker.add_argument("--passphrase", action="store_true", help="encrypt the key on disk; every mint then needs it")
     minter = commands.add_parser("mint", help="make a code")
     minter.add_argument("feature", help="market, or * for everything")
     minter.add_argument("--days", type=int, default=0, help="days until it runs out; 0 means never")
@@ -104,7 +145,7 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "keygen":
-        keygen()
+        keygen(args.passphrase)
     elif args.command == "mint":
         mint(args.feature, args.days)
     else:
