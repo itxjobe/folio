@@ -127,21 +127,31 @@ A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price
 - **Image:** `~/Downloads/folio-kofi-shop.jpg`
 - **Digital file:** `~/Downloads/folio-early-access.txt`
 
-Draft description:
+Description (McCal's decisions, 2026-09-18: keep the early honesty, mention the jailbreak side). Every line below is
+either lifted from the README or is a fact about what the app does - except the one marked, which is still McCal's to
+write:
 
-> Get the Folio Market before it ships.
+> Folio Launcher: a clean, iPhone-style Home Screen for Android — with the jailbreak tweaks I always wanted, and none
+> of the lockdown.
 >
-> Folio is a launcher for foldables that looks and behaves like iOS. The Market is how 0.7.0 hands out themes, tweaks
-> and layouts: packages you can get, remove and undo, from sources you choose, with a page for each that says what it
-> changes and what it can't reach before you get it.
+> This gets you the **Folio Market** before it ships. It's how 0.7.0 hands out themes, tweaks and layouts: packages
+> you can get, remove and undo, from sources you choose. Every page says what a package changes and what it can't
+> reach before you get it.
 >
-> You get a code to paste into Settings › Market › Early access, and the store appears.
+> The tweaks are the ones I missed from jailbreaking — I've been in that world since iOS 7 or 8. Cabinet after Velox,
+> Harborline after Harbor, Roll Call after Axon, Palette after Velvet, Colored Albums after ColorFlow. All re-created
+> from scratch for Android; none of their code is in here, and everyone is credited in the app.
 >
-> **Everything in it is already in Folio's Settings.** This is a head start, not a paywall — Folio is free and open
-> source, and nothing that has already shipped will ever move behind a code. There's no account: the code is checked
-> on your phone, and nothing about you is stored or sent.
+> You'll get a code to paste into Settings › Market › Early access, and the store appears.
 >
-> Needs Folio 0.7.0 or later from GitHub.
+> Everything in the Market is already in Folio's Settings — this is a head start, not a paywall. Folio is free and
+> open source and stays that way, and nothing that has already shipped will ever move behind a code. There's no
+> account: the code is checked on your phone, and nothing about you is stored or sent.
+>
+> Fair warning: it's still very early. A bit rusty in places, and it settles down as more people use it. Developed and
+> tested on a Galaxy Z Fold8, and it needs Folio 0.7.0 or later from GitHub.
+>
+> **[McCal's line about what the $3 goes towards.]**
 
 ## The page itself
 
