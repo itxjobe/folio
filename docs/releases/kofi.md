@@ -37,16 +37,27 @@ python3 tools/folio-code.py verify <code> market
 `folio-supporter.pem` never leaves the machine it's made on and is never committed. A new key stops every code already
 handed out from working, so keep an offline copy.
 
-### Setting it up, in order
+### Where things stand
 
-1. `python3 tools/folio-code.py keygen`, on the Mac, with the repo checked out.
-2. Paste the printed line into `EarlyAccess.PUBLIC_KEY` (`market/src/main/java/com/mccal/folio/market/EarlyAccess.kt`)
-   and build. Until that's done, **every code is refused** — deliberately, because a placeholder key would let anyone
-   mint their own.
-3. `mint market` once, and keep the code. One code for everyone is fine and is the simplest thing that works.
-4. Put the code where supporters see it (below).
-5. Try it on the phone: Settings › Market › Early access › paste › Use code. It should say "Thanks — early access is
-   on", and the Market row should appear.
+Done on 2026-09-18:
+
+- The key exists: `~/.folio/folio-supporter.pem`, outside the repo, mode 600. **Back it up somewhere offline.** If it
+  is lost, a new key stops every code already handed out from working.
+  Fingerprint `6423 2915 002A CAD7 FD07 CC99 AC27 B99F`.
+- Its public half is in `EarlyAccess.PUBLIC_KEY`, and a test checks the built-in key parses.
+- One Market code is minted, at `~/.folio/market-code.txt`. It never runs out.
+- `~/Downloads/folio-early-access.txt` is the file to attach to the shop item, with the code and what to do with it.
+- `~/Downloads/folio-kofi-shop.jpg` is a 1080×1080 image for the item, from the Mockup Lab, badged
+  "Preview · Coming in 0.7.0".
+
+Left to do, on Ko-fi itself:
+
+1. Ko-fi → **Shop** → add an item, with the image and the text below.
+2. Attach `folio-early-access.txt` as the digital file.
+3. Buy it yourself for the minimum, check the file arrives, and paste the code into
+   Settings › Market › Early access on the phone. It should say "Thanks — early access is on".
+
+More codes whenever they're wanted: `cd ~/.folio && python3 ~/dev/folio-0.7.0/tools/folio-code.py mint market`.
 
 ## Getting a code to a supporter
 
@@ -69,6 +80,31 @@ payment, it checks the payment is really Ko-fi's, takes one code off a batch min
 The point of the design is that **the signing key never goes online**. Codes are minted on the Mac and uploaded; the
 worker only hands them out, so breaking into it leaks a handful of codes rather than the ability to make them. Its
 README has the setup, and the whole thing is optional — start with the shop item.
+
+## The shop item
+
+A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price, a description and an image.
+
+- **Title:** Folio early access
+- **Price:** McCal's call. Ko-fi takes a minimum; the point is a thank-you, so low is fine.
+- **Image:** `~/Downloads/folio-kofi-shop.jpg`
+- **Digital file:** `~/Downloads/folio-early-access.txt`
+
+Draft description:
+
+> Get the Folio Market before it ships.
+>
+> Folio is a launcher for foldables that looks and behaves like iOS. The Market is how 0.7.0 hands out themes, tweaks
+> and layouts: packages you can get, remove and undo, from sources you choose, with a page for each that says what it
+> changes and what it can't reach before you get it.
+>
+> You get a code to paste into Settings › Market › Early access, and the store appears.
+>
+> **Everything in it is already in Folio's Settings.** This is a head start, not a paywall — Folio is free and open
+> source, and nothing that has already shipped will ever move behind a code. There's no account: the code is checked
+> on your phone, and nothing about you is stored or sent.
+>
+> Needs Folio 0.7.0 or later from GitHub.
 
 ## The page itself
 

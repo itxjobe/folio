@@ -69,8 +69,8 @@ class EarlyAccessTest {
         val noKey = EarlyAccess(MemoryStore(), publicKey = null) { now }
         assertEquals(EarlyAccess.Result.NoKey, noKey.check(code(), EarlyAccess.MARKET))
         assertTrue(!noKey.has(EarlyAccess.MARKET))
-        // That's what ships today: no key is built in until one exists.
-        assertNull(EarlyAccess.PUBLIC_KEY)
+        // And the key that does ship is a real one: a typo here would refuse every code with no way to tell why.
+        assertTrue("the built-in supporter key has to parse", SourceKey.parse(EarlyAccess.PUBLIC_KEY!!) != null)
     }
 
     @Test fun `forgetting a code turns it off`() {

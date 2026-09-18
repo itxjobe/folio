@@ -12,8 +12,8 @@ import java.util.Base64
  * The payload is `folio-early:<feature>:<expires>`, where `expires` is a Unix time in seconds (0 means it never
  * runs out) - the same clock [check] compares against. `tools/folio-code.py` mints them.
  *
- * **No key is built in yet.** Until McCal generates the supporter key and puts it in [PUBLIC_KEY], every code is
- * refused, which is the safe way round: a placeholder key would let anyone mint their own.
+ * The key in [PUBLIC_KEY] is Folio's own. A build with no key refuses every code, which is the safe way round: a
+ * placeholder key would let anyone mint their own.
  */
 class EarlyAccess(
     private val store: KeyValueStore,
@@ -89,9 +89,13 @@ class EarlyAccess(
         private const val MAX_CODE = 512
 
         /**
-         * The supporter key, base64 SPKI. Null until McCal generates one and keeps the private half offline; codes are
-         * refused while it is null rather than accepted against a stand-in.
+         * The supporter key, base64 SPKI (ECDSA P-256). Its private half lives in `~/.folio/folio-supporter.pem` on
+         * McCal's Mac and nowhere else; `tools/folio-code.py` signs codes with it. Changing this key stops every code
+         * already handed out from working.
+         *
+         * Fingerprint: 6423 2915 002A CAD7 FD07 CC99 AC27 B99F
          */
-        val PUBLIC_KEY: String? = null
+        val PUBLIC_KEY: String? =
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9Be9dZyOCQ4YD4DQkNV9F8mnZfPZWizr597wQXtXLdl97pBc6PfSgI+8JLh+DRWUPwkiZyfHk8dBE4AqU2T5Uw=="
     }
 }
