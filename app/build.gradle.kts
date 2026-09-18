@@ -96,6 +96,8 @@ android {
         getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/changelog").get().asFile) }
     }
     buildFeatures { compose = true }
+    // Android 13's per-app language picker: AGP builds locales_config.xml from the values-* folders a translation adds.
+    androidResources { generateLocaleConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
