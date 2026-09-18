@@ -47,7 +47,20 @@ val bundleFolioSource = tasks.register<Copy>("bundleFolioSource") {
     }
     into(layout.buildDirectory.dir("generated/market/market/source"))
 }
-tasks.named("preBuild") { dependsOn(bundleFolioSource) }
+// Write the list of files beside them: an APK's assets can't be listed reliably (and Robolectric can't at all), so the
+// source says what it contains instead of Folio guessing from folder names.
+val indexFolioSource = tasks.register("indexFolioSource") {
+    dependsOn(bundleFolioSource)
+    val sourceDir = layout.buildDirectory.dir("generated/market/market/source")
+    outputs.dir(sourceDir)
+    doLast {
+        val root = sourceDir.get().asFile
+        val paths = root.walkTopDown().filter { it.isFile && it.name != "files.json" }
+            .map { it.relativeTo(root).invariantSeparatorsPath }.sorted().toList()
+        File(root, "files.json").writeText(paths.joinToString(",", "[", "]") { "\"" + it + "\"" })
+    }
+}
+tasks.named("preBuild") { dependsOn(indexFolioSource) }
 
 android {
     namespace = "com.mccal.folio"
@@ -109,6 +122,8 @@ android {
         }
     }
     buildFeatures { compose = true }
+    // Robolectric needs the app's resources and manifest in unit tests.
+    testOptions.unitTests.isIncludeAndroidResources = true
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -130,6 +145,11 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20260814") // real org.json for StatusStyle round-trip tests
+    // Renders Compose on the JVM, so a screen can be checked without a phone attached.
+    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(platform("androidx.compose:compose-bom:2025.06.01"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.06.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.7.0")

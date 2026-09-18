@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,15 +28,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,14 +57,18 @@ import com.mccal.folio.market.DepictionBlock
 import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.InstalledPackage
+import com.mccal.folio.market.FeaturedStyle
 import com.mccal.folio.market.PackagePermission
+import com.mccal.folio.market.RepoIndex
 import com.mccal.folio.market.Section
 
-/** The Market's tabs. Sources and its own Settings arrive with Phase 6. */
+/** The Market's tabs. Adding a source over the network comes in Phase 6; Sources shows what Folio has today. */
 internal enum class MarketTab(val label: String, val icon: ImageVector) {
     FEATURED("Featured", Icons.Rounded.AutoAwesome),
+    SOURCES("Sources", Icons.Rounded.Public),
     PACKAGES("Packages", Icons.Rounded.Storefront),
     INSTALLED("Installed", Icons.Rounded.Download),
+    SETTINGS("Settings", Icons.Rounded.Settings),
 }
 
 /**
@@ -71,12 +79,15 @@ internal enum class MarketTab(val label: String, val icon: ImageVector) {
  */
 @Composable
 internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, onClose: () -> Unit) {
-    var tab by remember { mutableStateOf(MarketTab.FEATURED) }
-    var openId by remember { mutableStateOf<String?>(null) }
+    // Saveable, so folding, rotating or leaving and coming back keeps the tab and the package that was open.
+    var tab by rememberSaveable { mutableStateOf(MarketTab.FEATURED) }
+    var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    var introducing by rememberSaveable { mutableStateOf(!session.prefs.introductionSeen) }
+    var style by rememberSaveable { mutableStateOf(session.prefs.featuredStyle) }
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     // Re-read after every change, so the list always shows what's really installed.
-    var revision by remember { mutableStateOf(0) }
+    var revision by rememberSaveable { mutableIntStateOf(0) }
     val index = remember(revision) { session.index() }
     val installed = remember(revision) { session.installed().associateBy { it.id } }
 
@@ -99,6 +110,15 @@ internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, 
         refresh()
     }
 
+    if (introducing) {
+        MarketIntroduction(
+            style = style,
+            onStyle = { chosen -> style = chosen; session.prefs.featuredStyle = chosen },
+            onDone = { session.prefs.introductionSeen = true; introducing = false },
+        )
+        return
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).windowInsetsPadding(WindowInsets.safeDrawing)) {
         val split = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale) && maxWidth.value >= 700f
         val packages = index?.packages.orEmpty()
@@ -110,9 +130,13 @@ internal fun MarketScreen(session: MarketSession, installedTweaks: Set<String>, 
                     Box(if (split) Modifier.width(360.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
                         MarketList(
                             tab = tab,
+                            index = index,
                             packages = packages,
                             installed = installed,
                             openId = openId,
+                            style = style,
+                            onStyle = { chosen -> style = chosen; session.prefs.featuredStyle = chosen },
+                            onIntroduce = { session.prefs.introductionSeen = false; introducing = true },
                             onOpen = { openId = it },
                             onGet = ::get,
                             onRemove = { id, name -> remove(id, name) },
@@ -170,9 +194,13 @@ private fun MarketTabs(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
 @Composable
 private fun MarketList(
     tab: MarketTab,
+    index: RepoIndex?,
     packages: List<IndexPackage>,
     installed: Map<String, InstalledPackage>,
     openId: String?,
+    style: FeaturedStyle,
+    onStyle: (FeaturedStyle) -> Unit,
+    onIntroduce: () -> Unit,
     onOpen: (String) -> Unit,
     onGet: (IndexPackage) -> Unit,
     onRemove: (String, String) -> Unit,
@@ -180,6 +208,7 @@ private fun MarketList(
     val shown = when (tab) {
         MarketTab.FEATURED, MarketTab.PACKAGES -> packages
         MarketTab.INSTALLED -> packages.filter { it.id in installed }
+        MarketTab.SOURCES, MarketTab.SETTINGS -> emptyList()
     }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         item {
@@ -188,10 +217,26 @@ private fun MarketList(
                 Text(tab.label, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             }
         }
-        if (shown.isEmpty()) {
+        if (tab == MarketTab.FEATURED && index != null) {
+            item(key = "featured") {
+                MarketFeatured(
+                    featured = index.featured,
+                    packages = packages,
+                    calm = style == FeaturedStyle.CALM,
+                    onOpen = onOpen,
+                )
+            }
+        }
+        if (tab == MarketTab.SOURCES) {
+            item(key = "sources") { MarketSources(index) }
+        }
+        if (tab == MarketTab.SETTINGS) {
+            item(key = "settings") { MarketSettings(style = style, onStyle = onStyle, onIntroduce = onIntroduce) }
+        }
+        if (shown.isEmpty() && tab == MarketTab.INSTALLED) {
             item {
                 Text(
-                    "Nothing here yet. Themes and tweaks you get show up in Installed.",
+                    "Nothing yet. Themes and tweaks you get show up here.",
                     color = Color.White.copy(alpha = .55f), modifier = Modifier.padding(vertical = 24.dp),
                 )
             }
@@ -256,6 +301,53 @@ private fun MarketRow(
     }
 }
 
+/**
+ * Sources: where packages come from. Folio's own comes with the app and needs no network; adding one over the network,
+ * with its key pinned by fingerprint, is Phase 6.
+ */
+@Composable
+private fun MarketSources(index: RepoIndex?) {
+    Column {
+        SheetGroupLabel("Sources")
+        SheetGroup(Modifier.padding(bottom = 10.dp)) {
+            Column(Modifier.padding(14.dp)) {
+                Text(index?.name?.english ?: "Folio", color = Color.White, fontSize = 16.sp)
+                Text(
+                    "Built into the app. ${index?.packages?.size ?: 0} packages, no network.",
+                    color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                )
+            }
+        }
+        Text(
+            "Sources other people publish come next: Folio shows a source's key fingerprint before you trust it, and " +
+                "refuses one that changes its key without asking you.",
+            color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 16.dp),
+        )
+    }
+}
+
+/** The Market's own settings: how Featured looks, and the introduction again. */
+@Composable
+private fun MarketSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Unit, onIntroduce: () -> Unit) {
+    Column {
+        SheetGroupLabel("Featured style")
+        IosSegmented(
+            options = FeaturedStyle.entries.map { it to it.label },
+            selected = style,
+            onSelect = onStyle,
+            modifier = Modifier.padding(vertical = 8.dp),
+            tag = "market-featured-style",
+        )
+        Text(
+            FeaturedStyle.entries.first { it == style }.description,
+            color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp),
+        )
+        SheetGroup(Modifier.padding(bottom = 16.dp)) {
+            IosActionRow("Show the introduction again", onClick = onIntroduce)
+        }
+    }
+}
+
 /** The Get / Remove pill. Its name says which package it belongs to, so a screen reader hears more than "Get". */
 @Composable
 private fun MarketActionButton(label: String, name: String, onClick: () -> Unit) {
@@ -267,7 +359,9 @@ private fun MarketActionButton(label: String, name: String, onClick: () -> Unit)
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp)
+            // 44 dp tall, so it's a comfortable target rather than just big enough to see.
+            .heightIn(min = 44.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
             .semantics { contentDescription = "$label $name" },
     )
 }

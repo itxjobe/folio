@@ -8,6 +8,7 @@ import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.InstalledPackage
 import com.mccal.folio.market.InstalledStore
+import com.mccal.folio.market.MarketPrefs
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.PackageSafeMode
 import com.mccal.folio.market.RepoIndex
@@ -27,8 +28,13 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
         list = { path -> runCatching { appContext.assets.list(path)?.toList().orEmpty() }.getOrDefault(emptyList()) },
     )
 
-    private val store = InstalledStore(FileStore(File(appContext.filesDir, "market")))
-    private val safeMode = PackageSafeMode(FileStore(File(appContext.filesDir, "market")))
+    private val files = FileStore(File(appContext.filesDir, "market"))
+
+    /** How Featured looks, and whether the introduction has been seen. */
+    val prefs = MarketPrefs(files)
+
+    private val store = InstalledStore(files)
+    private val safeMode = PackageSafeMode(files)
     private val installer = PackageInstaller(store, MarketHost(launcher), safeMode)
 
     /** The package list, or null when the bundled files are unreadable, which only a broken build can cause. */
