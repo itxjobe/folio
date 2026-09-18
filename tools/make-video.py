@@ -56,20 +56,26 @@ PILL = "#2E5E66"
 BEZEL = 13             # the dark frame around a screen, so it reads as a device
 BEZEL_COLOUR = "#0B0B0C"
 
-TEXT_X = 132           # the text column's left edge
-TEXT_W = 560
-DEVICE_BOX = (980, 860)  # the most room a screen gets, on the right
+# Measured off folio-060-v7.mp4 rather than guessed: the screen fills x 546-1855, y 42-1038, and the words sit in
+# the 430 px left of it, starting at x=80. The screen is the picture; the words are a label on it.
+TEXT_X = 80
+TEXT_W = 430
+DEVICE_BOX = (1310, 996)
+DEVICE_RIGHT = 65      # gap from the right edge
+HEAD_POINTS = 56
+SUB_POINTS = 25
 
 # The order they appear: the screen, the heading, the line under it, and the small pill above it.
 SHOTS_IN_ORDER = [
-    ("market-featured-cover.webp", "A store, in\nyour pocket", "Featured, Sources, Packages,\nInstalled and Settings", "New in 0.7.0"),
-    ("market-featured-inner.webp", "And all of it\nwhen you open", "The same store, using\nthe whole inner screen", None),
-    ("market-packages.webp", "Themes and tweaks,\nas packages", "Folio's own come with the app,\nwith a page each", None),
-    ("market-package.webp", "What it can reach,\nbefore you get it", "Built from the manifest,\nnever from the author's words", "Privacy"),
-    ("market-install-sheet.webp", "Nothing is applied\nuntil you say so", "What changes, what it can't touch,\nand where it came from", None),
-    ("market-sources.webp", "Sources you choose", "Folio shows the key fingerprint\nbefore it trusts one", "Sources"),
-    ("market-installed.webp", "Updates when\nyou want them", "Nothing installs itself, and\nUndo keeps the old version", None),
-    ("settings-three-columns.webp", "Settings uses\nthe whole screen", "The list, the page, and what\nyou opened from it", "Unfolded"),
+    # Headings are the name of the thing, the way 0.6.0 says "Spotlight" and "Control Center" - not a sentence.
+    ("market-featured-inner.webp", "Folio Market", "Themes and tweaks,\nfrom sources you choose", "New in 0.7.0"),
+    ("market-featured-cover.webp", "On the cover screen", "The same store, one\npane at a time", None),
+    ("market-packages.webp", "Packages", "Folio's own themes and\ntweaks, with a page each", None),
+    ("market-package.webp", "Privacy label", "What it changes, and what\nit can never reach", None),
+    ("market-install-sheet.webp", "Get asks first", "Nothing is applied\nuntil you say so", None),
+    ("market-sources.webp", "Sources", "Pinned to their key, and\nshown to you first", None),
+    ("market-installed.webp", "Updates", "Nothing installs itself.\nUndo keeps the old one", None),
+    ("settings-three-columns.webp", "Settings, unfolded", "The list, the page, and\nwhat you opened from it", None),
 ]
 
 
@@ -135,11 +141,11 @@ def text_block(out: pathlib.Path, text: str, points: int, colour: str, bold: boo
 
 
 def pill(out: pathlib.Path, text: str) -> None:
-    run(["magick", "-background", "none", "-fill", INK, "-font", "Helvetica-Bold", "-pointsize", "24",
-         f"label:{text}", "-bordercolor", "none", "-border", "14x9",
+    run(["magick", "-background", "none", "-fill", INK, "-font", "Helvetica-Bold", "-pointsize", "19",
+         f"label:{text}", "-bordercolor", "none", "-border", "12x7",
          "(", "+clone", "-alpha", "extract", "-fill", "white", "-colorize", "100%", ")",
          "-delete", "0", "-fill", PILL, "-colorize", "100%",
-         "(", "-background", "none", "-fill", INK, "-font", "Helvetica-Bold", "-pointsize", "24",
+         "(", "-background", "none", "-fill", INK, "-font", "Helvetica-Bold", "-pointsize", "19",
          f"label:{text}", ")", "-gravity", "center", "-composite", "+repage", str(out)])
 
 
@@ -153,10 +159,10 @@ def shot_frame(image: pathlib.Path, heading: str, sub: str, tag: str | None, out
         sw, sh = size_of(screen)
 
         head = work / "head.png"
-        text_block(head, heading, 68, INK, True)
+        text_block(head, heading, HEAD_POINTS, INK, True)
         hw, hh = size_of(head)
         line = work / "sub.png"
-        text_block(line, sub, 29, MUTED, False)
+        text_block(line, sub, SUB_POINTS, MUTED, False)
         lw, lh = size_of(line)
 
         tag_h, tag_gap = 0, 0
@@ -166,13 +172,13 @@ def shot_frame(image: pathlib.Path, heading: str, sub: str, tag: str | None, out
             _, tag_h = size_of(badge)
             tag_gap = 22
 
-        stack = tag_h + tag_gap + hh + 26 + lh
+        stack = tag_h + tag_gap + hh + 22 + lh
         top = (H - stack) // 2
 
         shadow = work / "shadow.png"
         run(["magick", str(screen), "-background", "rgba(0,0,0,0.55)", "-shadow", "70x34+0+16", "+repage", str(shadow)])
         shw, shh = size_of(shadow)
-        left, top_of_screen = W - sw - 110, (H - sh) // 2
+        left, top_of_screen = W - sw - DEVICE_RIGHT, (H - sh) // 2
 
         # Placed from the top-left so the column lines up whatever the text does.
         args = ["magick", str(bg),
@@ -182,9 +188,9 @@ def shot_frame(image: pathlib.Path, heading: str, sub: str, tag: str | None, out
         if tag:
             args += [str(work / "tag.png"), "-geometry", f"+{TEXT_X}+{top}", "-composite"]
         args += [str(head), "-geometry", f"+{TEXT_X}+{top + tag_h + tag_gap}", "-composite",
-                 str(line), "-geometry", f"+{TEXT_X}+{top + tag_h + tag_gap + hh + 26}", "-composite",
-                 "-gravity", "southwest", "-fill", FAINT, "-font", "Helvetica", "-pointsize", "24",
-                 "-annotate", f"+{TEXT_X}+54", f"Folio {version} · design preview",
+                 str(line), "-geometry", f"+{TEXT_X}+{top + tag_h + tag_gap + hh + 22}", "-composite",
+                 "-gravity", "southwest", "-fill", FAINT, "-font", "Helvetica", "-pointsize", "20",
+                 "-annotate", f"+{TEXT_X}+42", f"Folio {version} · design preview",
                  "+repage", str(out)]
         run(args)
 
