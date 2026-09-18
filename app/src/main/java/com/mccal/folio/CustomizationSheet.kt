@@ -164,6 +164,19 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     SheetGroup {
                         TweakRow(Icons.Rounded.AutoAwesome, 0xFFBF5AF2, "Tweaks", "customization-tweaks",
                             "${state.installedTweaks.size} installed", selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
+                        // The Market (0.7.0), while it's being built: Folio Dev shows it, the release doesn't.
+                        val marketContext = androidx.compose.ui.platform.LocalContext.current
+                        if (com.mccal.folio.market.MarketFeature.isEnabled(marketContext.packageName)) {
+                            MenuDivider()
+                            TweakRow(Icons.Rounded.Storefront, 0xFF0A84FF, "Market", "customization-market", chevron = !sidebar) {
+                                runCatching {
+                                    marketContext.startActivity(
+                                        android.content.Intent(marketContext, MarketActivity::class.java)
+                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
+                            }
+                        }
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.Save, 0xFF8E8E93, "Backup", "customization-backup", selected = selected == CustomizationPage.BACKUP, chevron = !sidebar) { onPage(CustomizationPage.BACKUP) }

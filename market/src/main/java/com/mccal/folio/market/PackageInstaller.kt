@@ -91,6 +91,10 @@ class PackageInstaller(
         if (expected != null && (expected.id != pkg.id || expected.version != pkg.version)) {
             return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
         }
+        return apply(pkg, origin, sourceUrl)
+    }
+
+    private fun apply(pkg: FolioPackage, origin: InstalledPackage.Origin, sourceUrl: String?): InstallResult {
         val missing = pkg.manifest.missingCapabilities(host.capabilities).map { it.id } +
             pkg.changes.flatMap { it.capabilities }.filterNot { it in host.capabilities }.map { it.id }
         if (missing.isNotEmpty()) return InstallResult.NeedsNewerFolio(missing.distinct())
@@ -145,6 +149,19 @@ class PackageInstaller(
         return InstallResult.Installed(installed, replaced, pkg.notes)
     }
 
+    /**
+     * Installs a package that ships inside Folio, from files rather than a download: the built-in themes and tweaks in
+     * `docs/sdk/source`. Everything after opening the archive is the same.
+     */
+    fun installBuiltIn(files: Map<String, ByteArray>): InstallResult {
+        val pkg = when (val read = readFiles(files)) {
+            is ReadResult.Ok -> read.pkg
+            is ReadResult.NeedsNewerFolio -> return InstallResult.NeedsNewerFolio(read.missing)
+            is ReadResult.Failed -> return InstallResult.Failed(read.reason, read.message)
+        }
+        return apply(pkg, InstalledPackage.Origin.FOLIO_SOURCE, sourceUrl = null)
+    }
+
     /** Takes a package off, putting back whatever it replaced. */
     fun remove(id: String): Boolean {
         val installed = store.find(id) ?: return false
@@ -183,11 +200,14 @@ class PackageInstaller(
     }
 
     /** Opens a package and reads everything in it, without applying anything. Used by the install sheet's preview. */
-    fun read(bytes: ByteArray): ReadResult {
-        val files = when (val archive = PackageArchive.read(bytes)) {
-            is PackageArchive.Result.Ok -> archive.files
-            is PackageArchive.Result.Rejected -> return ReadResult.Failed(InstallResult.Reason.ARCHIVE, archive.reason)
-        }
+    fun read(bytes: ByteArray): ReadResult = when (val archive = PackageArchive.read(bytes)) {
+        is PackageArchive.Result.Ok -> readFiles(archive.files)
+        is PackageArchive.Result.Rejected -> ReadResult.Failed(InstallResult.Reason.ARCHIVE, archive.reason)
+    }
+
+    /** The same, for a package whose files Folio already has: the built-in ones. */
+    fun readFiles(files: Map<String, ByteArray>): ReadResult {
+        if (PackageArchive.MANIFEST !in files) return ReadResult.Failed(InstallResult.Reason.ARCHIVE, "a package needs a manifest.json")
         val notes = mutableListOf<String>()
         val manifest = when (val parsed = PackageManifest.parse(files.getValue(PackageArchive.MANIFEST).decodeToString())) {
             is ParseResult.Ok -> parsed.value.also { notes += parsed.ignored }

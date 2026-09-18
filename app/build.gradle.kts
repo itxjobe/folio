@@ -39,6 +39,16 @@ val bundleChangelog = tasks.register<Copy>("bundleChangelog") {
 }
 tasks.named("preBuild") { dependsOn(bundleChangelog) }
 
+// Bundle Folio's own source (docs/sdk/source) so the built-in themes and tweaks are real packages, read from the same
+// files the SDK documents and the tests check. One copy, not two.
+val bundleFolioSource = tasks.register<Copy>("bundleFolioSource") {
+    from(rootProject.file("docs/sdk/source")) {
+        exclude("README.md")
+    }
+    into(layout.buildDirectory.dir("generated/market/market/source"))
+}
+tasks.named("preBuild") { dependsOn(bundleFolioSource) }
+
 android {
     namespace = "com.mccal.folio"
     compileSdk = 36
@@ -93,7 +103,10 @@ android {
         getByName("fast") { kotlin.directories.add("src/release/java"); res.directories.add("src/dev/res") }
         // Folio Dev (debug and fast builds) gets an amber icon so it's easy to tell apart from the release.
         getByName("debug") { res.directories.add("src/dev/res") }
-        getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/changelog").get().asFile) }
+        getByName("main") {
+            assets.srcDir(layout.buildDirectory.dir("generated/changelog").get().asFile)
+            assets.srcDir(layout.buildDirectory.dir("generated/market").get().asFile)
+        }
     }
     buildFeatures { compose = true }
     compileOptions {

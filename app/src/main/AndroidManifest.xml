@@ -58,6 +58,9 @@
             android:theme="@style/Theme.Duo.Discover"
             android:taskAffinity="com.mccal.folio.discover" android:excludeFromRecents="true"
             android:resizeableActivity="true" />
+        <!-- The Market (0.7.0). Hidden until it ships: MarketActivity finishes unless MarketFeature is on. -->
+        <activity android:name=".MarketActivity" android:exported="false" android:resizeableActivity="true"
+            android:label="Folio Market" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode" />
         <activity android:name=".DiscoverFeedActivity" android:theme="@style/Theme.Duo.Discover" android:exported="false" android:resizeableActivity="true" />
         <activity android:name=".LiveDiscoverActivity" android:theme="@style/Theme.Duo.LiveDiscover"
             android:exported="false" android:resizeableActivity="true" />
