@@ -175,20 +175,54 @@ different things wearing one name. Folio never picks between them quietly.
 - **Folio's own Featured banners only ever resolve to Folio's own packages**, so a source can't put itself in
   Folio's window by reusing an id.
 
-What this does *not* yet do is prove who wrote a package. A source's signature says "this list came from this
-source, unchanged" - it says nothing about the author, so a mirror can carry someone's package and a mirror can
-alter it. Per-package author signatures are the fix, and they need a format field, so they're a v1.1 change:
+### Who wrote it, and who is handing it over
+
+These are two questions, and a source's signature only answers the second: "this list came from this source,
+unchanged". An **author signature** answers the first, and travels with the package rather than the listing.
+
+An index entry may carry one:
 
 ```json
 {
   "id": "dev.maya.sunset-icons",
-  "author": { "name": "maya", "keyId": "9F2C…" },
-  "signature": "…"
+  "version": "1.2.0",
+  "url": "packages/dev.maya.sunset-icons_1.2.0.foliopkg",
+  "sha256": "…",
+  "size": 148213,
+  "signedBy": {
+    "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE…",
+    "signature": "MEUCIQ…"
+  }
 }
 ```
 
-With that, a mirror could carry Sunset Icons and Folio could still say **published by maya**, rather than only
-**from this source**. Until it exists, the store says where a package came from and never who made it.
+What is signed binds the package's identity to its bytes:
+
+```
+folio-pkg:<id>:<version>:<sha256 of the .foliopkg>
+```
+
+so a signature can't be moved onto another package, another version, or altered bytes. ECDSA P-256 with SHA-256,
+base64 - the same as source signatures, and the same reader.
+
+**Folio pins the key to the package id**, the way a phone pins an app's signing key. The first signed copy of
+`dev.maya.sunset-icons` wins that name; after that:
+
+| What arrives | What Folio does |
+|---|---|
+| Signed by the key it knows | Installs, and says **signed by its developer** |
+| First signed copy ever seen | Installs, and remembers the key for that id |
+| No signature, and none ever seen | Installs, and says **nobody signed this package** |
+| Signed by a different key | **Refused** - somebody else already publishes under that name |
+| Bytes don't match the signature | **Refused** - altered package, or altered listing |
+| No signature, but signed copies were seen before | **Refused** - dropping the signature is how you'd get round it |
+
+So a mirror can carry Sunset Icons and Folio still says **published by maya**; the same mirror cannot change a byte
+of it, and cannot publish its own package under her name. Unsigned packages stay welcome - most first packages are -
+and the store says so plainly rather than implying a guarantee it doesn't have.
+
+Signing is on the publisher's side: `tools/build.py --author-keys <folder>` in `folio-packages` signs each package
+with `<folder>/<package-id>.pem`. An author key belongs to its author and never goes in a repo.
 
 ### Pictures
 

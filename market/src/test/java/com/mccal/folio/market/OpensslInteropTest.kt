@@ -19,6 +19,21 @@ import java.io.File
 class OpensslInteropTest {
     private val dir = File(javaClass.classLoader.getResource("openssl/entry.json")!!.toURI()).parentFile
 
+    @Test fun `a package signed by the publishing tool verifies the way the phone does`() {
+        val entry = org.json.JSONObject(File(dir, "signed-package.json").readText())
+        val block = entry.getJSONObject("signedBy")
+        val signature = AuthorSignature(block.getString("key"), block.getString("signature"))
+        val id = entry.getString("id")
+        val version = requireNotNull(DebVersion.parse(entry.getString("version")))
+        val sha = entry.getString("sha256")
+
+        assertTrue("tools/build.py's author signature has to verify here", signature.verifies(id, version, sha))
+        // And it's bound to these bytes and this version, not just to the key.
+        assertTrue(!signature.verifies(id, version, "b".repeat(64)))
+        assertTrue(!signature.verifies("dev.someone.else", version, sha))
+        assertTrue(!signature.verifies(id, requireNotNull(DebVersion.parse("9.9.9")), sha))
+    }
+
     @Test fun `an entry signed by openssl verifies, and an edited one doesn't`() {
         val key = requireNotNull(SourceKey.parse(File(dir, "key.pub").readText().trim()))
         val entry = File(dir, "entry.json").readBytes()

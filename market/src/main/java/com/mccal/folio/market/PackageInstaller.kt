@@ -53,7 +53,7 @@ sealed interface InstallResult {
 
     data class Failed(val reason: Reason, val message: String) : InstallResult
 
-    enum class Reason { HASH, SIZE, ARCHIVE, MANIFEST, MISMATCH, CONFLICT, DEPENDS, APPLY, REVOKED, NEEDS_NEWER }
+    enum class Reason { HASH, SIZE, ARCHIVE, MANIFEST, MISMATCH, CONFLICT, DEPENDS, APPLY, REVOKED, NEEDS_NEWER, AUTHOR }
 }
 
 /**
@@ -67,6 +67,8 @@ class PackageInstaller(
     private val store: InstalledStore,
     private val host: PackageHost,
     private val safeMode: PackageSafeMode = PackageSafeMode(store.keyValue),
+    /** Who owns which package id. Signatures are only checked for packages that came from a source. */
+    private val authors: AuthorTrust = AuthorTrust(store.keyValue),
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
     /** This build's release number, for a package's `minFolio`. Null skips that check, which only a test does. */
     private val folioVersion: FolioVersion? = null,
@@ -85,6 +87,17 @@ class PackageInstaller(
         expected?.sha256?.let {
             if (sha256Hex(bytes) != it) return InstallResult.Failed(InstallResult.Reason.HASH, "that download doesn't match the source's checksum")
         }
+        // Who wrote it, which is a different question from who handed it over. Checked here, against the bytes that
+        // actually arrived, so a mirror can carry a package but can't alter it or publish under its author's name.
+        var pinning: Pair<String, String>? = null
+        if (expected?.sha256 != null) {
+            when (val author = authors.check(expected.id, expected.version, expected.sha256, expected.signedBy)) {
+                is AuthorTrust.Result.FirstTime -> pinning = expected.id to author.keyBase64
+                else -> if (!author.installable) {
+                    return InstallResult.Failed(InstallResult.Reason.AUTHOR, author.message)
+                }
+            }
+        }
         val pkg = when (val read = read(bytes)) {
             is ReadResult.Ok -> read.pkg
             is ReadResult.NeedsNewerFolio -> return InstallResult.NeedsNewerFolio(read.missing)
@@ -93,7 +106,7 @@ class PackageInstaller(
         if (expected != null && (expected.id != pkg.id || expected.version != pkg.version)) {
             return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
         }
-        return apply(pkg, origin, sourceUrl)
+        return apply(pkg, origin, sourceUrl, pinning = pinning)
     }
 
     private fun apply(
@@ -101,6 +114,8 @@ class PackageInstaller(
         origin: InstalledPackage.Origin,
         sourceUrl: String?,
         builtIn: Boolean = false,
+        /** The id and author key to remember, once this package is really on. */
+        pinning: Pair<String, String>? = null,
     ): InstallResult {
         val missing = pkg.manifest.missingCapabilities(host.capabilities).map { it.id } +
             pkg.changes.flatMap { it.capabilities }.filterNot { it in host.capabilities }.map { it.id }
@@ -157,6 +172,7 @@ class PackageInstaller(
             installedAt = clock(),
             snapshots = snapshots,
         )
+        pinning?.let { (id, key) -> authors.remember(id, key) }
         // Nothing stays applied that Folio couldn't write down. A package on the Home screen and missing from the
         // list is one nobody can remove, so a store that won't write means the whole install is put back.
         if (!store.put(installed, changes = pkg.changes)) {

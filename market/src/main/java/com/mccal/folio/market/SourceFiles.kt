@@ -107,6 +107,8 @@ data class IndexPackage(
     val provenance: Provenance?,
     val manifest: PackageManifest?,
     val needs: List<String> = emptyList(),
+    /** The author's own signature over this package's id, version and bytes, when they published one. */
+    val signedBy: AuthorSignature? = null,
 ) {
     /** True when Folio has everything it needs to download and install this package. */
     val installable: Boolean get() = manifest != null && url != null && sha256 != null && size != null
@@ -122,7 +124,7 @@ data class IndexPackage(
 
         internal fun read(parent: Fields, index: Int, json: org.json.JSONObject): IndexPackage? {
             val at = "${parent.where("packages")}[$index]"
-            val f = parent.child(json, at, setOf("id", "version", "url", "sha256", "size", "provenance", "manifest"))
+            val f = parent.child(json, at, setOf("id", "version", "url", "sha256", "size", "provenance", "manifest", "signedBy"))
             val p = parent.problems
             val id = f.string("id", true, PackageManifest.ID, PackageManifest.MAX_ID, "must be a package id")
             val version = PackageManifest.readVersion(f, "version")
@@ -155,7 +157,11 @@ data class IndexPackage(
             }
             if (id == null || version == null) return null
             val needs = if (embedded == null && f.has("manifest")) listOf(NEEDS_NEWER_FOLIO) else emptyList()
-            return IndexPackage(id, version, url, sha256, size?.toInt(), provenance, embedded, needs)
+            val signedBy = AuthorSignature.read(f, at)
+            if (signedBy != null && sha256 == null) {
+                p.errors += "$at.signedBy needs the package's sha256 to sign over"
+            }
+            return IndexPackage(id, version, url, sha256, size?.toInt(), provenance, embedded, needs, signedBy)
         }
     }
 }
