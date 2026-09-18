@@ -474,7 +474,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                 persist()
                 completedRefreshes++
             } catch (_: Exception) {
-                mutable.update { it.copy(loading = false, error = "Apps could not be loaded. Tap to retry.") }
+                mutable.update { it.copy(loading = false, error = getApplication<Application>().getString(R.string.apps_could_not_be_loaded_tap_to_retry)) }
             } finally {
                 refreshing = false
                 if (refreshPending) { refreshPending = false; refresh() }

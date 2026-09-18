@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -49,14 +50,14 @@ internal fun SupporterPage() {
     SettingsCard("CODE") {
         val current = code
         if (current == null) {
-            CardAction("Redeem a Code", onClick = { problem = null; redeeming = true })
-            CardNote("Codes come with a Ko-fi thank-you. Folio checks a code on the phone against a key inside the " +
+            CardAction(stringResource(R.string.redeem_a_code), onClick = { problem = null; redeeming = true })
+            CardNote(stringResource(R.string.codes_come_with_a_ko_fi_thank_you_folio) +
                 "app: it works with no signal, needs no account, and tells nobody that you supported.")
         } else {
-            InfoRow("Code", shortCode(stored.orEmpty()))
-            InfoRow("Unlocks", unlocksText(current.scopes))
-            current.expires?.let { InfoRow("Until", it.format(DateTimeFormatter.ofPattern("d MMM yyyy"))) }
-            CardAction("Remove Code", destructive = true, onClick = {
+            InfoRow(stringResource(R.string.code), shortCode(stored.orEmpty()))
+            InfoRow(stringResource(R.string.unlocks), unlocksText(context, current.scopes))
+            current.expires?.let { InfoRow(stringResource(R.string.until), it.format(DateTimeFormatter.ofPattern("d MMM yyyy"))) }
+            CardAction(stringResource(R.string.remove_code), destructive = true, onClick = {
                 Supporter.remove(context); code = null; stored = null; beta = false
             })
         }
@@ -64,14 +65,14 @@ internal fun SupporterPage() {
     }
 
     if (code?.scopes?.contains(BetaCodes.SCOPE_BETA) == true) SettingsCard("BETA FEATURES") {
-        SettingsSwitch("Beta Features", beta, { on -> Supporter.setBetaOn(context, on); beta = on }, "supporter-beta-switch")
-        CardNote("Beta features arrive a release or two early, before they've been through everyone's phones. Expect " +
+        SettingsSwitch(stringResource(R.string.beta_features), beta, { on -> Supporter.setBetaOn(context, on); beta = on }, "supporter-beta-switch")
+        CardNote(stringResource(R.string.beta_features_arrive_a_release_or_two_ea) +
             "more bugs than usual — that's the trade. Turn this off whenever you like and Folio goes straight back " +
             "to the way the stable release behaves.")
     }
 
     SettingsCard("SUPPORT") {
-        CardNote("Folio's core is free and stays free — Home, the island, panels, gestures and themes are never " +
+        CardNote(stringResource(R.string.folio_s_core_is_free_and_stays_free_home) +
             "behind a code. Supporting buys time to keep building, and these extras are the thank-you.")
     }
 
@@ -80,10 +81,10 @@ internal fun SupporterPage() {
             is BetaCodes.Result.Valid -> {
                 code = result.code; stored = Supporter.storedText(context); problem = null; redeeming = false
             }
-            is BetaCodes.Result.Expired -> problem = "That code has run out. Ko-fi codes have a date on them; a new one will work."
-            BetaCodes.Result.Withdrawn -> problem = "That code has been withdrawn. If you think that's wrong, message me on Ko-fi and I'll sort it out."
-            BetaCodes.Result.NotOurs -> problem = "Folio doesn't recognize that code. Check for a typo — the letters I, L and O aren't used."
-            BetaCodes.Result.Unreadable -> problem = "That doesn't look like a Folio code. Paste the whole thing, dashes and all."
+            is BetaCodes.Result.Expired -> problem = context.getString(R.string.that_code_has_run_out_ko_fi_codes_have_a)
+            BetaCodes.Result.Withdrawn -> problem = context.getString(R.string.that_code_has_been_withdrawn_if_you_thin)
+            BetaCodes.Result.NotOurs -> problem = context.getString(R.string.folio_doesn_t_recognize_that_code_check)
+            BetaCodes.Result.Unreadable -> problem = context.getString(R.string.that_doesn_t_look_like_a_folio_code_past)
         }
     })
 }
@@ -92,10 +93,10 @@ internal fun SupporterPage() {
 private fun shortCode(code: String): String =
     code.split('-').let { if (it.size <= 3) code else "${it.first()}…${it.last()}" }
 
-private fun unlocksText(scopes: Set<String>): String = listOf(
-    BetaCodes.SCOPE_BETA to "Beta features", BetaCodes.SCOPE_LOOK to "Personalization",
-    BetaCodes.SCOPE_POWER to "Automation", BetaCodes.SCOPE_KEYS to "Keyboard extras")
-    .filter { it.first in scopes }.joinToString(", ") { it.second }.ifEmpty { "Nothing yet" }
+private fun unlocksText(context: android.content.Context, scopes: Set<String>): String = listOf(
+    BetaCodes.SCOPE_BETA to context.getString(R.string.beta_features_2), BetaCodes.SCOPE_LOOK to context.getString(R.string.personalization),
+    BetaCodes.SCOPE_POWER to context.getString(R.string.automation), BetaCodes.SCOPE_KEYS to context.getString(R.string.keyboard_extras))
+    .filter { it.first in scopes }.joinToString(", ") { it.second }.ifEmpty { context.getString(R.string.nothing_yet) }
 
 @Composable private fun InfoRow(label: String, value: String) {
     androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -113,10 +114,10 @@ private fun unlocksText(scopes: Set<String>): String = listOf(
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     AlertDialog(onDismissRequest = onCancel,
-        title = { Text("Redeem a Code") },
+        title = { Text(stringResource(R.string.redeem_a_code)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Paste the code from your Ko-fi thank-you.", fontSize = 13.sp)
+                Text(stringResource(R.string.paste_the_code_from_your_ko_fi_thank_you), fontSize = 13.sp)
                 BasicTextField(typed, { typed = it.take(160) },
                     Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp))
                         .background(Color.White.copy(alpha = .1f)).padding(horizontal = 10.dp, vertical = 8.dp)
@@ -127,6 +128,6 @@ private fun unlocksText(scopes: Set<String>): String = listOf(
                     keyboardActions = KeyboardActions(onDone = { onRedeem(typed) }))
             }
         },
-        confirmButton = { TextButton(onClick = { onRedeem(typed) }) { Text("Redeem") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } })
+        confirmButton = { TextButton(onClick = { onRedeem(typed) }) { Text(stringResource(R.string.redeem)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } })
 }

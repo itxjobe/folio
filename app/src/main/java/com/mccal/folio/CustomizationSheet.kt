@@ -350,7 +350,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         CardNote(stringResource(R.string.pick_what_gestures_and_events_do_activat))
                         FolioTrigger.entries.forEach { trigger ->
                             val current = FolioAction.entries.firstOrNull { it.name == state.triggerActions[trigger.name] } ?: FolioAction.NONE
-                            IosMenuRow(trigger.label, FolioAction.entries.map { it to it.label }, current, { model.setTriggerAction(trigger, it) }, tag = "trigger-${trigger.name.lowercase()}")
+                            IosMenuRow(stringResource(trigger.label), FolioAction.entries.map { it to stringResource(it.label) }, current, { model.setTriggerAction(trigger, it) }, tag = "trigger-${trigger.name.lowercase()}")
                         }
                     }
                     if (page == CustomizationPage.TODAY) SettingsCard(stringResource(R.string.left_of_home)) {
