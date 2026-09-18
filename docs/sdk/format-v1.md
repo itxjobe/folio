@@ -163,6 +163,33 @@ assets/             pictures the index, the manifests and the depictions point a
 icon.png
 ```
 
+### One id, two sources
+
+A package id is its identity: settings, updates and Undo all hang off it, so the same id from two places is two
+different things wearing one name. Folio never picks between them quietly.
+
+- **A source using an id that belongs to a package inside Folio** is claiming to be that package. It stays listed,
+  says so on its row, and cannot be installed.
+- **Two sources the user added, using one id**, are both listed, and each says another source offers the name too.
+  Which one they meant is theirs to decide.
+- **Folio's own Featured banners only ever resolve to Folio's own packages**, so a source can't put itself in
+  Folio's window by reusing an id.
+
+What this does *not* yet do is prove who wrote a package. A source's signature says "this list came from this
+source, unchanged" - it says nothing about the author, so a mirror can carry someone's package and a mirror can
+alter it. Per-package author signatures are the fix, and they need a format field, so they're a v1.1 change:
+
+```json
+{
+  "id": "dev.maya.sunset-icons",
+  "author": { "name": "maya", "keyId": "9F2C…" },
+  "signature": "…"
+}
+```
+
+With that, a mirror could carry Sunset Icons and Folio could still say **published by maya**, rather than only
+**from this source**. Until it exists, the store says where a package came from and never who made it.
+
 ### Pictures
 
 Every picture a package names - its `icon`, and a depiction's `hero` and `screenshots` - is a **relative path on the

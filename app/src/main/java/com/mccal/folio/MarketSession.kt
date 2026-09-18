@@ -83,20 +83,14 @@ internal class MarketSession(
      * Every package the store can show: Folio's own first, then each source the user added, from its cached list.
      * Revoked packages keep their place with the reason, so nothing disappears without an explanation.
      */
-    fun entries(): List<MarketEntry> = buildList {
+    fun entries(): List<MarketEntry> = mergeEntries(
+        builtIn = index()?.packages.orEmpty(),
+        builtInSource = builtIn,
         // Folio's own revocation list rules everywhere: it can pull one of Folio's packages, and it can pull a
         // package offered by a source that hasn't admitted it yet.
-        val ours = source.revocations()
-        index()?.packages?.forEach { add(MarketEntry(it, builtIn, ours?.reasonFor(it.id, it.version))) }
-        for (status in sources.cached()) {
-            val snapshot = status.snapshot ?: continue
-            val unsigned = status.source.kind == Source.Kind.LOCAL_DEV
-            snapshot.index.packages.forEach { entry ->
-                val reason = snapshot.revokedReason(entry) ?: ours?.reasonFor(entry.id, entry.version)
-                add(MarketEntry(entry, status.source, reason, unsigned))
-            }
-        }
-    }
+        revocations = source.revocations(),
+        fromSources = sources.cached().mapNotNull { status -> status.snapshot?.let { status.source to it } },
+    )
 
     /**
      * Downloads and installs a package. A package the source has pulled is refused here as well as in the store, so
@@ -105,6 +99,11 @@ internal class MarketSession(
     suspend fun get(entry: MarketEntry): InstallResult = when {
         entry.revokedReason != null ->
             InstallResult.Failed(InstallResult.Reason.REVOKED, "${entry.name} was pulled by its source: ${entry.revokedReason}")
+        // A source claiming an id that belongs to a package inside Folio is claiming to be that package.
+        entry.clash == MarketEntry.Impostor.BUILT_IN -> InstallResult.Failed(
+            InstallResult.Reason.MISMATCH,
+            "${entry.source.label} offers this under a name that belongs to one of Folio's own packages",
+        )
         entry.source.kind == Source.Kind.BUILT_IN -> withContext(io) { get(entry.entry) }
         else -> sources.download(entry.entry, entry.source, installer)
     }

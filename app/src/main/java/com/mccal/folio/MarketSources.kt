@@ -25,9 +25,59 @@ internal data class MarketEntry(
     val revokedReason: String? = null,
     /** True when the source that offers it isn't signed (a local one, during development). */
     val unsigned: Boolean = false,
+    /**
+     * Another source claiming the same package id.
+     *
+     * An id is the package's identity - settings, updates and Undo all hang off it - so two sources using one id
+     * are two different things wearing the same name. Folio never picks a winner quietly: [Impostor.BUILT_IN] can't
+     * be installed at all, and anything else is shown with both sources named.
+     */
+    val clash: Impostor? = null,
 ) {
+    enum class Impostor {
+        /** It claims an id that belongs to a package inside Folio. There's no honest reason to do that. */
+        BUILT_IN,
+
+        /** Two sources the user added offer the same id. Which one they meant is theirs to say. */
+        ANOTHER_SOURCE,
+    }
+
     val id: String get() = entry.id
     val name: String get() = entry.manifest?.name?.english ?: entry.id
+}
+
+/**
+ * Every package the store can show, from Folio's own index and from each source the user added.
+ *
+ * A package id is its identity - settings, updates and Undo all hang off it - so the same id from two places is two
+ * different things wearing one name. Nothing is hidden and nothing is silently preferred: both are listed, and each
+ * says who else is using the name. [MarketEntry.Impostor.BUILT_IN] is the one that can't be installed, because a
+ * source claiming a name that belongs to a package inside Folio is claiming to be it.
+ */
+internal fun mergeEntries(
+    builtIn: List<IndexPackage>,
+    builtInSource: Source,
+    revocations: RevocationList?,
+    fromSources: List<Pair<Source, SourceSnapshot>>,
+): List<MarketEntry> = buildList {
+    val builtInIds = builtIn.map { it.id }.toSet()
+    builtIn.forEach { add(MarketEntry(it, builtInSource, revocations?.reasonFor(it.id, it.version))) }
+
+    val seen = fromSources.flatMap { (_, snapshot) -> snapshot.index.packages.map { it.id } }
+        .groupingBy { it }.eachCount()
+
+    for ((source, snapshot) in fromSources) {
+        val unsigned = source.kind == Source.Kind.LOCAL_DEV
+        snapshot.index.packages.forEach { entry ->
+            val reason = snapshot.revokedReason(entry) ?: revocations?.reasonFor(entry.id, entry.version)
+            val clash = when {
+                entry.id in builtInIds -> MarketEntry.Impostor.BUILT_IN
+                (seen[entry.id] ?: 0) > 1 -> MarketEntry.Impostor.ANOTHER_SOURCE
+                else -> null
+            }
+            add(MarketEntry(entry, source, reason, unsigned, clash))
+        }
+    }
 }
 
 /** What happened the last time Folio asked a source for its list. */

@@ -555,7 +555,9 @@ private fun MarketList(
             item(key = "featured") {
                 MarketFeatured(
                     featured = index.featured,
-                    packages = entries.map { it.entry },
+                    // Folio's own packages only. The banners come from Folio's index, so what they point at has to
+                    // come from there too, or a source could put itself in Folio's window by reusing an id.
+                    packages = index.packages,
                     calm = style == FeaturedStyle.CALM,
                     onOpen = onOpen,
                 )
@@ -673,6 +675,13 @@ private fun MarketRow(
             if (entry.unsigned) {
                 Text("Unsigned", color = Color(0xFFFFB340), fontSize = 12.sp)
             }
+            when (entry.clash) {
+                MarketEntry.Impostor.BUILT_IN ->
+                    Text("Claims a Folio package's name", color = Color(0xFFFF453A), fontSize = 12.sp)
+                MarketEntry.Impostor.ANOTHER_SOURCE ->
+                    Text("Another source offers this name too", color = Color(0xFFFFB340), fontSize = 12.sp)
+                null -> Unit
+            }
         }
         when {
             busy -> Text("Working…", color = Color.White.copy(alpha = .55f), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp))
@@ -680,6 +689,9 @@ private fun MarketRow(
             // pulled package used to slip back in.
             entry.revokedReason != null && installed != null -> MarketActionButton("Remove", name, onRemove)
             entry.revokedReason != null -> Text("Unavailable", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            // Nothing can be installed under a name that belongs to a package inside Folio.
+            entry.clash == MarketEntry.Impostor.BUILT_IN ->
+                Text("Refused", color = Color(0xFFFF453A), fontSize = 13.sp)
             entry.entry.needs.isNotEmpty() -> Text("Needs a newer Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
             update -> MarketActionButton("Update", name, onGet)
             installed != null -> MarketActionButton("Remove", name, onRemove)

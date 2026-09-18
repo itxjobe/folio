@@ -163,6 +163,29 @@ class MarketSourcesTest {
         assertEquals(InstallResult.Reason.SIZE, (result as InstallResult.Failed).reason)
     }
 
+    @Test fun `two sources using one package id are both shown, and an impostor of Folio's own is refused`() = runTest {
+        publish()
+        sources.trust(base, key)
+        val snapshot = requireNotNull(sources.cached().single().snapshot)
+        val mine = Source("folio://built-in/", name = "Folio", kind = Source.Kind.BUILT_IN)
+        val theirs = sources.sources().single()
+        val other = Source("https://someone.example/folio/", name = "Someone else")
+
+        // The source publishes Cabinet's real id, which is a package inside Folio.
+        val merged = mergeEntries(snapshot.index.packages, mine, null, listOf(theirs to snapshot))
+        val ours = merged.first { it.source.kind == Source.Kind.BUILT_IN }
+        val copy = merged.first { it.source.url == base }
+        assertEquals(null, ours.clash)
+        assertEquals(MarketEntry.Impostor.BUILT_IN, copy.clash)
+        // Both are listed: hiding one would leave the user wondering where their package went.
+        assertEquals(2, merged.size)
+
+        // Two sources the user added, neither of them Folio: they're told, and neither is picked for them.
+        val between = mergeEntries(emptyList(), mine, null, listOf(theirs to snapshot, other to snapshot))
+        assertTrue(between.all { it.clash == MarketEntry.Impostor.ANOTHER_SOURCE })
+        assertEquals(listOf(base, other.url), between.map { it.source.url })
+    }
+
     @Test fun `removing a source forgets its list and its key`() = runTest {
         publish()
         sources.trust(base, key)
