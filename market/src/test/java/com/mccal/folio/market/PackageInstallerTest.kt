@@ -1,6 +1,7 @@
 package com.mccal.folio.market
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -133,6 +134,18 @@ class PackageInstallerTest {
         // Undo goes back to what was there before.
         assertTrue(installer.undo(update))
         assertEquals(DebVersion.parse("1.0.0"), store.find("com.mccal.folio.cabinet")?.version)
+        assertEquals("applied appPanels", host.state)
+    }
+
+    @Test fun `Undo with nothing recorded for the previous version keeps the one that works`() {
+        installed(installer.install(pack()))
+        now += 60
+        val update = installed(installer.install(pack(replace = mapOf("\"version\": \"1.0.0\"" to "\"version\": \"1.1.0\""))))
+        // A previous version Folio has no record of: undoing to it is impossible, so the new one has to stay put
+        // rather than both coming off.
+        val unknown = update.copy(replaced = update.replaced!!.copy(version = DebVersion.parse("0.9.0")!!))
+        assertFalse(installer.undo(unknown))
+        assertEquals(DebVersion.parse("1.1.0"), store.find("com.mccal.folio.cabinet")?.version)
         assertEquals("applied appPanels", host.state)
     }
 

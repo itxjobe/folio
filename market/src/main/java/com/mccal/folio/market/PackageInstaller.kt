@@ -190,10 +190,14 @@ class PackageInstaller(
 
     /** Undo right after an install: remove what went on, and put the previous version back if there was one. */
     fun undo(result: InstallResult.Installed): Boolean {
+        val previous = result.replaced
+        // The previous version's own changes were recorded when it was installed. Read them before anything is taken
+        // off: without them there is nothing to put back, and removing first would leave the user with neither
+        // version.
+        val changes = previous?.let { store.changesFor(it.id, it.version) }
+        if (previous != null && changes == null) return false
         remove(result.installed.id)
-        val previous = result.replaced ?: return true
-        // The previous version's own changes were recorded when it was installed.
-        val changes = store.changesFor(previous.id, previous.version) ?: return false
+        if (previous == null || changes == null) return true
         safeMode.beginChange(previous.id)
         val snapshots = mutableListOf<String>()
         runCatching { changes.forEach { snapshots += host.apply(it) } }

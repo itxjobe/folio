@@ -64,19 +64,24 @@ class MarketSourcesTest {
     )
 
     /** A package packed the way the publishing tool will, plus an index and a signed entry that pin it. */
-    private fun publish() {
+    private fun publish(version: String = "1.0.0", hero: String = "first hero") {
         val pkg = ByteArrayOutputStream().also { out ->
             ZipOutputStream(out).use { zip ->
                 for (name in listOf("manifest.json", "depiction.json", "tweaks.json")) {
-                    zip.putNextEntry(ZipEntry(name)); zip.write(File(cabinetDir, name).readBytes()); zip.closeEntry()
+                    val text = File(cabinetDir, name).readText().replace("\"version\": \"1.0.0\"", "\"version\": \"$version\"")
+                    zip.putNextEntry(ZipEntry(name)); zip.write(text.toByteArray()); zip.closeEntry()
                 }
+                // An image that changes with the release, so an update can be seen to bring its own.
+                zip.putNextEntry(ZipEntry("assets/hero.png")); zip.write(hero.toByteArray()); zip.closeEntry()
             }
         }.toByteArray()
         host.files[base + "packages/cabinet.foliopkg"] = pkg
-        val manifest = File(cabinetDir, "manifest.json").readText().replace("\"\$schema\": \"https://folio.mccal.dev/schema/v1/manifest.schema.json\",", "")
+        val manifest = File(cabinetDir, "manifest.json").readText()
+            .replace("\"\$schema\": \"https://folio.mccal.dev/schema/v1/manifest.schema.json\",", "")
+            .replace("\"version\": \"1.0.0\"", "\"version\": \"$version\"")
         val index = """
             {"format":1,"name":"Maya's packages","packages":[
-              {"id":"com.mccal.folio.cabinet","version":"1.0.0","url":"packages/cabinet.foliopkg",
+              {"id":"com.mccal.folio.cabinet","version":"$version","url":"packages/cabinet.foliopkg",
                "sha256":"${sha256Hex(pkg)}","size":${pkg.size},"manifest":$manifest}]}
         """.trimIndent()
         host.files[base + "index.json"] = index.toByteArray()
@@ -119,6 +124,32 @@ class MarketSourcesTest {
         assertEquals("Cabinet", (result as InstallResult.Installed).installed.name)
         assertEquals(base, result.installed.sourceUrl)
         assertTrue(host2.applied.isNotEmpty())
+    }
+
+    @Test fun `a source that publishes a newer version offers an update, and the update brings its own files`() = runTest {
+        publish(version = "1.0.0", hero = "first hero")
+        sources.trust(base, key)
+        val store = InstalledStore(MemoryStore())
+        val launcher = RecordingHost()
+        val installer = PackageInstaller(store, launcher)
+        val first = sources.download(sources.cached().single().packages.single(), sources.sources().single(), installer)
+        assertEquals("1.0.0", (first as InstallResult.Installed).installed.version.toString())
+
+        // The source publishes 1.1.0 at the same address, with a different image inside.
+        publish(version = "1.1.0", hero = "second hero")
+        assertTrue(sources.refresh(base, force = true) is RefreshResult.Updated)
+        val offered = sources.cached().single().packages.single()
+        assertEquals("1.1.0", offered.version.toString())
+        // Higher than what's installed: this is what the Updates group is built from.
+        assertTrue(offered.version > store.find("com.mccal.folio.cabinet")!!.version)
+
+        val update = sources.download(offered, sources.sources().single(), installer)
+        assertTrue("$update", update is InstallResult.Installed)
+        assertEquals("1.1.0", (update as InstallResult.Installed).installed.version.toString())
+        assertEquals("1.0.0", update.replaced?.version.toString())
+        assertEquals("1.1.0", store.find("com.mccal.folio.cabinet")?.version.toString())
+        // The bytes that were applied came from the new archive, not the one already on the phone.
+        assertEquals(2, launcher.applied.size)
     }
 
     @Test fun `a download that doesn't match the index is refused`() = runTest {

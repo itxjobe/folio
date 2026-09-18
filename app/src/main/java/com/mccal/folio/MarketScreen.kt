@@ -723,7 +723,9 @@ private fun MarketPackagePage(
     onShare: (IndexPackage) -> Unit,
     onReport: (IndexPackage) -> Unit,
 ) {
-    val pkg = remember(entry.id) { session.read(entry.id) }
+    // Keyed on the version too: after an update the page has to read the new package's own text and images, not the
+    // ones it read before.
+    val pkg = remember(entry.id, entry.version) { session.read(entry.id) }
     val name = entry.manifest?.name?.english ?: entry.id
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         if (showBack) {
