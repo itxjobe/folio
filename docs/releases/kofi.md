@@ -120,10 +120,10 @@ README has the setup, and the whole thing is optional — start with the shop it
 A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price, a description and an image.
 
 - **Title:** Folio early access
-- **Price:** $2 (McCal, 2026-09-18). Worth knowing before it goes up: a card fee is roughly a fixed 30c plus a few
-  percent, and Ko-fi's own cut applies unless the account has Gold, so a $2 sale nets somewhere near $1.30 while a $3
-  one nets closer to $2.20. The fixed part is what hurts at this price. Check the live numbers on the Ko-fi page
-  rather than trusting these.
+- **Price:** $3 (McCal, 2026-09-18; $2 first, raised once the fees were on the table). A card fee is roughly a fixed
+  30c plus a few percent, and Ko-fi's own cut applies unless the account has Gold, so about $2.20 of a $3 sale
+  arrives - against roughly $1.30 of a $2 one, because the fixed part is what bites at small prices. It also matches
+  Ko-fi's default coffee. Check the live numbers on the Ko-fi page rather than trusting these.
 - **Image:** `~/Downloads/folio-kofi-shop.jpg`
 - **Digital file:** `~/Downloads/folio-early-access.txt`
 
