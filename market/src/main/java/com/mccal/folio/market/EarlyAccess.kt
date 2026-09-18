@@ -9,7 +9,8 @@ import java.util.Base64
  * app. There is no account, no server call, and nothing about who paid: Folio stores the code and the date it runs
  * out, and that's all. A code can be shared, and that's fine; it's a thank-you, not a licence.
  *
- * The payload is `folio-early:<feature>:<expires>`, where `expires` is a Unix day count (0 means it never does).
+ * The payload is `folio-early:<feature>:<expires>`, where `expires` is a Unix time in seconds (0 means it never
+ * runs out) - the same clock [check] compares against. `tools/folio-code.py` mints them.
  *
  * **No key is built in yet.** Until McCal generates the supporter key and puts it in [PUBLIC_KEY], every code is
  * refused, which is the safe way round: a placeholder key would let anyone mint their own.

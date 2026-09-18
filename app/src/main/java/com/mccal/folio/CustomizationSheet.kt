@@ -626,6 +626,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     SheetGroup {
                         IosActionRow("Show the introduction again") { marketPrefs.introductionSeen = false }
                     }
+                    SheetGroupLabel("Early access")
+                    SupporterCode(sheetContext)
                     SheetGroupLabel("Refreshing")
                     var background by remember { mutableStateOf(marketPrefs.backgroundRefresh) }
                     var wifiOnly by remember { mutableStateOf(marketPrefs.refreshOnWifiOnly) }
@@ -966,6 +968,84 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
 }
 
 /** iOS Settings search field. */
+/**
+ * Where a supporter's code goes.
+ *
+ * The code is checked on the phone against a key inside the app: no account, no server call, and nothing stored about
+ * who paid - Folio keeps the code and the date it runs out. Codes are meant to be shareable; everything the Market
+ * hands out is in Settings anyway, so a code is a thank-you rather than a lock.
+ */
+@Composable private fun SupporterCode(context: android.content.Context) {
+    val early = remember(context) { MarketAccess.early(context) }
+    var has by remember { mutableStateOf(early.has(com.mccal.folio.market.EarlyAccess.MARKET)) }
+    var code by rememberSaveable { mutableStateOf("") }
+    var problem by remember { mutableStateOf<String?>(null) }
+    val expires = remember(has) { early.expires() }
+
+    if (has) {
+        SheetGroup {
+            SwitchlessRow(
+                "Supporter code",
+                expires?.let { "Early access until " + java.text.DateFormat.getDateInstance().format(java.util.Date(it * 1000)) }
+                    ?: "Early access is on. Thank you.",
+            )
+            MenuDivider()
+            IosActionRow("Forget this code", destructive = true, tag = "forget-code") {
+                early.forget()
+                has = false
+                code = ""
+            }
+        }
+    } else {
+        SheetGroup {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text("Supporter code", color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp)
+                Text(
+                    "Paste a code to turn on features that haven't shipped yet.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                IosSearchField(code, { code = it; problem = null }, "folio-early:…", fieldModifier = Modifier.testTag("supporter-code"))
+                problem?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFFFB340))
+                }
+            }
+            MenuDivider()
+            IosActionRow("Use code", enabled = code.isNotBlank(), tag = "use-code") {
+                val result = MarketAccess.redeem(context, code)
+                if (result is com.mccal.folio.market.EarlyAccess.Result.Valid) {
+                    has = true
+                    problem = null
+                } else {
+                    problem = result.message
+                }
+            }
+        }
+    }
+    Text(
+        "Codes come from Ko-fi. Folio checks one against a key inside the app, so there's no account and nothing is " +
+            "sent anywhere. Every theme and tweak the Market hands out is already in Settings.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+    SheetGroup {
+        IosActionRow("Support Folio on Ko-fi") {
+            runCatching {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://ko-fi.com/mccal")))
+            }
+        }
+    }
+}
+
+/** A row that just says something: a title and a line under it, with no control. */
+@Composable private fun SwitchlessRow(title: String, value: String) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(title, color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 @Composable private fun SettingsSearchField(query: String, onQuery: (String) -> Unit) =
     IosSearchField(query, onQuery, "Search", fieldModifier = Modifier.testTag("settings-search"))
 
