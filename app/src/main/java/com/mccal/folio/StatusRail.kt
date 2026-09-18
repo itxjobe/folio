@@ -98,6 +98,15 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
  * The Gauge's ring, split in two: gaps at the top for the percentage and at the bottom for the signal's dots.
  * Angles are Compose's: 0 is 3 o'clock and they grow clockwise.
  */
+/**
+ * How far each half of the Gauge's ring is filled, in degrees, for a battery level from 0 to 1. The left half fills
+ * first, from the top down, so half a charge is the left half dark; the right then fills from the bottom up.
+ */
+internal fun gaugeSweeps(level: Float): Pair<Float, Float> {
+    val halves = level.coerceIn(0f, 1f) * 2f
+    return minOf(halves, 1f) * GAUGE_SIDE to (halves - 1f).coerceIn(0f, 1f) * GAUGE_SIDE
+}
+
 private const val GAUGE_CENTER = .62f
 private const val GAUGE_RADIUS = .34f
 private const val GAUGE_SIDE = 104f
@@ -286,6 +295,11 @@ fun StatusRail(
                             label = "gauge level")
                         val arcColor by animateColorAsState(batteryColor,
                             if (still) snap() else tween(FolioMotion.GAUGE_MS), label = "gauge colour")
+                        // Nothing to connect to: the same slowly sweeping fan the Ring shows, so an empty middle never
+                        // reads as a glyph that failed to draw.
+                        val searching = !status.wifiConnected && cellularVisual !is CellularSignalVisual.Available && !status.airplane
+                        val sweep = if (searching && !still) rememberInfiniteTransition(label = "no connection")
+                            .animateFloat(0f, 1f, infiniteRepeatable(tween(2_400, easing = LinearEasing)), label = "sweep").value else -1f
                         Canvas(Modifier.fillMaxSize()) {
                             val w = size.width
                             // The ring sits low in its box so the reading can straddle the gap at its top rather
@@ -299,10 +313,8 @@ fun StatusRail(
                             drawArc(track, GAUGE_LEFT_START, GAUGE_SIDE, false, corner, box, style = stroke)
                             drawArc(track, GAUGE_RIGHT_START, GAUGE_SIDE, false, corner, box, style = stroke)
                             if (status.battery != null) {
-                                val halves = level * 2f
-                                val left = minOf(halves, 1f) * GAUGE_SIDE
+                                val (left, right) = gaugeSweeps(level)
                                 if (left > 0f) drawArc(arcColor, GAUGE_LEFT_START + GAUGE_SIDE, -left, false, corner, box, style = stroke)
-                                val right = (halves - 1f).coerceAtLeast(0f) * GAUGE_SIDE
                                 if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
                             // The connection sits between the two gaps, small enough to keep clear of the ring.
@@ -315,6 +327,7 @@ fun StatusRail(
                                                 Offset(center.x + (i - 2) * w * .095f, w * .78f))
                                         }
                                         cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
+                                        searching -> drawSearchingFan(w, sweep, ink, onLight)
                                         else -> Unit
                                     }
                                 }
@@ -329,9 +342,10 @@ fun StatusRail(
                             // It sits above the ring rather than across it: its foot lands on the ring's top edge.
                             modifier = Modifier.padding(top = visualSize *
                                 ((GAUGE_CENTER - GAUGE_RADIUS) - readingSize * 1.15f).coerceAtLeast(0f)))
+                        // Airplane Mode: the plane takes the middle of the ring, where the signal would have been.
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
-                                modifier = Modifier.padding(top = visualSize * .34f).size(visualSize * .3f))
+                                modifier = Modifier.padding(top = visualSize * (GAUGE_CENTER - .15f)).size(visualSize * .3f))
                     }
                     StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.padding(top = 2.dp)) {
