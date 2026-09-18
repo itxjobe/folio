@@ -127,9 +127,8 @@ A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price
 - **Image:** `~/Downloads/folio-kofi-shop.jpg`
 - **Digital file:** `~/Downloads/folio-early-access.txt`
 
-Description (McCal's decisions, 2026-09-18: keep the early honesty, mention the jailbreak side). Every line below is
-either lifted from the README or is a fact about what the app does - except the one marked, which is still McCal's to
-write:
+Description (McCal, 2026-09-18). Every line is either one of his own sentences from the README, a fact about what the
+app does, or - the last line - his answer about where the money goes. Nothing here was written for him.
 
 > Folio Launcher: a clean, iPhone-style Home Screen for Android — with the jailbreak tweaks I always wanted, and none
 > of the lockdown.
@@ -151,7 +150,7 @@ write:
 > Fair warning: it's still very early. A bit rusty in places, and it settles down as more people use it. Developed and
 > tested on a Galaxy Z Fold8, and it needs Folio 0.7.0 or later from GitHub.
 >
-> **[McCal's line about what the $3 goes towards.]**
+> The $3 goes towards test devices and more time to build.
 
 ## The page itself
 
