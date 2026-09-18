@@ -284,11 +284,9 @@ fun StatusRail(
                         if (style.glyph == StatusGlyph.RING && status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(visualSize * .42f))
                     }
-                    StatusGlyph.GAUGE -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.TopCenter) {
-                        // A ring split in two: the number sits in the gap at the top, the signal's dots in the gap at
-                        // the bottom. The battery fills from the top down the left, then up the right.
-                        // The ring sweeps to a new level and fades between colours instead of jumping, and holds still
-                        // for anyone who has asked Android for less motion.
+                    StatusGlyph.GAUGE -> {
+                        // The reading and the ring are one mark: a column centred in the rail, the digits dipping into
+                        // the break at the ring's top, the ring centred in its own square. Padding stays even.
                         val still = LocalReduceMotion.current
                         val level by animateFloatAsState(((status.battery ?: 0).coerceIn(0, 100)) / 100f,
                             if (still) snap() else tween(FolioMotion.GAUGE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
@@ -300,52 +298,51 @@ fun StatusRail(
                         val searching = !status.wifiConnected && cellularVisual !is CellularSignalVisual.Available && !status.airplane
                         val sweep = if (searching && !still) rememberInfiniteTransition(label = "no connection")
                             .animateFloat(0f, 1f, infiniteRepeatable(tween(2_400, easing = LinearEasing)), label = "sweep").value else -1f
-                        Canvas(Modifier.fillMaxSize()) {
-                            val w = size.width
-                            // The ring sits low in its box so the reading can straddle the gap at its top rather
-                            // than float above it.
-                            val center = Offset(w / 2, w * GAUGE_CENTER)
-                            val radius = w * GAUGE_RADIUS
-                            val corner = Offset(center.x - radius, center.y - radius)
-                            val box = Size(radius * 2, radius * 2)
-                            val stroke = Stroke(width = w * .085f, cap = StrokeCap.Round)
-                            val track = ink.copy(alpha = faint(.22f))
-                            drawArc(track, GAUGE_LEFT_START, GAUGE_SIDE, false, corner, box, style = stroke)
-                            drawArc(track, GAUGE_RIGHT_START, GAUGE_SIDE, false, corner, box, style = stroke)
-                            if (status.battery != null) {
-                                val (left, right) = gaugeSweeps(level)
-                                if (left > 0f) drawArc(arcColor, GAUGE_LEFT_START + GAUGE_SIDE, -left, false, corner, box, style = stroke)
-                                if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
-                            }
-                            // The connection sits between the two gaps, small enough to keep clear of the ring.
-                            translate(0f, w * .04f) {
-                                scale(.66f, center) {
-                                    when {
-                                        wifiVisual is WifiSignalVisual.Connected -> {
-                                            drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
-                                            for (i in 0..4) drawCircle(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .03f,
-                                                Offset(center.x + (i - 2) * w * .095f, w * .78f))
-                                        }
-                                        cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
-                                        searching -> drawSearchingFan(w, sweep, ink, onLight)
-                                        else -> Unit
-                                    }
-                                }
-                            }
-                        }
-                        // A full charge is three digits wide; it takes a smaller size so it never touches the arc.
                         val reading = status.battery?.toString() ?: "\u2014"
                         val readingSize = if (reading.length > 2) .235f else .27f
-                        Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
-                            fontSize = (visualSize.value * readingSize / fontScale).sp,
-                            fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
-                            // It sits in the ring's break, its middle level with the ring's top edge.
-                            modifier = Modifier.padding(top = visualSize *
-                                ((GAUGE_CENTER - GAUGE_RADIUS) - readingSize * .575f).coerceAtLeast(0f)))
-                        // Airplane Mode: the plane takes the middle of the ring, where the signal would have been.
-                        if (status.airplane && !status.wifiConnected)
-                            Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
-                                modifier = Modifier.padding(top = visualSize * (GAUGE_CENTER - .15f)).size(visualSize * .3f))
+                        val ringSize = visualSize * .86f
+                        Column(horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(-ringSize * .03f),
+                            modifier = Modifier.padding(top = 2.dp)) {
+                            Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
+                                fontSize = (visualSize.value * readingSize / fontScale).sp,
+                                fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                            Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
+                                Canvas(Modifier.fillMaxSize()) {
+                                    val w = size.width
+                                    val center = Offset(w / 2, w / 2)
+                                    val radius = w * .44f
+                                    val corner = Offset(center.x - radius, center.y - radius)
+                                    val box = Size(radius * 2, radius * 2)
+                                    val stroke = Stroke(width = w * .095f, cap = StrokeCap.Round)
+                                    val track = ink.copy(alpha = faint(.22f))
+                                    drawArc(track, GAUGE_LEFT_START, GAUGE_SIDE, false, corner, box, style = stroke)
+                                    drawArc(track, GAUGE_RIGHT_START, GAUGE_SIDE, false, corner, box, style = stroke)
+                                    if (status.battery != null) {
+                                        val (left, right) = gaugeSweeps(level)
+                                        if (left > 0f) drawArc(arcColor, GAUGE_LEFT_START + GAUGE_SIDE, -left, false, corner, box, style = stroke)
+                                        if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
+                                    }
+                                    // The connection sits low enough in the ring to stay clear of the reading above it.
+                                    translate(0f, w * .045f) {
+                                    scale(.62f, center) {
+                                        when {
+                                            wifiVisual is WifiSignalVisual.Connected -> {
+                                                drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
+                                                for (i in 0..4) drawCircle(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .03f,
+                                                    Offset(center.x + (i - 2) * w * .095f, w * .80f))
+                                            }
+                                            cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
+                                            searching -> drawSearchingFan(w, sweep, ink, onLight)
+                                            else -> Unit
+                                        }
+                                    }
+                                    }
+                                }
+                                if (status.airplane && !status.wifiConnected)
+                                    Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(ringSize * .34f))
+                            }
+                        }
                     }
                     StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.padding(top = 2.dp)) {
