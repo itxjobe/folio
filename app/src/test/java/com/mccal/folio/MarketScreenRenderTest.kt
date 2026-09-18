@@ -3,6 +3,7 @@ package com.mccal.folio
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -52,9 +53,30 @@ class MarketScreenRenderTest {
         session.prefs.introductionSeen = true
         session.installed().forEach { session.remove(it.id) }
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
-        compose.onNodeWithText("Packages").performClick()
+        compose.onNodeWithTag("market-tab-packages").performClick()
         compose.onNodeWithContentDescription("Get Cabinet").performClick()
         compose.onNodeWithText("Cabinet is on").assertIsDisplayed()
         compose.onNodeWithText("Undo").assertIsDisplayed()
+    }
+
+    @Test fun `every tab opens, and the Market's settings offer both Featured styles`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        for (tab in MarketTab.entries) {
+            compose.onNodeWithTag("market-tab-${tab.name.lowercase()}").performClick()
+        }
+        // Settings is the last tab; it offers the style choice and a way back to Folio's own settings.
+        compose.onNodeWithText("Carousel").assertIsDisplayed()
+        compose.onNodeWithText("Calm").assertIsDisplayed()
+        compose.onNodeWithText("Open Folio Settings").assertIsDisplayed()
+    }
+
+    @Test fun `Sources says what Folio has and what is coming`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-sources").performClick()
+        compose.onNodeWithText("Built into the app. 9 packages, no network.").assertIsDisplayed()
     }
 }

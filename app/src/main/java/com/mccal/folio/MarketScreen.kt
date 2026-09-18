@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -181,7 +182,8 @@ private fun MarketTabs(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
         for (tab in MarketTab.entries) {
             val on = tab == selected
             Column(
-                Modifier.weight(1f).clickable(onClickLabel = tab.label) { onSelect(tab) }.padding(vertical = 4.dp),
+                Modifier.weight(1f).clickable(onClickLabel = tab.label) { onSelect(tab) }
+                    .testTag("market-tab-${tab.name.lowercase()}").padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(tab.icon, contentDescription = null, tint = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), modifier = Modifier.size(22.dp))
@@ -342,8 +344,23 @@ private fun MarketSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Uni
             FeaturedStyle.entries.first { it == style }.description,
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp),
         )
-        SheetGroup(Modifier.padding(bottom = 16.dp)) {
+        SheetGroup(Modifier.padding(bottom = 10.dp)) {
             IosActionRow("Show the introduction again", onClick = onIntroduce)
+        }
+        SheetGroupLabel("Folio")
+        val context = androidx.compose.ui.platform.LocalContext.current
+        SheetGroup(Modifier.padding(bottom = 16.dp)) {
+            // Wallpaper, Home, tweaks and the rest still live in Folio's own Settings. Bringing those pages in here is
+            // the next slice; until then this opens them rather than showing half of them twice.
+            IosActionRow("Open Folio Settings") {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_APPLICATION_PREFERENCES)
+                            .setPackage(context.packageName)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            }
         }
     }
 }
