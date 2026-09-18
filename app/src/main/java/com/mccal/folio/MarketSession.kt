@@ -36,7 +36,7 @@ internal class MarketSession(
     context: Context,
     launcher: MarketLauncher,
     /** Where reading, unpacking and applying happen. A test replaces it so it doesn't have to wait on a thread. */
-    private val io: CoroutineDispatcher = Dispatchers.IO,
+    internal val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
 

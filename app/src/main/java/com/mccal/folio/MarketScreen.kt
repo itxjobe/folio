@@ -38,10 +38,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -106,16 +108,24 @@ internal fun MarketScreen(
     var addingSource by rememberSaveable { mutableStateOf(false) }
     var sourceUrl by rememberSaveable { mutableStateOf("") }
     var trusting by remember { mutableStateOf<RefreshResult.NeedsTrust?>(null) }
-    var statuses by remember { mutableStateOf(session.sources.cached()) }
+    var statuses by remember { mutableStateOf(emptyList<SourceStatus>()) }
     val scope = rememberCoroutineScope()
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
-    // Re-read after every change, so the list always shows what's really installed.
+    // Re-read after every change, so the list always shows what's really installed. Reading means parsing the
+    // bundled index and every cached source list, which is far too much to do while a frame is being drawn - so it
+    // happens off the main thread and the screen fills in when it's done.
     var revision by rememberSaveable { mutableIntStateOf(0) }
-    val index = remember(revision) { session.index() }
-    val entries = remember(revision, statuses) { session.entries() }
-    var busyId by remember { mutableStateOf<String?>(null) }
-    val installed = remember(revision) { session.installed().associateBy { it.id } }
+    val index by produceState<RepoIndex?>(null, revision) { value = withContext(session.io) { session.index() } }
+    val entries by produceState(emptyList<MarketEntry>(), revision, statuses) {
+        value = withContext(session.io) { session.entries() }
+    }
+    val installed by produceState(emptyMap<String, InstalledPackage>(), revision) {
+        value = withContext(session.io) { session.installed().associateBy { it.id } }
+    }
+    LaunchedEffect(revision) { statuses = withContext(session.io) { session.sources.cached() } }
+    // Installing outlives this screen: the work can't be stopped halfway, so it's kept where Back can't reach it.
+    val busyId = MarketWork.busyId
 
     fun refresh() { revision++ }
 
@@ -139,27 +149,31 @@ internal fun MarketScreen(
         confirming = null
         // One at a time. Two installs at once would each write the list of what's installed from a copy read before
         // the other started, so one package would be applied to Home and forgotten, with no way left to remove it.
-        if (busyId != null) return
-        busyId = entry.id
-        scope.launch {
-            val result = session.get(entry)
-            announce(entry.name, result)
-            busyId = null
-        }
+        MarketWork.install(entry.id, entry.name) { session.get(entry) }
+    }
+
+    // What finished while nobody was looking. Closing the Market during a download used to lose the message and the
+    // Undo that went with it; now the store picks them up when it opens.
+    LaunchedEffect(MarketWork.finished) {
+        MarketWork.taken()?.let { announce(it.name, it.result) }
     }
 
     fun remove(id: String, name: String) {
-        if (busyId != null) return
-        if (session.remove(id)) say("$name removed")
-        refresh()
+        if (MarketWork.busy) return
+        scope.launch {
+            val removed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { session.remove(id) }
+            if (removed) say("$name removed")
+            refresh()
+        }
     }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = openId != null) { openId = null }
 
-    // A .foliopkg someone opened: read it once, then the same confirm sheet as anything else.
+    // A .foliopkg someone opened: read it once, then the same confirm sheet as anything else. Keyed on the file
+    // itself, so one shared while the Market is already open is read there and then.
     var importing by remember { mutableStateOf<Pair<ByteArray, com.mccal.folio.market.FolioPackage>?>(null) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(MarketImport.pending) {
         val bytes = MarketImport.pending
         MarketImport.pending = null
         if (bytes != null) {
@@ -173,10 +187,16 @@ internal fun MarketScreen(
     }
 
     // A shared folio:// link opens straight on that package, once.
-    LaunchedEffect(Unit) {
+    LaunchedEffect(MarketLink.pending) {
         when (val link = MarketLink.pending) {
             is MarketLink.Package -> { tab = MarketTab.PACKAGES; openId = link.id }
-            is MarketLink.Source -> tab = MarketTab.SOURCES
+            is MarketLink.Source -> {
+                // What the format says a source link does: the Add Source sheet, filled in. The fingerprint still
+                // has to be confirmed, so a link can't add a source by itself.
+                tab = MarketTab.SOURCES
+                sourceUrl = link.url
+                addingSource = true
+            }
             // A code is redeemed by the activity that received it; by the time the Market opens it's already done.
             is MarketLink.Early -> Unit
             null -> Unit
@@ -225,7 +245,7 @@ internal fun MarketScreen(
                             onAddLocalDev = {
                                 scope.launch {
                                     val result = session.sources.addLocalDev(DEFAULT_LOCAL_SOURCE)
-                                    statuses = session.sources.cached()
+                                    statuses = withContext(session.io) { session.sources.cached() }
                                     say(refreshMessage(Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result))
                                     refresh()
                                 }
@@ -234,16 +254,19 @@ internal fun MarketScreen(
                                 scope.launch {
                                     val result = session.sources.refresh(source.url, force = true)
                                     if (result is RefreshResult.NeedsTrust) trusting = result
-                                    statuses = session.sources.cached()
+                                    statuses = withContext(session.io) { session.sources.cached() }
                                     say(refreshMessage(source, result))
                                     refresh()
                                 }
                             },
                             onForgetSource = { source ->
-                                session.sources.forget(source.url)
-                                statuses = session.sources.cached()
-                                say("${source.label} removed")
-                                refresh()
+                                scope.launch {
+                                    // Deleting a source's cache and its pinned key is file work, not frame work.
+                                    withContext(session.io) { session.sources.forget(source.url) }
+                                    statuses = withContext(session.io) { session.sources.cached() }
+                                    say("${source.label} removed")
+                                    refresh()
+                                }
                             },
                             entries = entries,
                             installed = installed,
@@ -279,7 +302,17 @@ internal fun MarketScreen(
             message?.let { text ->
                 MarketMessage(
                     text = text,
-                    undo = undo?.let { result -> { session.undo(result); undo = null; message = null; refresh() } },
+                    undo = undo?.let { result ->
+                        {
+                            val undone = result
+                            undo = null
+                            message = null
+                            scope.launch {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { session.undo(undone) }
+                                refresh()
+                            }
+                        }
+                    },
                     onDismiss = { message = null },
                 )
             }
@@ -303,13 +336,7 @@ internal fun MarketScreen(
                         ),
                         onGet = {
                             importing = null
-                            if (busyId == null) {
-                                busyId = pkg.manifest.id
-                                scope.launch {
-                                    announce(pkg.manifest.name.english, session.installFile(bytes))
-                                    busyId = null
-                                }
-                            }
+                            MarketWork.install(pkg.manifest.id, pkg.manifest.name.english) { session.installFile(bytes) }
                         },
                         onCancel = { importing = null },
                     )
@@ -334,7 +361,7 @@ internal fun MarketScreen(
                                     is RefreshResult.NeedsTrust -> trusting = result
                                     is RefreshResult.Failed -> say(result.message)
                                     else -> {
-                                        statuses = session.sources.cached()
+                                        statuses = withContext(session.io) { session.sources.cached() }
                                         say("That source is already set up")
                                     }
                                 }
@@ -359,7 +386,7 @@ internal fun MarketScreen(
                             trusting = null
                             scope.launch {
                                 val result = session.sources.trust(request.url, request.key)
-                                statuses = session.sources.cached()
+                                statuses = withContext(session.io) { session.sources.cached() }
                                 sourceUrl = ""
                                 say(refreshMessage(Source(request.url), result))
                                 refresh()
@@ -731,8 +758,10 @@ private fun MarketPackagePage(
     onReport: (IndexPackage) -> Unit,
 ) {
     // Keyed on the version too: after an update the page has to read the new package's own text and images, not the
-    // ones it read before.
-    val pkg = remember(entry.id, entry.version) { session.read(entry.id) }
+    // ones it read before. Reading them means parsing every bundled package, so it happens off the main thread.
+    val pkg by produceState<com.mccal.folio.market.FolioPackage?>(null, entry.id, entry.version) {
+        value = withContext(session.io) { session.read(entry.id) }
+    }
     val name = entry.manifest?.name?.english ?: entry.id
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         if (showBack) {
@@ -1081,6 +1110,6 @@ internal sealed interface MarketLink {
         }
 
         /** Where the Market is asked to go before it opens, set by the activity that received the link. */
-        @Volatile var pending: MarketLink? = null
+        var pending: MarketLink? by mutableStateOf(null)
     }
 }

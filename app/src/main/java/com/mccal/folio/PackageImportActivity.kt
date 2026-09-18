@@ -1,5 +1,7 @@
 package com.mccal.folio
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
@@ -67,7 +69,12 @@ class PackageImportActivity : ComponentActivity() {
     }
 }
 
-/** A package file waiting to be looked at. Same process, so the bytes don't go through an intent. */
+/**
+ * A package file waiting to be looked at. Same process, so the bytes don't go through an intent.
+ *
+ * Compose state rather than a plain field: a file shared while the Market is already open has to be noticed, and one
+ * that arrives while Settings is showing some other page mustn't be left sitting here.
+ */
 internal object MarketImport {
-    @Volatile var pending: ByteArray? = null
+    var pending: ByteArray? by androidx.compose.runtime.mutableStateOf<ByteArray?>(null)
 }

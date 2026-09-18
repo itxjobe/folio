@@ -242,6 +242,26 @@ class RepoClientTest {
         assertEquals(RefreshResult.Reason.HASH, failure(client.refresh(base, force = true)).reason)
     }
 
+    @Test fun `a source that publishes a list Folio can't read recovers when it publishes a good one`() {
+        publish(hostedIndex())
+        assertTrue(refresh() is RefreshResult.Updated)
+
+        // A new release whose list this Folio can't read: one field it doesn't know, or a broken file.
+        source.etag = "release-2"
+        source.answer304 = true
+        publish(hostedIndex { it.put("format", 99) }, timestamp = now - 30)
+        assertEquals(RefreshResult.Reason.PARSE, failure(refresh()).reason)
+
+        // The next refresh must not report tampering because of that. Folio still has the list it could read, and
+        // the source's next good release is taken normally.
+        assertEquals(RefreshResult.Reason.PARSE, failure(refresh()).reason)
+        source.etag = "release-3"
+        publish(hostedIndex { it.put("name", "Maya's packages") }, timestamp = now - 20)
+        val recovered = refresh()
+        assertTrue("$recovered", recovered is RefreshResult.Updated)
+        assertEquals("Maya's packages", (recovered as RefreshResult.Updated).snapshot.index.name.english)
+    }
+
     @Test fun `the cached copy keeps the store working offline`() {
         val fresh = (refresh() as RefreshResult.Updated).snapshot
         source.files.clear()

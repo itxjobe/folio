@@ -136,6 +136,10 @@ class RepoClient(
 
         // 3. The index: reuse the cached copy when it already matches the hash the entry pins.
         val cachedIndex = store.cached(base, "index")
+        // The ETag only means "you already have this file", so it's only true once the file really is cached. Saving
+        // it beside the download instead left a source stuck for good when a later step failed: the next refresh
+        // asked with the new ETag, got 304, and reported the tamper warning for ever.
+        var downloadedEtag: String? = null
         val indexText = if (cachedIndex != null && sha256Hex(cachedIndex.toByteArray()) == entry.index.sha256) {
             cachedIndex
         } else {
@@ -154,7 +158,8 @@ class RepoClient(
                     if (sha256Hex(result.bytes) != entry.index.sha256) {
                         return RefreshResult.Failed(RefreshResult.Reason.HASH, "that source's list doesn't match what it signed", cached)
                     }
-                    result.bytes.decodeToString().also { store.save(base, state.copy(etag = result.etag)) }
+                    downloadedEtag = result.etag
+                    result.bytes.decodeToString()
                 }
             }
         }
@@ -179,6 +184,7 @@ class RepoClient(
                 lastTimestamp = entry.timestamp,
                 lastRevokedTimestamp = revocation?.timestamp ?: state.lastRevokedTimestamp,
                 lastRefresh = now,
+                etag = downloadedEtag ?: store.state(base).etag,
             ),
         )
         val snapshot = SourceSnapshot(base, entry, index, revocation, now, (parsedIndex as ParseResult.Ok).ignored)

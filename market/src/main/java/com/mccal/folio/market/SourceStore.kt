@@ -3,17 +3,23 @@ package com.mccal.folio.market
 import org.json.JSONObject
 import java.io.File
 
-/** Small string store. The app backs it with a folder; tests use [MemoryStore]. */
+/**
+ * Small string store. The app backs it with a folder; tests use [MemoryStore].
+ *
+ * [set] says whether the value is really stored. It can fail - a full disk, a file Android took away - and a caller
+ * that has just changed the Home screen needs to know, because a change nobody recorded can't be undone.
+ */
 interface KeyValueStore {
     fun get(key: String): String?
-    fun set(key: String, value: String?)
+    fun set(key: String, value: String?): Boolean
 }
 
 class MemoryStore : KeyValueStore {
     private val values = HashMap<String, String>()
     override fun get(key: String) = values[key]
-    override fun set(key: String, value: String?) {
+    override fun set(key: String, value: String?): Boolean {
         if (value == null) values.remove(key) else values[key] = value
+        return true
     }
 }
 
@@ -23,23 +29,33 @@ class FileStore(private val dir: File) : KeyValueStore {
         runCatching { it.readText() }.getOrNull()
     }
 
-    override fun set(key: String, value: String?) {
+    /**
+     * Writes beside the target and moves it into place, so a crash can't leave half a file behind - and, when the
+     * move fails, leaves what was already there alone. The old version of this deleted the target first and tried
+     * again, which turned one failed write into a lost value: for `source:<url>:state` that value is the pinned key,
+     * and losing it quietly asks the user to trust the source all over again, exactly as a stolen key would.
+     *
+     * The temp file carries a unique name and the whole thing is serialised, so two writers can't use one another's.
+     */
+    @Synchronized
+    override fun set(key: String, value: String?): Boolean {
         val target = file(key)
-        if (value == null) {
-            target.delete()
-            return
-        }
+        if (value == null) return !target.exists() || target.delete()
         dir.mkdirs()
-        // Write beside the target and move it into place, so a crash can't leave half a file behind.
-        val temp = File(dir, target.name + ".tmp")
-        runCatching {
+        val temp = File(dir, target.name + ".tmp." + java.util.UUID.randomUUID().toString().take(8))
+        return runCatching {
             temp.writeText(value)
-            if (!temp.renameTo(target)) {
-                target.delete()
-                temp.renameTo(target)
-            }
-        }
-        temp.delete()
+            java.nio.file.Files.move(
+                temp.toPath(), target.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+            )
+            true
+        }.recoverCatching {
+            // Some filesystems can't move atomically; a plain replace still never removes the old file first.
+            java.nio.file.Files.move(temp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            true
+        }.also { temp.delete() }.getOrDefault(false)
     }
 
     private fun file(key: String) = File(dir, sha256Hex(key.toByteArray()).take(32))

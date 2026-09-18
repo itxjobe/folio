@@ -323,7 +323,7 @@ fun LauncherScreen(
         drag.clear(); widgetSession = null; resizeSlot = null; selectedId = null; homeEdit.stop()
         if (SoftwareUpdate.openRequested) { SoftwareUpdate.openRequested = false; customizationPage = CustomizationPage.SOFTWARE_UPDATE }
         val linked = SettingsLink.page?.also { customizationPage = it; SettingsLink.page = null }
-        sheet = if (MarketLink.pending != null) "market"
+        sheet = if (MarketLink.pending != null || MarketImport.pending != null) "market"
             else sheetForAppIcon(linked, customizationPage, MarketAccess.isOpen(launcherActivity))
     } }
     LaunchedEffect(searchRequests) { if (searchRequests > 0) { drag.clear(); widgetSession = null; resizeSlot = null; sheet = ""; widgetPackage = null; widgetExactTarget = false; selectedId = null

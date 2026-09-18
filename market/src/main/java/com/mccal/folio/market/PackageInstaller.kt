@@ -157,7 +157,15 @@ class PackageInstaller(
             installedAt = clock(),
             snapshots = snapshots,
         )
-        store.put(installed, changes = pkg.changes)
+        // Nothing stays applied that Folio couldn't write down. A package on the Home screen and missing from the
+        // list is one nobody can remove, so a store that won't write means the whole install is put back.
+        if (!store.put(installed, changes = pkg.changes)) {
+            pkg.changes.zip(snapshots).reversed().forEach { (change, snapshot) ->
+                runCatching { host.restore(change, snapshot) }
+            }
+            safeMode.endChange()
+            return InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't save that package, so nothing changed")
+        }
         safeMode.endChange()
         return InstallResult.Installed(installed, replaced, pkg.notes)
     }
@@ -259,7 +267,11 @@ class PackageInstaller(
                 }
                 PackageKind.LAYOUT_PRESET -> files["layout.json"]?.let { PackageChange.Layout(it.decodeToString()) }
                     ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has a layout but has no layout.json")
-                PackageKind.WALLPAPER -> files.entries.firstOrNull { it.key.startsWith("assets/") && it.key.substringAfterLast('.') != "json" }
+                // A picture, named as one: the archive allows other file types under assets/, and handing one of
+                // those to the wallpaper as image bytes is a guess about a name an author chose.
+                PackageKind.WALLPAPER -> files.entries.firstOrNull {
+                    it.key.startsWith("assets/") && it.key.substringAfterLast('.').lowercase() in IMAGE_TYPES
+                }
                     ?.let { PackageChange.Wallpaper(it.key, it.value) }
                     ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has a wallpaper but has no image")
                 PackageKind.ICON_PACK_LINK -> {
@@ -287,6 +299,9 @@ class PackageInstaller(
 
     private companion object {
         val ANDROID_PACKAGE = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+\\z")
+
+        /** What a wallpaper picture can be, matching the archive's own list of allowed types. */
+        val IMAGE_TYPES = setOf("png", "webp", "jpg", "jpeg")
     }
 }
 
@@ -332,16 +347,23 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
 
     fun find(id: String): InstalledPackage? = read()[id]
 
-    fun put(installed: InstalledPackage, changes: List<PackageChange>) {
+    /**
+     * Records a package and what it changed. False means nothing could be written down, which matters: a change Folio
+     * can't remember is one the user can't undo or remove.
+     */
+    fun put(installed: InstalledPackage, changes: List<PackageChange>): Boolean {
+        // The changes go first: a record pointing at changes that aren't there is worse than no record.
+        if (!keyValue.set(changesKey(installed.id, installed.version), encodeChanges(changes))) return false
         val all = read().toMutableMap()
         all[installed.id] = installed
-        write(all)
-        keyValue.set(changesKey(installed.id, installed.version), encodeChanges(changes))
+        return write(all)
     }
 
     fun remove(id: String) {
         val all = read().toMutableMap()
-        all.remove(id)
+        // What that version changed goes with it. Kept, these pile up for ever, and a wallpaper's record holds a
+        // whole image; the only reader is Undo, which runs before the record is dropped.
+        all.remove(id)?.let { keyValue.set(changesKey(it.id, it.version), null) }
         write(all)
     }
 
@@ -356,13 +378,16 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
      * Everything about installed packages, for Folio's layout backup: the records and what each package changed, so a
      * restored backup knows what to put back. Restoring only writes the list; the launcher applies it afterwards.
      */
+    /** Everything the backup carries. Unreadable data is left out rather than thrown, as everywhere else here. */
     fun export(): String {
-        val packages = JSONArray(keyValue.get(KEY) ?: "[]")
+        val packages = runCatching { JSONArray(keyValue.get(KEY) ?: "[]") }.getOrDefault(JSONArray())
         val changes = JSONObject()
         for (i in 0 until packages.length()) {
             val json = packages.optJSONObject(i) ?: continue
             val key = "${json.optString("id")}@${json.optString("version")}"
-            keyValue.get("installed:changes:$key")?.let { changes.put(key, JSONArray(it)) }
+            keyValue.get("installed:changes:$key")?.let { text ->
+                runCatching { changes.put(key, JSONArray(text)) }
+            }
         }
         return JSONObject().put("format", 1).put("packages", packages).put("changes", changes).toString()
     }
@@ -403,7 +428,7 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
         }.associateBy { it.id }
     }
 
-    private fun write(all: Map<String, InstalledPackage>) {
+    private fun write(all: Map<String, InstalledPackage>): Boolean {
         val array = JSONArray()
         for (p in all.values) {
             array.put(
@@ -413,7 +438,7 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
                     .put("snapshots", JSONArray(p.snapshots)).put("enabled", p.enabled).put("disabledReason", p.disabledReason),
             )
         }
-        keyValue.set(KEY, array.toString())
+        return keyValue.set(KEY, array.toString())
     }
 
     // Changes are stored as data, so Undo and Remove work after a restart without keeping the package file around.
