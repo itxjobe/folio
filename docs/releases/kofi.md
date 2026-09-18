@@ -61,8 +61,14 @@ Ko-fi has three ways in, in order of how little work they are:
 The shop item is the only one that works while asleep, and it's the one to start with. A code with no expiry means the
 file never needs changing; a dated code means re-uploading it when it runs out.
 
-Later, a Ko-fi webhook into a small serverless function could mint one code per payment. Worth it only if sharing ever
-becomes a problem, which it probably won't.
+### A code per person, automatically
+
+`tools/kofi-webhook/` is a Cloudflare Worker that does this when the shop item isn't enough: Ko-fi posts to it on every
+payment, it checks the payment is really Ko-fi's, takes one code off a batch minted offline, and emails it.
+
+The point of the design is that **the signing key never goes online**. Codes are minted on the Mac and uploaded; the
+worker only hands them out, so breaking into it leaks a handful of codes rather than the ability to make them. Its
+README has the setup, and the whole thing is optional — start with the shop item.
 
 ## The page itself
 

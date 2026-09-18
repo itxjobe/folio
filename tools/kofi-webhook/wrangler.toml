@@ -1,0 +1,12 @@
+name = "folio-codes"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# The address the email comes from; the domain has to be verified with the email provider.
+[vars]
+FROM_EMAIL = "folio@example.com"
+
+# wrangler kv namespace create CODES, then put the id here.
+[[kv_namespaces]]
+binding = "CODES"
+id = "PUT_THE_NAMESPACE_ID_HERE"
