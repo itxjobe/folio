@@ -120,4 +120,46 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Cabinet is on").assertExists()
         assertEquals(listOf("com.mccal.folio.cabinet"), session.installed().map { it.id })
     }
+
+    @Test fun `a package from a source shows up in the list, with where it came from`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        // A source the user added, cached the way a refresh leaves it.
+        addCachedSource("https://maya.example/folio/", "Maya", mayaIndex())
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-packages").performClick()
+        compose.onNodeWithText("Cabinet").assertExists()
+        // Folio's own packages say nothing about a source; this one names it.
+        compose.onNodeWithText("Example · Maya").assertExists()
+    }
+
+    /**
+     * Writes what a successful refresh leaves behind — the source, its list and the entry that pinned it — using the
+     * same store the client reads, so the screen is showing a real cached source rather than a stub.
+     */
+    private fun addCachedSource(url: String, name: String, indexJson: String) {
+        val context = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val files = com.mccal.folio.market.FileStore(java.io.File(context.filesDir, "market"))
+        com.mccal.folio.market.SourceList(files).add(com.mccal.folio.market.Source(url, name = name, addedAt = 1))
+        val store = com.mccal.folio.market.SourceStore(files)
+        val bytes = indexJson.toByteArray()
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        store.cache(url, "index", indexJson)
+        store.cache(
+            url, "entry",
+            """{"format":1,"keyId":"A1B2C3D4E5F60789","timestamp":1789660320,"maxAge":604800,
+                "index":{"path":"index.json","sha256":"$hash","size":${bytes.size}}}""",
+        )
+    }
+
+    /** A one-package index from another source, as its cached list. */
+    private fun mayaIndex(): String {
+        val manifest = """
+            {"format":1,"id":"dev.maya.sunset-icons","name":"Sunset Icons","version":"1.2.0",
+             "author":{"name":"Example"},"minFolio":"0.7.0","section":"themes","kind":["theme"],
+             "permissions":["home.appearance"]}
+        """.trimIndent()
+        return """{"format":1,"name":"Maya","packages":[{"id":"dev.maya.sunset-icons","version":"1.2.0",
+            "url":"packages/sunset.foliopkg","sha256":"${"a".repeat(64)}","size":1024,"manifest":$manifest}]}"""
+    }
 }

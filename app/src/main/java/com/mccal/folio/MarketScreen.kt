@@ -113,21 +113,27 @@ internal fun MarketScreen(
     // Re-read after every change, so the list always shows what's really installed.
     var revision by rememberSaveable { mutableIntStateOf(0) }
     val index = remember(revision) { session.index() }
+    val entries = remember(revision, statuses) { session.entries() }
+    var busyId by remember { mutableStateOf<String?>(null) }
     val installed = remember(revision) { session.installed().associateBy { it.id } }
 
     fun refresh() { revision++ }
 
-    fun apply(entry: IndexPackage) {
+    fun apply(entry: MarketEntry) {
         confirming = null
-        when (val result = session.get(entry)) {
-            is InstallResult.Installed -> {
-                undo = result
-                message = "${result.installed.name} is on"
+        busyId = entry.id
+        scope.launch {
+            when (val result = session.get(entry)) {
+                is InstallResult.Installed -> {
+                    undo = result
+                    message = "${result.installed.name} is on"
+                }
+                is InstallResult.NeedsNewerFolio -> message = "${entry.name} needs a newer Folio"
+                is InstallResult.Failed -> message = result.message
             }
-            is InstallResult.NeedsNewerFolio -> message = "${entry.manifest?.name?.english ?: entry.id} needs a newer Folio"
-            is InstallResult.Failed -> message = result.message
+            busyId = null
+            refresh()
         }
-        refresh()
     }
 
     fun remove(id: String, name: String) {
@@ -174,8 +180,8 @@ internal fun MarketScreen(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val split = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale) && maxWidth.value >= 700f
-        val packages = index?.packages.orEmpty()
-        val open = openId?.let { id -> packages.firstOrNull { it.id == id } }
+        val packages = entries.map { it.entry }
+        val open = openId?.let { id -> entries.firstOrNull { it.id == id } }
 
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f)) {
@@ -212,9 +218,10 @@ internal fun MarketScreen(
                                 message = "${source.label} removed"
                                 refresh()
                             },
-                            packages = packages,
+                            entries = entries,
                             installed = installed,
                             openId = openId,
+                            busyId = busyId,
                             style = style,
                             onStyle = { chosen -> style = chosen; session.prefs.featuredStyle = chosen },
                             onIntroduce = { session.prefs.introductionSeen = false; introducing = true },
@@ -227,14 +234,14 @@ internal fun MarketScreen(
                 if (open != null) {
                     Box(Modifier.weight(1f).fillMaxHeight()) {
                         MarketPackagePage(
-                            entry = open,
+                            entry = open.entry,
                             session = session,
                             installed = installed[open.id],
-                            sourceName = index?.name?.english ?: "Folio",
+                            sourceName = open.source.label,
                             showBack = !split,
                             onBack = { openId = null },
                             onGet = { confirming = open.id },
-                            onRemove = { remove(open.id, open.manifest?.name?.english ?: open.id) },
+                            onRemove = { remove(open.id, open.name) },
                             onShare = { share(context, it) },
                             onReport = { report(context, index?.issuesUrl, it) },
                         )
@@ -335,7 +342,7 @@ internal fun MarketScreen(
             }
         }
         confirming?.let { id ->
-            packages.firstOrNull { it.id == id }?.let { entry ->
+            entries.firstOrNull { it.id == id }?.let { entry ->
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { confirming = null }) {
                     Box(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -343,8 +350,8 @@ internal fun MarketScreen(
                             .clickable(enabled = false) {},
                     ) {
                         MarketInstallSheet(
-                            entry = entry,
-                            builtIn = !entry.installable,
+                            entry = entry.entry,
+                            builtIn = entry.source.kind == Source.Kind.BUILT_IN,
                             onGet = { apply(entry) },
                             onCancel = { confirming = null },
                         )
@@ -388,19 +395,24 @@ private fun MarketList(
     onAddLocalDev: () -> Unit,
     onRefreshSource: (Source) -> Unit,
     onForgetSource: (Source) -> Unit,
-    packages: List<IndexPackage>,
+    entries: List<MarketEntry>,
     installed: Map<String, InstalledPackage>,
     openId: String?,
+    busyId: String?,
     style: FeaturedStyle,
     onStyle: (FeaturedStyle) -> Unit,
     onIntroduce: () -> Unit,
     onOpen: (String) -> Unit,
-    onGet: (IndexPackage) -> Unit,
+    onGet: (MarketEntry) -> Unit,
     onRemove: (String, String) -> Unit,
 ) {
+    // A package is an update when a source offers a higher version than the one installed.
+    val updates = entries.filter { entry ->
+        installed[entry.id]?.let { entry.entry.version > it.version } == true
+    }
     val shown = when (tab) {
-        MarketTab.FEATURED, MarketTab.PACKAGES -> packages
-        MarketTab.INSTALLED -> packages.filter { it.id in installed }
+        MarketTab.FEATURED, MarketTab.PACKAGES -> entries
+        MarketTab.INSTALLED -> entries.filter { it.id in installed } - updates.toSet()
         MarketTab.SOURCES, MarketTab.SETTINGS -> emptyList()
     }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -414,7 +426,7 @@ private fun MarketList(
             item(key = "featured") {
                 MarketFeatured(
                     featured = index.featured,
-                    packages = packages,
+                    packages = entries.map { it.entry },
                     calm = style == FeaturedStyle.CALM,
                     onOpen = onOpen,
                 )
@@ -424,7 +436,7 @@ private fun MarketList(
             item(key = "sources") {
                 MarketSourcesTab(
                     builtInName = index?.name?.english ?: "Folio",
-                    builtInCount = packages.size,
+                    builtInCount = entries.count { it.source.kind == Source.Kind.BUILT_IN },
                     statuses = statuses,
                     localDevAllowed = localDevAllowed,
                     onAdd = onAddSource,
@@ -435,9 +447,28 @@ private fun MarketList(
             }
         }
         if (tab == MarketTab.SETTINGS) {
-            item(key = "settings") { MarketSettings(style = style, onStyle = onStyle, onIntroduce = onIntroduce) }
+            item(key = "settings") { MarketOwnSettings(style = style, onStyle = onStyle, onIntroduce = onIntroduce) }
         }
-        if (shown.isEmpty() && tab == MarketTab.INSTALLED) {
+        if (tab == MarketTab.INSTALLED && updates.isNotEmpty()) {
+            item(key = "updates-label") { SheetGroupLabel("Updates") }
+            item(key = "updates") {
+                SheetGroup(Modifier.padding(bottom = 10.dp)) {
+                    for (entry in updates) {
+                        MarketRow(
+                            entry = entry,
+                            installed = installed[entry.id],
+                            busy = entry.id == busyId,
+                            update = true,
+                            selected = entry.id == openId,
+                            onOpen = { onOpen(entry.id) },
+                            onGet = { onGet(entry) },
+                            onRemove = { onRemove(entry.id, entry.name) },
+                        )
+                    }
+                }
+            }
+        }
+        if (shown.isEmpty() && tab == MarketTab.INSTALLED && updates.isEmpty()) {
             item {
                 Text(
                     "Nothing yet. Themes and tweaks you get show up here.",
@@ -446,7 +477,7 @@ private fun MarketList(
             }
         }
         for (section in Section.entries) {
-            val inSection = shown.filter { it.manifest?.section == section }
+            val inSection = shown.filter { it.entry.manifest?.section == section }
             if (inSection.isEmpty()) continue
             item(key = "label-${section.id}") { SheetGroupLabel(section.id.replaceFirstChar(Char::uppercase)) }
             item(key = "group-${section.id}") {
@@ -455,10 +486,11 @@ private fun MarketList(
                         MarketRow(
                             entry = entry,
                             installed = installed[entry.id],
+                            busy = entry.id == busyId,
                             selected = entry.id == openId,
                             onOpen = { onOpen(entry.id) },
                             onGet = { onGet(entry) },
-                            onRemove = { onRemove(entry.id, entry.manifest?.name?.english ?: entry.id) },
+                            onRemove = { onRemove(entry.id, entry.name) },
                         )
                     }
                 }
@@ -469,15 +501,17 @@ private fun MarketList(
 
 @Composable
 private fun MarketRow(
-    entry: IndexPackage,
+    entry: MarketEntry,
     installed: InstalledPackage?,
+    busy: Boolean,
     selected: Boolean,
     onOpen: () -> Unit,
     onGet: () -> Unit,
     onRemove: () -> Unit,
+    update: Boolean = false,
 ) {
-    val name = entry.manifest?.name?.english ?: entry.id
-    val author = entry.manifest?.author?.name?.english.orEmpty()
+    val name = entry.name
+    val author = entry.entry.manifest?.author?.name?.english.orEmpty()
     Row(
         Modifier.fillMaxWidth()
             .background(if (selected) Color.White.copy(alpha = .06f) else Color.Transparent)
@@ -488,26 +522,42 @@ private fun MarketRow(
         Column(Modifier.weight(1f)) {
             Text(name, color = Color.White, fontSize = 16.sp)
             Text(
-                if (installed?.enabled == false) "Turned off after a crash" else author,
-                color = if (installed?.enabled == false) Color(0xFFFFB340) else Color.White.copy(alpha = .55f),
+                when {
+                    installed?.enabled == false -> "Turned off after a crash"
+                    entry.revokedReason != null -> entry.revokedReason
+                    update -> "${installed?.version} → ${entry.entry.version}"
+                    // A package from somewhere other than Folio says where it came from.
+                    entry.source.kind != Source.Kind.BUILT_IN -> "$author · ${entry.source.label}"
+                    else -> author
+                },
+                color = when {
+                    installed?.enabled == false || entry.revokedReason != null -> Color(0xFFFFB340)
+                    else -> Color.White.copy(alpha = .55f)
+                },
                 fontSize = 13.sp,
             )
+            if (entry.unsigned) {
+                Text("Unsigned", color = Color(0xFFFFB340), fontSize = 12.sp)
+            }
         }
-        if (entry.needs.isNotEmpty()) {
-            Text("Needs a newer Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
-        } else {
-            MarketActionButton(
-                label = if (installed != null) "Remove" else "Get",
-                name = name,
-                onClick = if (installed != null) onRemove else onGet,
-            )
+        when {
+            busy -> Text("Working…", color = Color.White.copy(alpha = .55f), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp))
+            // A revoked package can be removed but never installed again.
+            entry.revokedReason != null && installed == null -> Text("Unavailable", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            entry.entry.needs.isNotEmpty() -> Text("Needs a newer Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            update -> MarketActionButton("Update", name, onGet)
+            installed != null -> MarketActionButton("Remove", name, onRemove)
+            else -> MarketActionButton("Get", name, onGet)
         }
     }
 }
 
-/** The Market's own settings: how Featured looks, and the introduction again. */
+/**
+ * The Market's own settings, for when it's shown without the launcher's Settings behind it (the tests, and any future
+ * place the store stands alone). Inside Folio, the Settings tab shows Folio's real Settings instead.
+ */
 @Composable
-private fun MarketSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Unit, onIntroduce: () -> Unit) {
+private fun MarketOwnSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Unit, onIntroduce: () -> Unit) {
     Column {
         SheetGroupLabel("Featured style")
         IosSegmented(
@@ -518,17 +568,14 @@ private fun MarketSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Uni
             tag = "market-featured-style",
         )
         Text(
-            FeaturedStyle.entries.first { it == style }.description,
+            style.description,
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp),
         )
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
             IosActionRow("Show the introduction again", onClick = onIntroduce)
         }
-        SheetGroupLabel("Folio")
         val context = androidx.compose.ui.platform.LocalContext.current
         SheetGroup(Modifier.padding(bottom = 16.dp)) {
-            // Wallpaper, Home, tweaks and the rest still live in Folio's own Settings. Bringing those pages in here is
-            // the next slice; until then this opens them rather than showing half of them twice.
             IosActionRow("Open Folio Settings") {
                 runCatching {
                     context.startActivity(
