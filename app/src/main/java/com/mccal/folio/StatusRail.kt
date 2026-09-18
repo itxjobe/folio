@@ -98,9 +98,11 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
  * The Gauge's ring, split in two: gaps at the top for the percentage and at the bottom for the signal's dots.
  * Angles are Compose's: 0 is 3 o'clock and they grow clockwise.
  */
-private const val GAUGE_SIDE = 114f
-private const val GAUGE_LEFT_START = 123f
-private const val GAUGE_RIGHT_START = 303f
+private const val GAUGE_CENTER = .62f
+private const val GAUGE_RADIUS = .34f
+private const val GAUGE_SIDE = 104f
+private const val GAUGE_LEFT_START = 133f
+private const val GAUGE_RIGHT_START = 313f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -286,8 +288,10 @@ fun StatusRail(
                             if (still) snap() else tween(FolioMotion.GAUGE_MS), label = "gauge colour")
                         Canvas(Modifier.fillMaxSize()) {
                             val w = size.width
-                            val center = Offset(w / 2, w / 2)
-                            val radius = w * .44f
+                            // The ring sits low in its box so the reading can straddle the gap at its top rather
+                            // than float above it.
+                            val center = Offset(w / 2, w * GAUGE_CENTER)
+                            val radius = w * GAUGE_RADIUS
                             val corner = Offset(center.x - radius, center.y - radius)
                             val box = Size(radius * 2, radius * 2)
                             val stroke = Stroke(width = w * .085f, cap = StrokeCap.Round)
@@ -302,8 +306,8 @@ fun StatusRail(
                                 if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
                             // The connection sits between the two gaps, small enough to keep clear of the ring.
-                            translate(0f, w * .085f) {
-                                scale(.66f, center) {
+                            translate(0f, w * .02f) {
+                                scale(.62f, center) {
                                     when {
                                         wifiVisual is WifiSignalVisual.Connected -> {
                                             drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
@@ -318,10 +322,13 @@ fun StatusRail(
                         }
                         // A full charge is three digits wide; it takes a smaller size so it never touches the arc.
                         val reading = status.battery?.toString() ?: "\u2014"
+                        val readingSize = if (reading.length > 2) .205f else .24f
                         Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
-                            fontSize = (visualSize.value * (if (reading.length > 2) .225f else .27f) / fontScale).sp,
+                            fontSize = (visualSize.value * readingSize / fontScale).sp,
                             fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
-                            modifier = Modifier.padding(top = visualSize * .02f))
+                            // It sits above the ring rather than across it: its foot lands on the ring's top edge.
+                            modifier = Modifier.padding(top = visualSize *
+                                ((GAUGE_CENTER - GAUGE_RADIUS) - readingSize * 1.15f).coerceAtLeast(0f)))
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
                                 modifier = Modifier.padding(top = visualSize * .34f).size(visualSize * .3f))
