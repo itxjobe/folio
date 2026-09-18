@@ -213,10 +213,10 @@ signature. Folio never calls a repository API, which is what keeps it clear of G
 ```json
 {
   "format": 1,
-  "name": "Folio Community",
+  "name": "Folio packages",
   "description": "Themes and tweaks reviewed by the Folio project.",
   "icon": "icon.png",
-  "issuesUrl": "https://github.com/McCal-Codes/folio-community/issues/new",
+  "issuesUrl": "https://github.com/McCal-Codes/folio-packages/issues/new",
   "featured": [{ "package": "dev.maya.sunset-icons", "label": "Theme of the week" }],
   "packages": [
     {
