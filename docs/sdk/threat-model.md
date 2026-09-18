@@ -23,20 +23,20 @@
 
 | # | Threat | STRIDE | Mitigation | Test |
 |---|---|---|---|---|
-| T1 | Attacker on the network swaps the index or a package | T | HTTPS only. The signed `entry.json` pins the index's sha256; the index pins every package's sha256 and size. | Tampered-index and hash-mismatch fixtures fail |
-| T2 | An old, vulnerable index is replayed | T | Refuse any `timestamp` older than the last accepted one for that source | Rollback fixture fails |
-| T3 | A stale index is served forever to hide an update or revocation | D | Refuse the index after `timestamp + maxAge` (at most 30 days) and show "Couldn't refresh" | Expired-entry fixture fails |
-| T4 | Someone impersonates a source | S | The key fingerprint is shown and pinned the first time the user adds a source. A changed key blocks the source until the user confirms. The official key ships in the app. | Wrong-key fixture fails |
-| T5 | A publisher's key is stolen | S/T | Revocation list; key rotation needs the user's confirmation; Community source signing happens only in CI; build provenance shows the repo and commit | Revoked-package fixture is turned off |
-| T6 | A malicious package ships code | E | Folio never loads DEX, JAR or native code; unknown file types are rejected; kinds are a closed list | A package with `classes.dex` is rejected |
-| T7 | Zip-slip, zip bomb or symlink in a package | T/D | Paths are normalized and checked; size, entry-count and compression-ratio caps; symlinks rejected | Fuzz targets plus fixtures |
-| T8 | A malformed manifest or depiction crashes Folio | D | Strict parsers with size caps, where unknown values fall back to safe defaults; Jazzer fuzzing | 5-minute fuzz runs stay clean |
-| T9 | A package or script misbehaves and makes Home unusable | D | Safe Mode: two crashes within 60 s of a package change start Folio with third-party packages off | Crash-package fixture triggers Safe Mode |
+| T1 | Attacker on the network swaps the index or a package | T | HTTPS only. The signed `entry.json` pins the index's sha256; the index pins every package's sha256 and size. | `RepoClientTest` T1 |
+| T2 | An old, vulnerable index is replayed | T | Refuse any `timestamp` older than the last accepted one for that source | `RepoClientTest` T2 |
+| T3 | A stale index is served forever to hide an update or revocation | D | Refuse the index after `timestamp + maxAge` (at most 30 days) and show "Couldn't refresh" | `RepoClientTest` T3 |
+| T4 | Someone impersonates a source | S | The key fingerprint is shown and pinned the first time the user adds a source. A changed key blocks the source until the user confirms. The official key ships in the app. | `RepoClientTest` T4 |
+| T5 | A publisher's key is stolen | S/T | Revocation list; key rotation needs the user's confirmation; Community source signing happens only in CI; build provenance shows the repo and commit | `RepoClientTest` T5 |
+| T6 | A malicious package ships code | E | Folio never loads DEX, JAR or native code; unknown file types are rejected; kinds are a closed list | `PackageInstallerTest` T6 |
+| T7 | Zip-slip, zip bomb or symlink in a package | T/D | The package is read in memory and never extracted, so no name in it reaches the file system; names must be relative with no `..`; caps on packed size, unpacked size and file count; only a closed set of file types, which also refuses an entry claiming to be a link | `PackageInstallerTest` T7, and the `archive` fuzz target |
+| T8 | A malformed manifest or depiction crashes Folio | D | Strict parsers with size caps, where unknown values fall back to safe defaults; Jazzer fuzzing | `ParserFuzzTest`, 5 minutes per parser |
+| T9 | A package or script misbehaves and makes Home unusable | D | Safe Mode: two crashes within 60 s of a package change start Folio with that package turned off and its settings kept (Try Again / Remove / Details); everything else keeps working | `PackageInstallerTest` T9 |
 | T10 | A script escapes the sandbox or does too much | E | QuickJS or LuaJ with no network, file or reflection access; memory and CPU caps; actions only through declared permissions; auto-disable after 3 failures | Over-budget and undeclared-action scripts are stopped |
 | T11 | A package hides what it does | I | The privacy label is generated from `permissions`, never from the author's text; permissions are checked when the package runs | A permission missing from the manifest is denied |
 | T12 | A depiction leaks data or phishes | I/S | Closed set of block types; Markdown subset with no HTML or remote images; links must be https and show their domain | HTML and http depictions are rejected by the schema |
-| T13 | A source tracks users | I | Only static files; no accounts; no cookies; Folio sends only a plain `User-Agent: Folio`; refresh is opt-in and can be Wi-Fi only | Network log review |
-| T14 | Market traffic uses up GitHub rate limits | D | Static files only, conditional requests (ETag), refresh at most every 6 h | Client test counts requests |
+| T13 | A source tracks users | I | Only static files; no accounts; no cookies; Folio sends only a plain `User-Agent: Folio`; refresh is opt-in and can be Wi-Fi only | `RepoClientTest` counts every request |
+| T14 | Market traffic uses up GitHub rate limits | D | Static files only, conditional requests (ETag), refresh at most every 6 h | `RepoClientTest` T14 |
 | T15 | A launcher backup import is malicious | T/D | Only files the user picks; strict parsing and size caps; preview before anything is applied; full undo | Oversized and malformed backup fixtures fail |
 | T16 | A reported package stays live | R | Report opens the source's issue form with the package id, version and sha256; Community takedowns go into `revoked.json` | Process documented in the Community repo |
 

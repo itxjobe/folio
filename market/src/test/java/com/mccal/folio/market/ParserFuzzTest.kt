@@ -84,6 +84,32 @@ class ParserFuzzTest {
         }
     }
 
+    /** A package file is opened in memory, so no name it carries can ever reach the file system (T7). */
+    @FuzzTest(maxDuration = "5m")
+    fun archive(data: FuzzedDataProvider) {
+        when (val result = PackageArchive.read(data.consumeRemainingAsBytes())) {
+            is PackageArchive.Result.Rejected -> check(result.reason.isNotEmpty())
+            is PackageArchive.Result.Ok -> {
+                check(PackageArchive.MANIFEST in result.files)
+                check(result.files.size <= PackageArchive.MAX_ENTRIES)
+                check(result.files.values.sumOf { it.size } <= PackageArchive.MAX_UNCOMPRESSED)
+                for (name in result.files.keys) {
+                    check(!name.startsWith("/") && ".." !in name && '\\' !in name)
+                    check(name.substringAfterLast('.', "").lowercase() in PackageArchive.ALLOWED_EXTENSIONS)
+                }
+            }
+        }
+    }
+
+    @FuzzTest(maxDuration = "5m")
+    fun tweaks(data: FuzzedDataProvider) {
+        val result = TweakBundle.parse(data.consumeRemainingAsString())
+        checkReport(result)
+        if (result is ParseResult.Ok) {
+            check(result.value.tweaks.isNotEmpty() && result.value.tweaks.size <= TweakBundle.MAX_TWEAKS)
+        }
+    }
+
     /** Whatever JsonGuard accepts, org.json must read without an exception. */
     @FuzzTest(maxDuration = "5m")
     fun jsonGuard(data: FuzzedDataProvider) {

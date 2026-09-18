@@ -113,6 +113,9 @@ data class IndexPackage(
 
     companion object {
         const val MAX_PACKAGE_BYTES = 20 * 1024 * 1024
+
+        /** Why a listed package can't be used here: it names something this Folio doesn't have. */
+        const val NEEDS_NEWER_FOLIO = "a newer Folio"
         private val RELATIVE_OR_HTTPS = Regex("^(https://\\S+|(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+)\\z")
         private val REPO = Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\z")
         private val COMMIT = Regex("^[0-9a-f]{7,40}\\z")
@@ -151,7 +154,7 @@ data class IndexPackage(
                 if (embedded.version != version) p.errors += "$at.version doesn't match the manifest's version"
             }
             if (id == null || version == null) return null
-            val needs = if (embedded == null && f.has("manifest")) listOf("a newer Folio") else emptyList()
+            val needs = if (embedded == null && f.has("manifest")) listOf(NEEDS_NEWER_FOLIO) else emptyList()
             return IndexPackage(id, version, url, sha256, size?.toInt(), provenance, embedded, needs)
         }
     }

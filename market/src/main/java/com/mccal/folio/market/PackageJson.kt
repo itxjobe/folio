@@ -107,6 +107,11 @@ internal class Fields(private val json: JSONObject, private val path: String, pr
         return exact.toLong()
     }
 
+    fun bool(key: String, required: Boolean): Boolean? {
+        if (missing(key, required)) return null
+        return json.opt(key) as? Boolean ?: null.also { p.errors += "${where(key)} must be true or false" }
+    }
+
     fun anyString(key: String) {
         if (json.has(key) && json.opt(key) !is String) p.errors += "${where(key)} must be a string"
     }

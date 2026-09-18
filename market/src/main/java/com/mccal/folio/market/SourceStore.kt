@@ -93,7 +93,7 @@ class SourceStore(private val store: KeyValueStore) {
     /** Drops everything about a source, for Remove Source. */
     fun forget(url: String) {
         store.set(key(url, "state"), null)
-        for (name in listOf("index", "revoked")) store.set(key(url, "file:$name"), null)
+        for (name in listOf("index", "entry", "revoked")) store.set(key(url, "file:$name"), null)
     }
 
     private fun key(url: String, part: String) = "source:${normalizeSourceUrl(url)}:$part"

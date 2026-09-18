@@ -28,7 +28,8 @@ sealed interface HttpResult {
 
     /** Nothing was downloaded. [status] is the HTTP status when there was one. */
     data class Failed(val message: String, val status: Int? = null) : HttpResult {
-        val missing: Boolean get() = status == 404
+        /** The source isn't there any more: 404, or 410 when the host says it's gone for good. */
+        val missing: Boolean get() = status == 404 || status == 410
     }
 }
 

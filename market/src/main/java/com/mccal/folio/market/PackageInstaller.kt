@@ -1,0 +1,427 @@
+package com.mccal.folio.market
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * What the launcher lets a package change. `:market` never touches the Home screen itself, so Folio Lite can reuse the
+ * store later with a different host.
+ */
+interface PackageHost {
+    /** What this build of Folio can do. A package needing anything else is never applied. */
+    val capabilities: Set<Capability>
+
+    /**
+     * Applies [change] and returns a snapshot of what it replaced, which Folio keeps until the user dismisses Undo.
+     * Throwing means nothing was applied.
+     */
+    fun apply(change: PackageChange): String
+
+    /** Puts back what [apply] replaced. Called for Undo, for Remove, and when a later step of an install fails. */
+    fun restore(change: PackageChange, snapshot: String)
+}
+
+/** A package Folio has installed, and what it replaced. */
+data class InstalledPackage(
+    val id: String,
+    val version: DebVersion,
+    val name: String,
+    val origin: Origin,
+    val sourceUrl: String?,
+    val installedAt: Long,
+    /** What each change replaced, in the order it was applied, so Undo and Remove can walk back. */
+    val snapshots: List<String>,
+    val enabled: Boolean = true,
+    /** Why Safe Mode turned this package off, when it did. */
+    val disabledReason: String? = null,
+) {
+    enum class Origin(val id: String) {
+        FOLIO_SOURCE("folio-source"), FILE("file"), PLAY_ICON_PACK("play-icon-pack"), LAUNCHER_IMPORT("launcher-import");
+
+        companion object {
+            fun from(id: String) = entries.firstOrNull { it.id == id } ?: FOLIO_SOURCE
+        }
+    }
+}
+
+sealed interface InstallResult {
+    /** Applied. [undo] puts everything back, and stays valid until the user dismisses the message. */
+    data class Installed(val installed: InstalledPackage, val replaced: InstalledPackage?, val notes: List<String>) : InstallResult
+
+    /** The package is fine but this Folio can't run it. */
+    data class NeedsNewerFolio(val missing: List<String>) : InstallResult
+
+    data class Failed(val reason: Reason, val message: String) : InstallResult
+
+    enum class Reason { HASH, SIZE, ARCHIVE, MANIFEST, MISMATCH, CONFLICT, DEPENDS, APPLY }
+}
+
+/**
+ * Installs, removes and undoes packages (Phase 3).
+ *
+ * The order is download, hash, open, read, check, stage, apply, record — and every step happens before anything on the
+ * Home screen changes. If applying the third change of a package fails, the first two are put back, so a package is
+ * never half applied. The previous version is kept until Undo is dismissed.
+ */
+class PackageInstaller(
+    private val store: InstalledStore,
+    private val host: PackageHost,
+    private val safeMode: PackageSafeMode = PackageSafeMode(store.keyValue),
+    private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+) {
+    /**
+     * Reads [bytes] as a package and applies it. [expected] is the index entry it came from, when there was one: its
+     * hash, size, id and version all have to match what's inside the file (T1, and the "no bait and switch" rule).
+     */
+    fun install(
+        bytes: ByteArray,
+        expected: IndexPackage? = null,
+        origin: InstalledPackage.Origin = InstalledPackage.Origin.FOLIO_SOURCE,
+        sourceUrl: String? = null,
+    ): InstallResult {
+        expected?.size?.let { if (bytes.size != it) return InstallResult.Failed(InstallResult.Reason.SIZE, "that download isn't the size the source listed") }
+        expected?.sha256?.let {
+            if (sha256Hex(bytes) != it) return InstallResult.Failed(InstallResult.Reason.HASH, "that download doesn't match the source's checksum")
+        }
+        val pkg = when (val read = read(bytes)) {
+            is ReadResult.Ok -> read.pkg
+            is ReadResult.NeedsNewerFolio -> return InstallResult.NeedsNewerFolio(read.missing)
+            is ReadResult.Failed -> return InstallResult.Failed(read.reason, read.message)
+        }
+        if (expected != null && (expected.id != pkg.id || expected.version != pkg.version)) {
+            return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
+        }
+        val missing = pkg.manifest.missingCapabilities(host.capabilities).map { it.id } +
+            pkg.changes.flatMap { it.capabilities }.filterNot { it in host.capabilities }.map { it.id }
+        if (missing.isNotEmpty()) return InstallResult.NeedsNewerFolio(missing.distinct())
+        val already = store.installed()
+        already.firstOrNull { it.id != pkg.id && pkg.manifest.conflicts.any { c -> c.id == it.id && c.matches(it.version) } }
+            ?.let { return InstallResult.Failed(InstallResult.Reason.CONFLICT, "that package replaces ${it.name}") }
+        // Dependencies have to be installed first; the store's queue sheet offers to add them (Phase 5).
+        val missingDepends = pkg.manifest.depends.filterNot { needed ->
+            already.any { it.id == needed.id && it.enabled && needed.matches(it.version) }
+        }
+        if (missingDepends.isNotEmpty()) {
+            return InstallResult.Failed(InstallResult.Reason.DEPENDS, "that package needs ${missingDepends.joinToString { it.toString() }} first")
+        }
+
+        // Applying starts here. Safe Mode watches from now until the marker is cleared, so a crash while a package is
+        // being applied turns that package off instead of leaving Home unusable.
+        val replaced = store.find(pkg.id)
+        safeMode.beginChange(pkg.id)
+        val snapshots = mutableListOf<String>()
+        try {
+            replaced?.let { undoChanges(it) }
+            for (change in pkg.changes) snapshots += host.apply(change)
+        } catch (e: Exception) {
+            // Put back everything this install had already changed, newest first.
+            pkg.changes.take(snapshots.size).zip(snapshots).reversed().forEach { (change, snapshot) ->
+                runCatching { host.restore(change, snapshot) }
+            }
+            safeMode.endChange()
+            return InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't apply that package, so nothing changed")
+        }
+        val installed = InstalledPackage(
+            id = pkg.id,
+            version = pkg.version,
+            name = pkg.manifest.name.english,
+            origin = origin,
+            sourceUrl = sourceUrl,
+            installedAt = clock(),
+            snapshots = snapshots,
+        )
+        store.put(installed, changes = pkg.changes)
+        safeMode.endChange()
+        return InstallResult.Installed(installed, replaced, pkg.notes)
+    }
+
+    /** Takes a package off, putting back whatever it replaced. */
+    fun remove(id: String): Boolean {
+        val installed = store.find(id) ?: return false
+        safeMode.beginChange(id)
+        undoChanges(installed)
+        store.remove(id)
+        safeMode.endChange()
+        return true
+    }
+
+    /** Undo right after an install: remove what went on, and put the previous version back if there was one. */
+    fun undo(result: InstallResult.Installed): Boolean {
+        remove(result.installed.id)
+        val previous = result.replaced ?: return true
+        // The previous version's own changes were recorded when it was installed.
+        val changes = store.changesFor(previous.id, previous.version) ?: return false
+        safeMode.beginChange(previous.id)
+        val snapshots = mutableListOf<String>()
+        runCatching { changes.forEach { snapshots += host.apply(it) } }
+        store.put(previous.copy(snapshots = snapshots, installedAt = clock()), changes)
+        safeMode.endChange()
+        return true
+    }
+
+    private fun undoChanges(installed: InstalledPackage) {
+        val changes = store.changesFor(installed.id, installed.version) ?: return
+        changes.zip(installed.snapshots).reversed().forEach { (change, snapshot) ->
+            runCatching { host.restore(change, snapshot) }
+        }
+    }
+
+    sealed interface ReadResult {
+        data class Ok(val pkg: FolioPackage) : ReadResult
+        data class NeedsNewerFolio(val missing: List<String>) : ReadResult
+        data class Failed(val reason: InstallResult.Reason, val message: String) : ReadResult
+    }
+
+    /** Opens a package and reads everything in it, without applying anything. Used by the install sheet's preview. */
+    fun read(bytes: ByteArray): ReadResult {
+        val files = when (val archive = PackageArchive.read(bytes)) {
+            is PackageArchive.Result.Ok -> archive.files
+            is PackageArchive.Result.Rejected -> return ReadResult.Failed(InstallResult.Reason.ARCHIVE, archive.reason)
+        }
+        val notes = mutableListOf<String>()
+        val manifest = when (val parsed = PackageManifest.parse(files.getValue(PackageArchive.MANIFEST).decodeToString())) {
+            is ParseResult.Ok -> parsed.value.also { notes += parsed.ignored }
+            is ParseResult.Unsupported -> return ReadResult.NeedsNewerFolio(parsed.needs)
+            is ParseResult.Invalid -> return ReadResult.Failed(InstallResult.Reason.MANIFEST, parsed.errors.first())
+        }
+        val depiction = manifest.depiction?.let { path ->
+            files[path]?.let { bytes ->
+                when (val parsed = Depiction.parse(bytes.decodeToString())) {
+                    is ParseResult.Ok -> parsed.value.also { notes += parsed.ignored }
+                    // A page that can't be read is a shame, not a reason to refuse the package.
+                    else -> null.also { notes += "$path couldn't be read" }
+                }
+            }
+        }
+        val changes = mutableListOf<PackageChange>()
+        for (kind in manifest.kinds) {
+            val change = when (kind) {
+                PackageKind.THEME -> files["theme.json"]?.let { PackageChange.Theme(it.decodeToString()) }
+                    ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has a theme but has no theme.json")
+                PackageKind.TWEAK_BUNDLE -> {
+                    val text = files["tweaks.json"]?.decodeToString()
+                        ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has tweaks but has no tweaks.json")
+                    when (val parsed = TweakBundle.parse(text)) {
+                        is ParseResult.Ok -> PackageChange.Tweaks(parsed.value)
+                        is ParseResult.Unsupported -> return ReadResult.NeedsNewerFolio(parsed.needs)
+                        is ParseResult.Invalid -> return ReadResult.Failed(InstallResult.Reason.MANIFEST, "tweaks.json: ${parsed.errors.first()}")
+                    }
+                }
+                PackageKind.LAYOUT_PRESET -> files["layout.json"]?.let { PackageChange.Layout(it.decodeToString()) }
+                    ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has a layout but has no layout.json")
+                PackageKind.WALLPAPER -> files.entries.firstOrNull { it.key.startsWith("assets/") && it.key.substringAfterLast('.') != "json" }
+                    ?.let { PackageChange.Wallpaper(it.key, it.value) }
+                    ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it has a wallpaper but has no image")
+                PackageKind.ICON_PACK_LINK -> {
+                    val json = files["iconpack.json"]?.decodeToString()
+                        ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "that package says it links an icon pack but has no iconpack.json")
+                    val name = readIconPackName(json)
+                        ?: return ReadResult.Failed(InstallResult.Reason.MANIFEST, "iconpack.json needs the icon pack's package name")
+                    PackageChange.IconPack(name)
+                }
+                // Reserved kinds: readable, but nothing is applied until the phase that builds them.
+                PackageKind.SETTINGS_SCHEMA, PackageKind.SCRIPT, PackageKind.EXTERNAL_APP -> null
+            }
+            change?.let(changes::add)
+        }
+        val assets = files.filterKeys { it.startsWith("assets/") }
+        return ReadResult.Ok(FolioPackage(manifest, depiction, changes, assets, notes.take(Problems.MAX_REPORTED)))
+    }
+
+    private fun readIconPackName(text: String): String? {
+        val problems = Problems()
+        val json = parseStrictObject(text, 4096, problems) ?: return null
+        val name = Fields(json, "", problems, setOf("\$schema", "format", "package")).string("package", true, ANDROID_PACKAGE, 200)
+        return if (problems.errors.isEmpty()) name else null
+    }
+
+    private companion object {
+        val ANDROID_PACKAGE = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+\\z")
+    }
+}
+
+/**
+ * Safe Mode for one package (T9), on top of the launcher's own. A marker is written while a package is being changed;
+ * if Folio crashes twice within a minute of that, the package that was being changed starts turned off, with its
+ * settings kept, so the user can Try Again, Remove it or look at the details.
+ */
+class PackageSafeMode(private val store: KeyValueStore, private val clock: () -> Long = { System.currentTimeMillis() / 1000 }) {
+    fun beginChange(id: String) = store.set(KEY, JSONObject().put("id", id).put("at", clock()).toString())
+
+    fun endChange() = store.set(KEY, null)
+
+    /**
+     * Called when Folio starts after a crash. Returns the package to turn off, if a change was in flight recently and
+     * this is the second crash.
+     */
+    fun noteCrash(): String? {
+        val marker = store.get(KEY)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return null
+        val id = marker.optString("id").takeIf { it.isNotEmpty() } ?: return null
+        if (clock() - marker.optLong("at") > WINDOW_SECONDS) {
+            store.set(KEY, null)
+            return null
+        }
+        val crashes = marker.optInt("crashes") + 1
+        if (crashes < 2) {
+            store.set(KEY, marker.put("crashes", crashes).toString())
+            return null
+        }
+        store.set(KEY, null)
+        return id
+    }
+
+    private companion object {
+        const val KEY = "market:safe-mode"
+        const val WINDOW_SECONDS = 60L
+    }
+}
+
+/** What's installed, what each package changed, and what it replaced. */
+class InstalledStore(internal val keyValue: KeyValueStore) {
+    fun installed(): List<InstalledPackage> = read().values.toList()
+
+    fun find(id: String): InstalledPackage? = read()[id]
+
+    fun put(installed: InstalledPackage, changes: List<PackageChange>) {
+        val all = read().toMutableMap()
+        all[installed.id] = installed
+        write(all)
+        keyValue.set(changesKey(installed.id, installed.version), encodeChanges(changes))
+    }
+
+    fun remove(id: String) {
+        val all = read().toMutableMap()
+        all.remove(id)
+        write(all)
+    }
+
+    /** Turns a package off without losing its settings, the way Safe Mode does. */
+    fun disable(id: String, reason: String) {
+        val all = read().toMutableMap()
+        all[id]?.let { all[id] = it.copy(enabled = false, disabledReason = reason) }
+        write(all)
+    }
+
+    /**
+     * Everything about installed packages, for Folio's layout backup: the records and what each package changed, so a
+     * restored backup knows what to put back. Restoring only writes the list; the launcher applies it afterwards.
+     */
+    fun export(): String {
+        val packages = JSONArray(keyValue.get(KEY) ?: "[]")
+        val changes = JSONObject()
+        for (i in 0 until packages.length()) {
+            val json = packages.optJSONObject(i) ?: continue
+            val key = "${json.optString("id")}@${json.optString("version")}"
+            keyValue.get("installed:changes:$key")?.let { changes.put(key, JSONArray(it)) }
+        }
+        return JSONObject().put("format", 1).put("packages", packages).put("changes", changes).toString()
+    }
+
+    /** Reads what [export] wrote. Returns false, and changes nothing, when the backup can't be read. */
+    fun restore(text: String): Boolean {
+        val json = runCatching { JSONObject(text) }.getOrNull() ?: return false
+        if (json.optInt("format") != 1) return false
+        val packages = json.optJSONArray("packages") ?: return false
+        val changes = json.optJSONObject("changes") ?: JSONObject()
+        keyValue.set(KEY, packages.toString())
+        for (key in changes.keys()) keyValue.set("installed:changes:$key", changes.optJSONArray(key)?.toString())
+        return true
+    }
+
+    fun changesFor(id: String, version: DebVersion): List<PackageChange>? =
+        keyValue.get(changesKey(id, version))?.let(::decodeChanges)
+
+    private fun changesKey(id: String, version: DebVersion) = "installed:changes:$id@$version"
+
+    private fun read(): Map<String, InstalledPackage> {
+        val text = keyValue.get(KEY) ?: return emptyMap()
+        val array = runCatching { JSONArray(text) }.getOrNull() ?: return emptyMap()
+        return (0 until array.length()).mapNotNull { i ->
+            val json = array.optJSONObject(i) ?: return@mapNotNull null
+            val version = DebVersion.parse(json.optString("version")) ?: return@mapNotNull null
+            InstalledPackage(
+                id = json.optString("id"),
+                version = version,
+                name = json.optString("name"),
+                origin = InstalledPackage.Origin.from(json.optString("origin")),
+                sourceUrl = json.optString("sourceUrl").takeIf { it.isNotEmpty() },
+                installedAt = json.optLong("installedAt"),
+                snapshots = json.optJSONArray("snapshots")?.let { a -> (0 until a.length()).map(a::optString) }.orEmpty(),
+                enabled = json.optBoolean("enabled", true),
+                disabledReason = json.optString("disabledReason").takeIf { it.isNotEmpty() },
+            ).takeIf { it.id.isNotEmpty() }
+        }.associateBy { it.id }
+    }
+
+    private fun write(all: Map<String, InstalledPackage>) {
+        val array = JSONArray()
+        for (p in all.values) {
+            array.put(
+                JSONObject()
+                    .put("id", p.id).put("version", p.version.text).put("name", p.name)
+                    .put("origin", p.origin.id).put("sourceUrl", p.sourceUrl).put("installedAt", p.installedAt)
+                    .put("snapshots", JSONArray(p.snapshots)).put("enabled", p.enabled).put("disabledReason", p.disabledReason),
+            )
+        }
+        keyValue.set(KEY, array.toString())
+    }
+
+    // Changes are stored as data, so Undo and Remove work after a restart without keeping the package file around.
+    private fun encodeChanges(changes: List<PackageChange>): String {
+        val array = JSONArray()
+        for (change in changes) {
+            val json = JSONObject()
+            when (change) {
+                is PackageChange.Theme -> json.put("kind", "theme").put("json", change.json)
+                is PackageChange.Layout -> json.put("kind", "layout").put("json", change.json)
+                is PackageChange.IconPack -> json.put("kind", "iconPack").put("package", change.packageName)
+                is PackageChange.Wallpaper -> json.put("kind", "wallpaper").put("path", change.path)
+                    .put("bytes", java.util.Base64.getEncoder().encodeToString(change.bytes))
+                is PackageChange.Tweaks -> json.put("kind", "tweaks").put(
+                    "tweaks",
+                    JSONArray().apply {
+                        change.bundle.tweaks.forEach {
+                            put(JSONObject().put("id", it.id.id).put("enabled", it.enabled).put("cover", it.cover).put("inner", it.inner))
+                        }
+                    },
+                )
+            }
+            array.put(json)
+        }
+        return array.toString()
+    }
+
+    private fun decodeChanges(text: String): List<PackageChange>? {
+        val array = runCatching { JSONArray(text) }.getOrNull() ?: return null
+        return (0 until array.length()).mapNotNull { i ->
+            val json = array.optJSONObject(i) ?: return@mapNotNull null
+            when (json.optString("kind")) {
+                "theme" -> PackageChange.Theme(json.optString("json"))
+                "layout" -> PackageChange.Layout(json.optString("json"))
+                "iconPack" -> PackageChange.IconPack(json.optString("package"))
+                "wallpaper" -> PackageChange.Wallpaper(
+                    json.optString("path"),
+                    runCatching { java.util.Base64.getDecoder().decode(json.optString("bytes")) }.getOrDefault(ByteArray(0)),
+                )
+                "tweaks" -> {
+                    val list = json.optJSONArray("tweaks") ?: return@mapNotNull null
+                    PackageChange.Tweaks(
+                        TweakBundle(
+                            (0 until list.length()).mapNotNull { k ->
+                                val t = list.optJSONObject(k) ?: return@mapNotNull null
+                                TweakId.from(t.optString("id"))?.let {
+                                    TweakSetting(it, t.optBoolean("enabled"), t.optBoolean("cover", true), t.optBoolean("inner", true))
+                                }
+                            },
+                        ),
+                    )
+                }
+                else -> null
+            }
+        }
+    }
+
+    private companion object {
+        const val KEY = "installed:packages"
+    }
+}

@@ -73,7 +73,7 @@ comments, unquoted keys, single quotes, trailing commas, trailing text and dupli
 | `theme` | `theme.json` in the same format as `themes/*.json` (`"folioTheme": 1`) | the existing theme importer |
 | `layoutPreset` | `layout.json`, a subset of `LayoutPreset` | the layout model, with undo |
 | `wallpaper` | images in `assets/` | the wallpaper picker |
-| `iconPackLink` | `{ "package": "com.example.icons" }` | the ADW/Nova icon-pack lookup |
+| `iconPackLink` | `iconpack.json`: `{ "format": 1, "package": "com.example.icons" }` | the ADW/Nova icon-pack lookup |
 | `tweakBundle` | `tweaks.json`: built-in tweak ids and their options | `installTweak` and feature scopes |
 | `settingsSchema` *(0.7.x)* | `settings.json` (see its schema) | Folio's settings renderer |
 | `script` *(0.7.x)* | `script.js` | the script sandbox |
@@ -110,6 +110,27 @@ Block types:
 - `donation`: https only.
 
 Folio adds its own rows for privacy, source, "Built from" and Report.
+
+## Installing
+
+Folio reads a package fully before anything on the Home screen changes, and applies it in one go:
+
+1. **Size and checksum** against the index entry, before the file is opened.
+2. **Open** the zip in memory. Nothing is written to disk, so a name inside a package can't reach the file system;
+   names must be relative with no `..`, and only `.json`, `.png`, `.webp`, `.jpg`, `.jpeg` and `.js` files are kept.
+   At most 500 files, 20 MB packed and 50 MB unpacked.
+3. **Read** the manifest, the page and the payload for each kind.
+4. **Check** that the id and version match what the source listed, that Folio has every capability the package needs,
+   and that it doesn't replace something already installed.
+5. **Apply** each change, keeping what it replaced. If one fails, the ones already applied are put back, so a package is
+   never half applied.
+6. **Record** what was applied, with the previous version kept until Undo is dismissed.
+
+**Undo and Remove** walk the same list backwards, using what each change replaced. What a package changed is stored as
+data, so both still work after a restart without the package file.
+
+**If Folio crashes twice within a minute of a package being applied**, that package starts turned off, with its settings
+kept. The store offers Try Again, Remove and Details, and everything else keeps working.
 
 ## Source: static files
 

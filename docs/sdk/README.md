@@ -47,6 +47,6 @@ Fuzzing (five minutes per parser, one target per run):
 JAZZER_FUZZ=1 JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :market:testDebugUnitTest --tests '*ParserFuzzTest.manifest'
 ```
 
-Targets: `manifest`, `depiction`, `jsonGuard`, `versions`, `localizedText`. Without `JAZZER_FUZZ` the same test replays the
+Targets: `manifest`, `depiction`, `entry`, `index`, `revoked`, `archive`, `tweaks`, `jsonGuard`, `versions`, `localizedText`. Without `JAZZER_FUZZ` the same test replays the
 saved inputs in `market/src/test/resources/com/mccal/folio/market/ParserFuzzTestInputs/`, which is what CI does. When
 fuzzing finds something, Jazzer writes the input next to those seeds; commit it so the case stays covered.

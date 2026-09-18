@@ -1,0 +1,304 @@
+package com.mccal.folio.market
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+
+/**
+ * The installer, against a real package: `docs/sdk/source/packages/cabinet` packed into a `.foliopkg` the way the
+ * publishing tool will. Covers T6 (no code), T7 (zip attacks) and T9 (Safe Mode), plus undo and remove.
+ */
+class PackageInstallerTest {
+    private val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "CHANGELOG.md").exists() }
+    private val cabinetDir = File(root, "docs/sdk/source/packages/cabinet")
+    private lateinit var host: FakeHost
+    private lateinit var store: InstalledStore
+    private lateinit var installer: PackageInstaller
+    private var now = 1_789_000_000L
+
+    /** Stands in for the launcher: remembers what was applied, and can be told to fail. */
+    private class FakeHost(override val capabilities: Set<Capability> = Capability.entries.toSet()) : PackageHost {
+        val applied = mutableListOf<PackageChange>()
+        val restored = mutableListOf<PackageChange>()
+        var failOn: ((PackageChange) -> Boolean)? = null
+        var state = "tweaks off"
+
+        override fun apply(change: PackageChange): String {
+            if (failOn?.invoke(change) == true) error("the launcher refused that change")
+            applied += change
+            val before = state
+            state = "applied ${describe(change)}"
+            return before
+        }
+
+        override fun restore(change: PackageChange, snapshot: String) {
+            restored += change
+            state = snapshot
+        }
+
+        private fun describe(change: PackageChange) = when (change) {
+            is PackageChange.Tweaks -> change.bundle.tweaks.joinToString { it.id.id }
+            is PackageChange.Theme -> "theme"
+            is PackageChange.Layout -> "layout"
+            is PackageChange.Wallpaper -> change.path
+            is PackageChange.IconPack -> change.packageName
+        }
+    }
+
+    @Before fun setUp() {
+        host = FakeHost()
+        store = InstalledStore(MemoryStore())
+        installer = PackageInstaller(store, host, clock = { now })
+    }
+
+    /** Packs files into a `.foliopkg`, starting from the real Cabinet package. */
+    private fun pack(extra: Map<String, ByteArray> = emptyMap(), replace: Map<String, String> = emptyMap(), omit: Set<String> = emptySet()): ByteArray {
+        val files = LinkedHashMap<String, ByteArray>()
+        for (name in listOf("manifest.json", "depiction.json", "tweaks.json")) {
+            if (name in omit) continue
+            var text = File(cabinetDir, name).readText()
+            replace.forEach { (from, to) -> text = text.replace(from, to) }
+            files[name] = text.toByteArray()
+        }
+        files += extra
+        return zip(files)
+    }
+
+    private fun zip(files: Map<String, ByteArray>): ByteArray {
+        val out = ByteArrayOutputStream()
+        ZipOutputStream(out).use { zip ->
+            for ((name, bytes) in files) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        return out.toByteArray()
+    }
+
+    private fun installed(result: InstallResult): InstallResult.Installed {
+        assertTrue("expected an install, got $result", result is InstallResult.Installed)
+        return result as InstallResult.Installed
+    }
+
+    private fun failure(result: InstallResult): InstallResult.Failed {
+        assertTrue("expected a failure, got $result", result is InstallResult.Failed)
+        return result as InstallResult.Failed
+    }
+
+    @Test fun `installs the real Cabinet package and records what it changed`() {
+        val result = installed(installer.install(pack()))
+        assertEquals("com.mccal.folio.cabinet", result.installed.id)
+        assertEquals("Cabinet", result.installed.name)
+        assertEquals(DebVersion.parse("1.0.0"), result.installed.version)
+        assertNull(result.replaced)
+        assertEquals(emptyList<String>(), result.notes)
+        val change = host.applied.single() as PackageChange.Tweaks
+        assertEquals(listOf(TweakId.APP_PANELS), change.bundle.tweaks.map { it.id })
+        assertTrue(change.bundle.tweaks.single().enabled)
+        assertEquals("applied appPanels", host.state)
+        assertEquals(listOf("com.mccal.folio.cabinet"), store.installed().map { it.id })
+    }
+
+    @Test fun `reading a package doesn't change anything`() {
+        val read = installer.read(pack())
+        assertTrue(read is PackageInstaller.ReadResult.Ok)
+        val pkg = (read as PackageInstaller.ReadResult.Ok).pkg
+        assertEquals("Cabinet", pkg.manifest.name.english)
+        assertEquals(6, pkg.depiction?.blocks?.size)
+        assertTrue(host.applied.isEmpty() && store.installed().isEmpty())
+    }
+
+    @Test fun `remove puts back what the package replaced`() {
+        installer.install(pack())
+        assertTrue(installer.remove("com.mccal.folio.cabinet"))
+        assertEquals(1, host.restored.size)
+        assertEquals("tweaks off", host.state)
+        assertTrue(store.installed().isEmpty())
+        assertTrue("removing something that isn't there is not an error", !installer.remove("com.mccal.folio.cabinet"))
+    }
+
+    @Test fun `an update keeps the previous version until Undo is dismissed`() {
+        installed(installer.install(pack()))
+        now += 60
+        val update = installed(installer.install(pack(replace = mapOf("\"version\": \"1.0.0\"" to "\"version\": \"1.1.0\""))))
+        assertEquals(DebVersion.parse("1.1.0"), update.installed.version)
+        assertEquals(DebVersion.parse("1.0.0"), update.replaced?.version)
+        // Undo goes back to what was there before.
+        assertTrue(installer.undo(update))
+        assertEquals(DebVersion.parse("1.0.0"), store.find("com.mccal.folio.cabinet")?.version)
+        assertEquals("applied appPanels", host.state)
+    }
+
+    @Test fun `a download that doesn't match the source is refused before anything is opened`() {
+        val bytes = pack()
+        val entry = index(sha256 = "0".repeat(64), size = bytes.size)
+        assertEquals(InstallResult.Reason.HASH, failure(installer.install(bytes, entry)).reason)
+        assertEquals(InstallResult.Reason.SIZE, failure(installer.install(bytes, index(sha256Hex(bytes), bytes.size + 1))).reason)
+        // Right hash, but the file inside says something else.
+        val other = index(sha256Hex(bytes), bytes.size, id = "dev.example.other")
+        assertEquals(InstallResult.Reason.MISMATCH, failure(installer.install(bytes, other)).reason)
+        assertTrue(host.applied.isEmpty())
+    }
+
+    @Test fun `a package needing a capability this Folio lacks is not applied`() {
+        val limited = PackageInstaller(store, FakeHost(capabilities = setOf(Capability.THEME)), clock = { now })
+        val result = limited.install(pack())
+        assertTrue("$result", result is InstallResult.NeedsNewerFolio)
+        assertEquals(listOf("tweaks.appPanels"), (result as InstallResult.NeedsNewerFolio).missing)
+    }
+
+    @Test fun `when applying fails, everything already applied goes back`() {
+        // Two changes: the theme applies, the tweaks fail.
+        val twoKinds = pack(
+            extra = mapOf("theme.json" to """{"folioTheme":1,"name":"Test"}""".toByteArray()),
+            replace = mapOf("\"kind\": [\n    \"tweakBundle\"\n  ]" to "\"kind\": [\n    \"theme\",\n    \"tweakBundle\"\n  ]"),
+        )
+        host.failOn = { it is PackageChange.Tweaks }
+        val failed = failure(installer.install(twoKinds))
+        assertEquals(InstallResult.Reason.APPLY, failed.reason)
+        assertEquals(1, host.applied.size)
+        assertEquals(1, host.restored.size)
+        assertEquals("tweaks off", host.state)
+        assertTrue("nothing is recorded as installed", store.installed().isEmpty())
+    }
+
+    @Test fun `a conflicting package is refused with the name of what it replaces`() {
+        installer.install(pack())
+        val rival = pack(
+            replace = mapOf(
+                "\"com.mccal.folio.cabinet\"" to "\"dev.example.panels\"",
+                "\"name\": \"Cabinet\"" to "\"name\": \"Panels\",\n  \"conflicts\": [\"com.mccal.folio.cabinet\"]",
+            ),
+        )
+        assertEquals("that package replaces Cabinet", failure(installer.install(rival)).message)
+    }
+
+    @Test fun `a package whose dependency isn't installed is refused`() {
+        val needsBase = pack(
+            replace = mapOf(
+                "\"com.mccal.folio.cabinet\"" to "\"dev.example.panels\"",
+                "\"name\": \"Cabinet\"" to "\"name\": \"Panels\",\n  \"depends\": [\"com.mccal.folio.cabinet (>= 1.0)\"]",
+            ),
+        )
+        val failed = failure(installer.install(needsBase))
+        assertEquals(InstallResult.Reason.DEPENDS, failed.reason)
+        assertTrue(failed.message.contains("com.mccal.folio.cabinet (>= 1.0)"))
+        assertTrue(host.applied.isEmpty())
+        // With the dependency in place it installs.
+        installer.install(pack())
+        assertTrue(installer.install(needsBase) is InstallResult.Installed)
+    }
+
+    @Test fun `T6 a package carrying code is refused`() {
+        val withCode = pack(extra = mapOf("classes.dex" to ByteArray(64)))
+        assertEquals(InstallResult.Reason.ARCHIVE, failure(installer.install(withCode)).reason)
+        assertTrue(failure(installer.install(withCode)).message.contains(".dex"))
+    }
+
+    @Test fun `T7 zip attacks are refused`() {
+        val cases = mapOf(
+            "escapes the package" to zip(mapOf("../../evil.json" to "{}".toByteArray())),
+            "absolute path" to zip(mapOf("/etc/passwd.json" to "{}".toByteArray())),
+            "windows path" to zip(mapOf("..\\evil.json" to "{}".toByteArray())),
+            "no manifest" to zip(mapOf("depiction.json" to "{}".toByteArray())),
+            "empty" to ByteArray(0),
+            "not a zip" to "this is not a zip file".toByteArray(),
+        )
+        for ((name, bytes) in cases) {
+            assertEquals(name, InstallResult.Reason.ARCHIVE, failure(installer.install(bytes)).reason)
+        }
+        // A zip bomb: a small file that unpacks to more than the cap.
+        val bomb = zip(mapOf("manifest.json" to File(cabinetDir, "manifest.json").readBytes(), "assets/big.png" to ByteArray(PackageArchive.MAX_UNCOMPRESSED + 1)))
+        assertTrue(bomb.size < 1024 * 1024)
+        assertTrue(failure(installer.install(bomb)).message.contains("unpacks to more than"))
+        // Too many files.
+        val many = zip((1..PackageArchive.MAX_ENTRIES + 1).associate { "assets/f$it.png" to ByteArray(1) })
+        assertTrue(failure(installer.install(many)).message.contains("at most ${PackageArchive.MAX_ENTRIES} files"))
+    }
+
+    @Test fun `a broken or mismatched payload is refused`() {
+        assertEquals(
+            InstallResult.Reason.MANIFEST,
+            failure(installer.install(pack(omit = setOf("tweaks.json")))).reason,
+        )
+        // A broken value is an error...
+        assertEquals(
+            InstallResult.Reason.MANIFEST,
+            failure(installer.install(pack(replace = mapOf("\"enabled\": true" to "\"enabled\": \"yes\"")))).reason,
+        )
+        // ...but a tweak id or format number this Folio doesn't know is a newer package, not a broken one.
+        assertTrue(installer.install(pack(replace = mapOf("\"appPanels\"" to "\"appPanelz\""))) is InstallResult.NeedsNewerFolio)
+        assertTrue(installer.install(pack(replace = mapOf("\"format\": 1" to "\"format\": 2"))) is InstallResult.NeedsNewerFolio)
+    }
+
+    @Test fun `T9 two crashes while a package is being changed turn that package off`() {
+        val keyValue = MemoryStore()
+        val safeMode = PackageSafeMode(keyValue) { now }
+        assertNull("no change in flight", safeMode.noteCrash())
+        safeMode.beginChange("com.mccal.folio.cabinet")
+        assertNull("one crash isn't enough", safeMode.noteCrash())
+        assertEquals("com.mccal.folio.cabinet", safeMode.noteCrash())
+        assertNull("the marker is cleared once it has acted", safeMode.noteCrash())
+        // A crash long after the change isn't the package's fault.
+        safeMode.beginChange("com.mccal.folio.cabinet")
+        now += 300
+        assertNull(safeMode.noteCrash())
+        // A change that finished cleanly leaves no marker.
+        safeMode.beginChange("com.mccal.folio.cabinet")
+        safeMode.endChange()
+        assertNull(safeMode.noteCrash())
+    }
+
+    @Test fun `Safe Mode turns a package off but keeps its settings`() {
+        installer.install(pack())
+        store.disable("com.mccal.folio.cabinet", "Folio crashed twice after this package changed")
+        val off = store.find("com.mccal.folio.cabinet")!!
+        assertTrue(!off.enabled)
+        assertEquals("Folio crashed twice after this package changed", off.disabledReason)
+        // Its settings are still there, so Try Again can put it back without downloading anything.
+        assertEquals(1, store.changesFor(off.id, off.version)?.size)
+    }
+
+    @Test fun `what a package changed survives a restart`() {
+        val keyValue = MemoryStore()
+        val first = PackageInstaller(InstalledStore(keyValue), host, clock = { now })
+        first.install(pack())
+        val later = PackageInstaller(InstalledStore(keyValue), host, clock = { now })
+        assertEquals("Cabinet", InstalledStore(keyValue).find("com.mccal.folio.cabinet")?.name)
+        assertTrue(later.remove("com.mccal.folio.cabinet"))
+        assertEquals("tweaks off", host.state)
+    }
+
+    @Test fun `installed packages travel in a layout backup`() {
+        installer.install(pack())
+        val backup = store.export()
+        val fresh = InstalledStore(MemoryStore())
+        assertTrue(fresh.restore(backup))
+        val restored = fresh.find("com.mccal.folio.cabinet")!!
+        assertEquals("Cabinet", restored.name)
+        assertEquals(DebVersion.parse("1.0.0"), restored.version)
+        // What it changed comes back too, so Folio can put the tweak back without downloading anything.
+        val change = fresh.changesFor(restored.id, restored.version)?.single() as PackageChange.Tweaks
+        assertEquals(listOf(TweakId.APP_PANELS), change.bundle.tweaks.map { it.id })
+        assertTrue("a backup Folio can't read changes nothing", !fresh.restore("not a backup"))
+        assertTrue(!fresh.restore("""{"format":2,"packages":[]}"""))
+        assertEquals("Cabinet", fresh.find("com.mccal.folio.cabinet")?.name)
+    }
+
+    private fun index(sha256: String, size: Int, id: String = "com.mccal.folio.cabinet", version: String = "1.0.0") = IndexPackage(
+        id = id,
+        version = DebVersion.parse(version)!!,
+        url = "packages/$id" + "_$version.foliopkg",
+        sha256 = sha256,
+        size = size,
+        provenance = null,
+        manifest = null,
+    )
+}

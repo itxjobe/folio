@@ -167,6 +167,7 @@ class RepoClient(
         }
 
         store.cache(base, "index", indexText)
+        store.cache(base, "entry", entryBytes.decodeToString())
         store.save(
             base,
             store.state(base).copy(
@@ -188,13 +189,9 @@ class RepoClient(
     private fun cachedSnapshot(base: String, state: SourceState): SourceSnapshot? {
         val indexText = store.cached(base, "index") ?: return null
         val index = (RepoIndex.parse(indexText) as? ParseResult.Ok)?.value ?: return null
+        // The entry that was accepted with this index, kept so an offline snapshot reports what was really signed.
+        val entry = store.cached(base, "entry")?.let { (SourceEntry.parse(it) as? ParseResult.Ok)?.value } ?: return null
         val revocation = store.cached(base, "revoked")?.let { (RevocationList.parse(it) as? ParseResult.Ok)?.value }
-        val entry = SourceEntry(
-            keyId = state.pinnedKey?.keyId ?: "",
-            timestamp = state.lastTimestamp,
-            maxAge = MIN_MAX_AGE,
-            index = FileRef("index.json", sha256Hex(indexText.toByteArray()), indexText.toByteArray().size),
-        )
         return SourceSnapshot(base, entry, index, revocation, state.lastRefresh)
     }
 
@@ -220,6 +217,5 @@ class RepoClient(
 
         /** Background refreshes wait six hours; pull to refresh passes `force`. */
         const val MIN_REFRESH_SECONDS = 6 * 60 * 60L
-        private const val MIN_MAX_AGE = 3600L
     }
 }
