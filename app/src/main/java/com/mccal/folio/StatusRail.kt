@@ -107,11 +107,11 @@ internal fun gaugeSweeps(level: Float): Pair<Float, Float> {
     return minOf(halves, 1f) * GAUGE_SIDE to (halves - 1f).coerceIn(0f, 1f) * GAUGE_SIDE
 }
 
-private const val GAUGE_CENTER = .62f
-private const val GAUGE_RADIUS = .34f
-private const val GAUGE_SIDE = 104f
-private const val GAUGE_LEFT_START = 133f
-private const val GAUGE_RIGHT_START = 313f
+private const val GAUGE_CENTER = .58f
+private const val GAUGE_RADIUS = .42f
+private const val GAUGE_SIDE = 92f
+private const val GAUGE_LEFT_START = 134f
+private const val GAUGE_RIGHT_START = 314f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -318,8 +318,8 @@ fun StatusRail(
                                 if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
                             // The connection sits between the two gaps, small enough to keep clear of the ring.
-                            translate(0f, w * .02f) {
-                                scale(.62f, center) {
+                            translate(0f, w * .04f) {
+                                scale(.66f, center) {
                                     when {
                                         wifiVisual is WifiSignalVisual.Connected -> {
                                             drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
@@ -335,13 +335,13 @@ fun StatusRail(
                         }
                         // A full charge is three digits wide; it takes a smaller size so it never touches the arc.
                         val reading = status.battery?.toString() ?: "\u2014"
-                        val readingSize = if (reading.length > 2) .205f else .24f
+                        val readingSize = if (reading.length > 2) .235f else .27f
                         Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
                             fontSize = (visualSize.value * readingSize / fontScale).sp,
                             fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
-                            // It sits above the ring rather than across it: its foot lands on the ring's top edge.
+                            // It sits in the ring's break, its middle level with the ring's top edge.
                             modifier = Modifier.padding(top = visualSize *
-                                ((GAUGE_CENTER - GAUGE_RADIUS) - readingSize * 1.15f).coerceAtLeast(0f)))
+                                ((GAUGE_CENTER - GAUGE_RADIUS) - readingSize * .575f).coerceAtLeast(0f)))
                         // Airplane Mode: the plane takes the middle of the ring, where the signal would have been.
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
