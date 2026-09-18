@@ -25,9 +25,6 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
 - **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
 - **Big Buttons:** optional large Back, Home and Recents buttons over other apps, for when the system's are too small (Dynamic Island › In Every App). They sit above Android's own navigation, hide in full-screen apps and fade when idle.
-- **Google Discover works again:** Folio was asking the Google app for an old version of its feed connection, and newer Google app builds answered with nothing at all. It now asks for the same version Android's own launcher does.
-- **No button to a page that isn't there:** with Today View and Discover both off, Home stops offering the button that led nowhere.
-- **The island lets go of forgotten music:** a player that was paused and closed used to sit in the island for good, with buttons that did nothing.
 - **Swipe Down on Home:** pick what a swipe down the middle of Home does — Spotlight, Notification Center or nothing (Gestures & Actions). Set to Notification Center it works like Android's usual one-finger pull-down, and follows your choice of Folio's panels or Android's own shade.
 - **Move the buttons:** long-press and drag Big Buttons up the screen, away from the keyboard or an app's own bottom bar; Settings puts them back.
 - **The island steps aside in full screen:** the island in every app now leaves full-screen video and games alone, with switches for full screen and landscape (Dynamic Island › In Every App).
@@ -37,6 +34,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
 
 ### Fixed
+- **Google Discover works again:** Folio was asking the Google app for an old version of its feed connection, and newer Google app builds answered with nothing at all. It now asks for the same version Android's own launcher does.
+- **No button to a page that isn't there:** with Today View and Discover both off, Home stops offering the button that led nowhere.
+- **The island lets go of forgotten music:** a player that was paused and closed used to sit in the island for good, with buttons that did nothing.
 - With a keyboard, Tab and the arrow keys now move between apps on Home instead of stopping on empty spaces behind them.
 - If your saved Home layout can't be read, Folio now says so and offers to restore a backup or start fresh (keeping a copy), instead of quietly showing an empty Home.
 - Half folded, Home keeps off the hinge: unfolded pages stay on their side of a book fold, the bottom dock moves to one half, and on a table-style fold the status stays above the hinge and the dock goes below it.
