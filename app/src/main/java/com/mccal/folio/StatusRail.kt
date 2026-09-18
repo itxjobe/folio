@@ -117,10 +117,11 @@ internal fun gaugeReadingSize(digits: Int): Float = if (digits > 2) .245f else .
 internal fun gaugeReadingWidth(digits: Int): Float = digits * gaugeReadingSize(digits) * .62f
 
 /** Everything below is a fraction of the glyph's width: the mark is taller than it is wide, like the one it copies. */
-private const val GAUGE_HEIGHT = 1.25f
 private const val GAUGE_CENTER = .70f
 private const val GAUGE_RADIUS = .36f
-private const val GAUGE_DOTS = 1.14f
+private const val GAUGE_DOT_GAP = .10f
+private const val GAUGE_DOT_RADIUS = .045f
+private const val GAUGE_DOT_PITCH = .15f
 private const val GAUGE_SIDE = 115f
 /** Each half of the ring when the percentage is off and the top no longer has to open for it. */
 private const val GAUGE_WHOLE_SIDE = 140f
@@ -302,10 +303,15 @@ fun StatusRail(
                         // With the percentage on, the ring breaks at the top to hold it; with it off, the ring closes
                         // over the top and the mark is shorter. The break at the bottom is always there for the dots.
                         val showsReading = style.showBatteryPercent
-                        val ringCenter = if (showsReading) GAUGE_CENTER else GAUGE_CENTER - .24f
+                        // Dots only when there is cellular strength to show, and the reading only when it's on: the
+                        // mark reserves room for what it draws and nothing else, at any rail size.
+                        val showsDots = !status.airplane && cellularVisual is CellularSignalVisual.Available
+                        val headroom = if (showsReading) GAUGE_CENTER - GAUGE_RADIUS else .06f
+                        val ringCenter = headroom + GAUGE_RADIUS
                         val side = if (showsReading) GAUGE_SIDE else GAUGE_WHOLE_SIDE
-                        Box(Modifier.padding(top = 2.dp).width(visualSize)
-                            .height(visualSize * if (showsReading) GAUGE_HEIGHT else GAUGE_HEIGHT - .24f),
+                        val dotsY = ringCenter + GAUGE_RADIUS + GAUGE_DOT_GAP
+                        val markHeight = if (showsDots) dotsY + GAUGE_DOT_RADIUS + .04f else ringCenter + GAUGE_RADIUS + .06f
+                        Box(Modifier.padding(top = 2.dp).width(visualSize).height(visualSize * markHeight),
                         contentAlignment = Alignment.TopCenter) {
                         // The mark McCal asked for: a ring broken at top and bottom, the reading overlapping the top
                         // break, the connection filling the ring, and the cellular dots in a row underneath it.
@@ -340,8 +346,8 @@ fun StatusRail(
                             }
                             // drawWifiFan puts its apex at 56% of the width; the ring's middle is lower than that,
                             // so the signal is moved down to sit in the ring rather than up against the reading.
-                            translate(0f, (ringCenter + .06f - .56f) * w) {
-                            scale(.72f, center) {
+                            translate(0f, (ringCenter + .07f - .56f) * w) {
+                            scale(.80f, center) {
                                 when {
                                     wifiVisual is WifiSignalVisual.Connected -> drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
                                     cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
@@ -351,9 +357,9 @@ fun StatusRail(
                             }
                             }
                             // Cellular strength as a row of dots under the ring, where the lower break opens.
-                            if (!status.airplane) for (i in 0..4) drawCircle(
-                                ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .040f,
-                                Offset(center.x + (i - 2) * w * .125f, w * (ringCenter + GAUGE_DOTS - GAUGE_CENTER)))
+                            if (showsDots) for (i in 0..4) drawCircle(
+                                ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * GAUGE_DOT_RADIUS,
+                                Offset(center.x + (i - 2) * w * GAUGE_DOT_PITCH, w * dotsY))
                         }
                         val reading = status.battery?.toString() ?: "\u2014"
                         val readingSize = gaugeReadingSize(reading.length)
@@ -362,7 +368,7 @@ fun StatusRail(
                             fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
                             // It rests on the ring's top break, like the mark it copies.
                             modifier = Modifier.padding(top = visualSize *
-                                ((ringCenter - GAUGE_RADIUS) - readingSize * 1.15f).coerceAtLeast(0f)))
+                                ((ringCenter - GAUGE_RADIUS) - readingSize * .97f).coerceAtLeast(0f)))
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
                                 modifier = Modifier.padding(top = visualSize * (ringCenter - .15f)).size(visualSize * .3f))
