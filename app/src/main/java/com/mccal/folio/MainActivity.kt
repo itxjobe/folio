@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
         if (appearancePermissionGeneration != appearanceLocationGeneration || isDestroyed) return@permissionResult
         appearancePermissionGeneration = -1
         if (granted) requestAppearanceLocation(keepPending = true)
-        else finishAppearanceLocation("Location permission wasn’t granted. Using the system theme until you set a place.")
+        else finishAppearanceLocation(getString(R.string.location_permission_wasn_t_granted_using))
     })
     private var openingDiscover = false
     private var shadeSetupDialog: android.app.AlertDialog? = null
@@ -124,12 +124,12 @@ class MainActivity : ComponentActivity() {
             androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(31_000); SafeMode.markStable(this@MainActivity) }
             val safeAcknowledged = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
             if (safeMode.value && !safeAcknowledged.value) AlertDialog(onDismissRequest = {},
-                title = { androidx.compose.material3.Text("Folio Started in Safe Mode") },
+                title = { androidx.compose.material3.Text(getString(R.string.folio_started_in_safe_mode)) },
                 text = { androidx.compose.material3.Text("Folio closed unexpectedly twice, so optional features are paused: app panels, Actions, the fold animation, Lock Cover, the island and dock over other apps, and tinting. Your settings haven’t changed.") },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { SafeMode.exit(this@MainActivity); safeMode.value = false }) {
-                    androidx.compose.material3.Text("Restart Normally") } },
+                    androidx.compose.material3.Text(getString(R.string.restart_normally)) } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { safeAcknowledged.value = true }) {
-                    androidx.compose.material3.Text("Continue in Safe Mode") } })
+                    androidx.compose.material3.Text(getString(R.string.continue_in_safe_mode)) } })
             val deviceStatus = ScreenshotMode.status(status.state.collectAsStateWithLifecycle().value, ScreenshotMode.on.collectAsStateWithLifecycle().value)
             // Folio shows its own status in the rail, so hide Android's status bar on Home (it
             // stays in apps, and a swipe from the very top edge reveals it briefly).
@@ -145,12 +145,12 @@ class MainActivity : ComponentActivity() {
                 (lockCoverVisible.value && state.lockCover)
             MotionSpeed.current = state.motionSpeed
             // The trail for bug reports: what was open, and a heartbeat while Home is showing.
-            val overlayName = listOfNotNull(topPanel.value?.name, "Spotlight".takeIf { spotlightVisible.value },
-                "sheet".takeIf { LauncherSheetsOpen.intValue > 0 }, "Lock Cover".takeIf { lockCoverVisible.value && state.lockCover })
+            val overlayName = listOfNotNull(topPanel.value?.name, getString(R.string.spotlight).takeIf { spotlightVisible.value },
+                "sheet".takeIf { LauncherSheetsOpen.intValue > 0 }, getString(R.string.lock_cover).takeIf { lockCoverVisible.value && state.lockCover })
                 .joinToString(" + ").ifEmpty { null }
-            androidx.compose.runtime.LaunchedEffect(overlayName) { Diagnostics.event(overlayName?.let { "Open: $it" } ?: "Nothing open over Home") }
+            androidx.compose.runtime.LaunchedEffect(overlayName) { Diagnostics.event(overlayName?.let { "Open: $it" } ?: getString(R.string.nothing_open_over_home)) }
             val regular = androidx.compose.ui.platform.LocalConfiguration.current.fitsRegularHomeLayout()
-            androidx.compose.runtime.LaunchedEffect(regular) { Diagnostics.event(if (regular) "Unfolded layout" else "Folded layout") }
+            androidx.compose.runtime.LaunchedEffect(regular) { Diagnostics.event(if (regular) getString(R.string.unfolded_layout) else getString(R.string.folded_layout)) }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
                     while (true) { kotlinx.coroutines.delay(30_000); Diagnostics.checkpoint(this@MainActivity, visible = true) }
@@ -260,9 +260,9 @@ class MainActivity : ComponentActivity() {
                         title = { androidx.compose.material3.Text("Apply \u201c${theme.name}\u201d?") },
                         text = { androidx.compose.material3.Text("This changes icons, badges, glass, text on Home and the status bar. Your apps, pages and widgets stay as they are. You can undo it in Settings \u203a Themes.") },
                         confirmButton = { androidx.compose.material3.TextButton(onClick = { model.applyTheme(theme); sharedTheme.value = null }) {
-                            androidx.compose.material3.Text("Apply") } },
+                            androidx.compose.material3.Text(getString(R.string.apply)) } },
                         dismissButton = { androidx.compose.material3.TextButton(onClick = { sharedTheme.value = null }) {
-                            androidx.compose.material3.Text("Cancel") } })
+                            androidx.compose.material3.Text(getString(R.string.cancel)) } })
                 }
                 if (showWhatsNew.value || whatsNewRequested.value) WhatsNewSheet { showWhatsNew.value = false; whatsNewRequested.value = false; WhatsNew.markSeen(this@MainActivity) }
                 // With live activities in the side rail, the camera island on Home keeps only its brief events.
@@ -316,7 +316,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         FolioForeground.visible.value = false
-        Diagnostics.event("Home hidden")
+        Diagnostics.event(getString(R.string.home_hidden))
         Diagnostics.checkpoint(this, visible = false)
     }
     override fun onResume() {
@@ -383,8 +383,8 @@ class MainActivity : ComponentActivity() {
         when (SystemShadeAccessibilityService.open(this, panel)) {
             ShadeOpenResult.OPENED -> Unit
             ShadeOpenResult.SERVICE_DISABLED -> showShadeSetup()
-            ShadeOpenResult.SERVICE_STARTING -> IslandEvents.notice(this, "Folio gestures are starting. Swipe down again.")
-            ShadeOpenResult.ACTION_REJECTED -> IslandEvents.notice(this, "Android couldn’t open the system panel.")
+            ShadeOpenResult.SERVICE_STARTING -> IslandEvents.notice(this, getString(R.string.folio_gestures_are_starting_swipe_down_a))
+            ShadeOpenResult.ACTION_REJECTED -> IslandEvents.notice(this, getString(R.string.android_couldn_t_open_the_system_panel))
         }
     }
 
@@ -392,27 +392,27 @@ class MainActivity : ComponentActivity() {
         if (shadeSetupDialog?.isShowing == true) return
         ownShadeSetupExternally()
         shadeSetupDialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Turn On Folio Gestures")
+            .setTitle(getString(R.string.turn_on_folio_gestures))
             .setMessage("Android asks you to turn this on yourself:\n\n" +
                 "1. Tap Open Settings, find “Folio gestures & overlays” (often under Installed apps) and turn it on.\n" +
                 "2. If it's greyed out, or you see “App was denied access” or “Restricted setting”, tap App Info below, open the ⋮ menu " +
                 "(top right), choose “Allow restricted settings” and confirm, then come back and turn it on. Android does this for apps " +
                 "installed from a browser or file; it's a one-time step.\n\n" +
-                "Folio uses it to open Notification Center and Control Center, and for the dock and island over other apps. " +
-                "It can't read what's on your screen.")
-            .setNegativeButton("Not Now", null)
-            .setNeutralButton("App Info") { _, _ ->
+                getString(R.string.folio_uses_it_to_open_notification_cente) +
+                getString(R.string.it_can_t_read_what_s_on_your_screen))
+            .setNegativeButton(getString(R.string.not_now), null)
+            .setNeutralButton(getString(R.string.app_info)) { _, _ ->
                 returningFromShadeSettings = true
                 runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
                     .onFailure { returningFromShadeSettings = false; releaseShadeSetupOwnership() }
             }
-            .setPositiveButton("Open Settings") { _, _ ->
+            .setPositiveButton(getString(R.string.open_settings)) { _, _ ->
                 returningFromShadeSettings = true
                 val opened = runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }.isSuccess
                 if (!opened) {
                     returningFromShadeSettings = false
                     releaseShadeSetupOwnership()
-                    IslandEvents.notice(this, "Accessibility settings are unavailable.")
+                    IslandEvents.notice(this, getString(R.string.accessibility_settings_are_unavailable))
                 }
             }
             .also { dialog -> dialog.setOnDismissListener {
@@ -487,7 +487,7 @@ class MainActivity : ComponentActivity() {
         NewApps.opened(this, app.packageName)
         try {
             val user = getSystemService(UserManager::class.java).getUserForSerialNumber(app.userSerial)
-                ?: throw IllegalStateException("Profile is unavailable")
+                ?: throw IllegalStateException(getString(R.string.profile_is_unavailable))
             val launcherApps = getSystemService(LauncherApps::class.java)
             val shortcut = app.shortcutId
             if (shortcut != null) launcherApps.startShortcut(app.packageName, shortcut, screenBounds(bounds), launchOptions(bounds), user)
@@ -529,11 +529,11 @@ class MainActivity : ComponentActivity() {
     private fun showDiscoverFallback() {
         val google = packageManager.getLaunchIntentForPackage(DiscoverClient.GOOGLE_PACKAGE)
         android.app.AlertDialog.Builder(this)
-            .setTitle("Discover isn’t available here")
-            .setMessage("Folio can’t place the Discover feed beside Home on this device. You can open the Google app or stay on Home.")
-            .setNegativeButton("Stay on Home", null)
+            .setTitle(getString(R.string.discover_isn_t_available_here))
+            .setMessage(getString(R.string.folio_can_t_place_the_discover_feed_besi))
+            .setNegativeButton(getString(R.string.stay_on_home), null)
             .apply {
-                if (google != null) setPositiveButton("Open Google") { _, _ ->
+                if (google != null) setPositiveButton(getString(R.string.open_google)) { _, _ ->
                     runCatching { startActivity(google) }
                 }
             }
@@ -559,14 +559,14 @@ class MainActivity : ComponentActivity() {
 
     private fun useAppearanceLocation() {
         cancelAppearanceLocation()
-        appearance.locationStatus("Waiting for approximate device location…")
+        appearance.locationStatus(getString(R.string.waiting_for_approximate_device_location))
         LiveDiscover.setExternalResultPending(this, "main", "appearance-location", true)
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
             requestAppearanceLocation(keepPending = true)
         else {
             appearancePermissionGeneration = appearanceLocationGeneration
             runCatching { locationPermission.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION) }
-                .onFailure { finishAppearanceLocation("Location permission couldn’t be requested. Using the system theme.") }
+                .onFailure { finishAppearanceLocation(getString(R.string.location_permission_couldn_t_be_requeste)) }
         }
     }
 
@@ -575,7 +575,7 @@ class MainActivity : ComponentActivity() {
         val generation = ++appearanceLocationGeneration
         val manager = getSystemService(LocationManager::class.java)
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            finishAppearanceLocation("Location permission isn’t available. Using the system theme."); return
+            finishAppearanceLocation(getString(R.string.location_permission_isn_t_available_usin)); return
         }
         val cached = runCatching { manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }
             .maxByOrNull { it.time }?.takeIf { System.currentTimeMillis() - it.time <= 15 * 60_000 } }.getOrNull()
@@ -587,19 +587,19 @@ class MainActivity : ComponentActivity() {
             manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             manager.isProviderEnabled(LocationManager.PASSIVE_PROVIDER) -> LocationManager.PASSIVE_PROVIDER
             else -> null
-        } }.getOrNull() ?: run { finishAppearanceLocation("No approximate location provider is available. Using the system theme."); return }
+        } }.getOrNull() ?: run { finishAppearanceLocation(getString(R.string.no_approximate_location_provider_is_avai)); return }
         val cancellation = CancellationSignal()
         appearanceLocationCancellation = cancellation
         window.decorView.postDelayed({
             if (generation == appearanceLocationGeneration && appearanceLocationCancellation === cancellation) {
-                cancellation.cancel(); finishAppearanceLocation("Location timed out. Using the system theme until you try again or enter a place.")
+                cancellation.cancel(); finishAppearanceLocation(getString(R.string.location_timed_out_using_the_system_them))
             }
         }, 10_000)
         runCatching { manager.getCurrentLocation(provider, cancellation, ContextCompat.getMainExecutor(this)) { location ->
             if (generation != appearanceLocationGeneration || isDestroyed) return@getCurrentLocation
             if (location != null) appearance.setDeviceLocation(location.latitude, location.longitude, systemDark())
-            finishAppearanceLocation(if (location == null) "Location is unavailable. Using the system theme." else null)
-        } }.onFailure { finishAppearanceLocation("Location is unavailable. Using the system theme.") }
+            finishAppearanceLocation(if (location == null) getString(R.string.location_is_unavailable_using_the_system) else null)
+        } }.onFailure { finishAppearanceLocation(getString(R.string.location_is_unavailable_using_the_system)) }
     }
 
     private fun cancelAppearanceLocation() {
@@ -637,14 +637,14 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
                 .putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(this, DuneWallpaperService::class.java)))
         } catch (_: android.content.ActivityNotFoundException) {
-            IslandEvents.notice(this, "The system wallpaper preview is unavailable.")
+            IslandEvents.notice(this, getString(R.string.the_system_wallpaper_preview_is_unavaila))
         }
     }
 
     private fun appInfo(app: AppEntry) {
         try {
             val user = getSystemService(UserManager::class.java).getUserForSerialNumber(app.userSerial)
-                ?: throw IllegalStateException("Profile is unavailable")
+                ?: throw IllegalStateException(getString(R.string.profile_is_unavailable))
             getSystemService(LauncherApps::class.java).startAppDetailsActivity(app.component, user, null, null)
         } catch (_: Exception) {
             IslandEvents.notice(this, "${app.label} is unavailable.", app.icon)

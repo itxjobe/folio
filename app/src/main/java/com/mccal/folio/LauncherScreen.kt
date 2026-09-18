@@ -330,18 +330,18 @@ fun LauncherScreen(
     var problemDismissed by rememberSaveable(state.error) { mutableStateOf(false) }
     state.error?.takeIf { !problemDismissed && sheet.isEmpty() }?.let { message ->
         if (model.layoutDamaged) AlertDialog(onDismissRequest = { problemDismissed = true },
-            title = { Text("Your Home Layout Couldn’t Be Loaded") },
+            title = { Text(stringResource(R.string.your_home_layout_couldn_t_be_loaded)) },
             text = { Text("Folio kept your saved layout untouched and is showing a basic Home for now. Restore a backup or an earlier layout, or start fresh (Folio keeps a copy of the old one).") },
-            confirmButton = { TextButton(onClick = { SettingsLink.page = CustomizationPage.BACKUP; customizationPage = CustomizationPage.BACKUP; sheet = "settings" }) { Text("Restore…") } },
+            confirmButton = { TextButton(onClick = { SettingsLink.page = CustomizationPage.BACKUP; customizationPage = CustomizationPage.BACKUP; sheet = "settings" }) { Text(stringResource(R.string.restore_2)) } },
             dismissButton = { Row {
-                TextButton(onClick = { problemDismissed = true }) { Text("Not Now") }
-                TextButton(onClick = { model.resetDamagedLayout() }) { Text("Start Fresh", color = FolioColors.Red) }
+                TextButton(onClick = { problemDismissed = true }) { Text(stringResource(R.string.not_now)) }
+                TextButton(onClick = { model.resetDamagedLayout() }) { Text(stringResource(R.string.start_fresh), color = FolioColors.Red) }
             } })
         else AlertDialog(onDismissRequest = { problemDismissed = true },
-            title = { Text("Apps Couldn’t Be Loaded") },
+            title = { Text(stringResource(R.string.apps_couldn_t_be_loaded)) },
             text = { Text(message.removeSuffix(" Tap to retry.")) },
-            confirmButton = { TextButton(onClick = { problemDismissed = true; model.refresh() }) { Text("Try Again") } },
-            dismissButton = { TextButton(onClick = { problemDismissed = true }) { Text("Not Now") } })
+            confirmButton = { TextButton(onClick = { problemDismissed = true; model.refresh() }) { Text(stringResource(R.string.try_again)) } },
+            dismissButton = { TextButton(onClick = { problemDismissed = true }) { Text(stringResource(R.string.not_now)) } })
     }
     LaunchedEffect(searchRequests) { if (searchRequests > 0) { drag.clear(); widgetSession = null; resizeSlot = null; sheet = ""; widgetPackage = null; widgetExactTarget = false; selectedId = null
         if (!state.googleSearch || !onGoogleSearch(null)) pager.animateScrollToPage(homePages)
@@ -732,7 +732,7 @@ fun LauncherScreen(
                                 (bounds.right - 16 * density.density).toInt(), (bounds.bottom - padding).toInt()), bounds.width)
                     }
                 }
-                .semantics { stateDescription = if (pager.currentPage == -1) "Discover" else if (pager.currentPage == visibleHomePages) "All apps" else "Home page ${pager.currentPage + 1} of $visibleHomePages" }
+                .semantics { stateDescription = if (pager.currentPage == -1) launcherActivity.getString(R.string.discover) else if (pager.currentPage == visibleHomePages) launcherActivity.getString(R.string.all_apps) else "Home page ${pager.currentPage + 1} of $visibleHomePages" }
             if (geometry.expanded) {
                 Box(pagerModifier) {
                     // PagerState remains the source of truth for native Discover progress,
@@ -955,7 +955,7 @@ fun LauncherScreen(
                             onClear = { model.removePlacement(DropTarget.Dock(dockSlot)) },
                             onLongClick = { selectedId = it.id; sheet = "" },
                             canSelect = { canPlaceInDock(state.layout, it.id) },
-                            blockedHint = if (state.dock.none { it == null }) "Dock full • Move an app out first" else null)
+                            blockedHint = if (state.dock.none { it == null }) stringResource(R.string.dock_full_move_an_app_out_first) else null)
                         "pins" -> Column(Modifier.fillMaxHeight(.9f).imePadding()) {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) {
                                 TextButton(onClick = { sheet = "" }) { Text(stringResource(R.string.done)) }
@@ -1040,7 +1040,7 @@ fun LauncherScreen(
             if (sheet == "widgets") OwnMethod {
                 val catalogProfiles = remember(state.profiles) { state.profiles.filter { it.isPersonal || it.isWork } }
                 val selectedProfile = catalogProfiles.firstOrNull { it.userSerial == widgetProfileSerial }
-                    ?: catalogProfiles.firstOrNull { it.isPersonal } ?: AppProfile(0, "Personal", true, false, false, true, true)
+                    ?: catalogProfiles.firstOrNull { it.isPersonal } ?: AppProfile(0, stringResource(R.string.personal), true, false, false, true, true)
                 val userManager = remember(launcherActivity) { launcherActivity.getSystemService(UserManager::class.java) }
                 val providers = remember(widgetPackage, selectedProfile, sheet, state.apps) {
                     val user = userManager.getUserForSerialNumber(selectedProfile.userSerial)
@@ -1078,7 +1078,7 @@ fun LauncherScreen(
                             val placement = model.placement(stackSlot)
                             val min = widgets.sizing(provider, pickerSizing)?.minimum
                             if (placement == null || (min != null && (min.width > placement.spanX || min.height > placement.spanY))) {
-                                widgetPlacementMessage = "This widget needs a bigger space than this stack. Resize the stack first."
+                                widgetPlacementMessage = launcherActivity.getString(R.string.this_widget_needs_a_bigger_space_than_th)
                             } else {
                                 widgets.addToStack(stackSlot, provider, pickerSizing)
                                 stackTargetSlot = null; sheet = ""; widgetPackage = null; widgetPlacementMessage = null
@@ -1117,7 +1117,7 @@ fun LauncherScreen(
                             widgetSession = WidgetPickerSession(provider, widgetSlot, span, Offset.Zero,
                                 dragging = false, targetIndex = targetIndex)
                             widgetPlacementMessage = if (freeIndex == null)
-                                "There isn’t room for this size. Choose another page or move an item first." else null
+                                launcherActivity.getString(R.string.there_isn_t_room_for_this_size_choose_an) else null
                             scope.launch { pager.scrollToPage(homeCellPage(targetIndex).coerceIn(0, homePages)) }
                         }
                     },
@@ -1153,7 +1153,7 @@ fun LauncherScreen(
                         widgetSession = WidgetPickerSession(null, widgetSlot, span, Offset.Zero,
                             dragging = false, targetIndex = free ?: requested, builtinId = builtinId)
                         widgetPlacementMessage = if (free == null)
-                            "There isn’t room for this card. Choose another page or move an item first." else null
+                            launcherActivity.getString(R.string.there_isn_t_room_for_this_card_choose_an) else null
                         scope.launch { pager.scrollToPage(homeCellPage(free ?: requested).coerceIn(0, homePages)) }
                     },
                     onDragStart = { provider, point ->
@@ -1172,7 +1172,7 @@ fun LauncherScreen(
                             widgetSession = null; sheet = ""; widgetPackage = null
                         } else {
                             leaveTemporaryWidgetPage(); widgetSession = null
-                            widgetPlacementMessage = "There isn’t room there. Try another space or page."
+                            widgetPlacementMessage = launcherActivity.getString(R.string.there_isn_t_room_there_try_another_space)
                         }
                     },
                     onCancelDrag = {
@@ -1251,7 +1251,7 @@ fun LauncherScreen(
                                 else anchor.left + with(density) { 5.dp.toPx() }
                             Surface(Modifier.offset { IntOffset(previewX.roundToInt(), anchor.top.roundToInt()) }
                                 .size(previewWidth, previewHeight).testTag("widget-placement-preview")
-                                .semantics { stateDescription = if (widgetDraft != null) "Ready to place" else "No room here" },
+                                .semantics { stateDescription = if (widgetDraft != null) launcherActivity.getString(R.string.ready_to_place) else launcherActivity.getString(R.string.no_room_here) },
                                 color = if (widgetDraft != null) Glass.copy(alpha = .82f) else Color(0xFFE7B6B6).copy(alpha = .9f),
                                 shape = RoundedCornerShape(24.dp), border = androidx.compose.foundation.BorderStroke(3.dp,
                                     if (widgetDraft != null) Color.White else Color(0xFFFF6B6B))) {
@@ -1262,12 +1262,12 @@ fun LauncherScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(session.provider?.loadLabel(launcherActivity.packageManager)?.toString()
                                             ?: when (session.builtinId) {
-                                                CLOCK_WIDGET -> "Clock"
-                                                DATE_WIDGET -> "Date"
-                                                UP_NEXT_WIDGET -> "Up Next"
-                                                SUGGESTIONS_WIDGET -> "Suggestions"
-                                                BIG_CLOCK_WIDGET -> "Big Clock"
-                                                else -> "Widget panel"
+                                                CLOCK_WIDGET -> stringResource(R.string.clock)
+                                                DATE_WIDGET -> stringResource(R.string.date)
+                                                UP_NEXT_WIDGET -> stringResource(R.string.up_next)
+                                                SUGGESTIONS_WIDGET -> stringResource(R.string.suggestions)
+                                                BIG_CLOCK_WIDGET -> stringResource(R.string.big_clock)
+                                                else -> stringResource(R.string.widget_panel)
                                             }, color = Ink,
                                             textAlign = TextAlign.Center)
                                         Text("${session.span.width} × ${session.span.height}", color = Ink)
@@ -1472,7 +1472,7 @@ fun LauncherScreen(
                         }
                     }
                     if (folders.isNotEmpty()) item("new-folder-header") {
-                        Text("New folder with…", style = MaterialTheme.typography.labelLarge,
+                        Text(stringResource(R.string.new_folder_with), style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 4.dp))
                     }
                     items(state.apps.filter { it.id != firstId && it.available }, key = { it.id }) { second ->
@@ -1530,7 +1530,7 @@ fun LauncherScreen(
                 modifier = Modifier.testTag("background-picker-cancel")) { Text(stringResource(R.string.cancel)) } })
         (launcherActivity.backups.errorMessage ?: launcherActivity.backups.successMessage)?.let { message ->
             AlertDialog(onDismissRequest = launcherActivity.backups::clearMessage,
-                title = { Text(if (launcherActivity.backups.errorMessage != null) "Layout backup problem" else "Layout backup") },
+                title = { Text(if (launcherActivity.backups.errorMessage != null) stringResource(R.string.layout_backup_problem) else stringResource(R.string.layout_backup)) },
                 text = { Text(message) }, confirmButton = { TextButton(onClick = launcherActivity.backups::clearMessage) { Text(stringResource(R.string.ok)) } })
         }
         widgets.failureMessage?.let { message ->
@@ -1577,9 +1577,9 @@ private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
     Row(Modifier.padding(bottom = 6.dp).heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp))
         .background(Glass.copy(alpha = LocalGlassLook.current.widget)).border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(24.dp))
         .padding(start = 16.dp, end = 4.dp).testTag("home-setup"), verticalAlignment = Alignment.CenterVertically) {
-        Text("Preview", color = ink.secondary, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
+        Text(stringResource(R.string.preview), color = ink.secondary, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.width(12.dp))
-        Text("Use as Home", color = FolioColors.Blue, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+        Text(stringResource(R.string.use_as_home), color = FolioColors.Blue, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onUseAsHome)
                 .heightIn(min = 48.dp).wrapContentHeight().padding(horizontal = 8.dp).testTag("preview-use-as-home"))
         IconButton(onClick = onExit, Modifier.size(48.dp).testTag("preview-exit")) {
