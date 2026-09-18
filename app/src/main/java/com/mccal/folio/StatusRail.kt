@@ -102,16 +102,21 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
  * How far each half of the Gauge's ring is filled, in degrees, for a battery level from 0 to 1. The left half fills
  * first, from the top down, so half a charge is the left half dark; the right then fills from the bottom up.
  */
-internal fun gaugeSweeps(level: Float): Pair<Float, Float> {
+internal fun gaugeSweeps(level: Float, side: Float = GAUGE_SIDE): Pair<Float, Float> {
     val halves = level.coerceIn(0f, 1f) * 2f
-    return minOf(halves, 1f) * GAUGE_SIDE to (halves - 1f).coerceIn(0f, 1f) * GAUGE_SIDE
+    return minOf(halves, 1f) * side to (halves - 1f).coerceIn(0f, 1f) * side
 }
 
-private const val GAUGE_CENTER = .58f
-private const val GAUGE_RADIUS = .42f
-private const val GAUGE_SIDE = 92f
-private const val GAUGE_LEFT_START = 134f
-private const val GAUGE_RIGHT_START = 314f
+/** Everything below is a fraction of the glyph's width: the mark is taller than it is wide, like the one it copies. */
+private const val GAUGE_HEIGHT = 1.25f
+private const val GAUGE_CENTER = .70f
+private const val GAUGE_RADIUS = .36f
+private const val GAUGE_DOTS = 1.14f
+private const val GAUGE_SIDE = 100f
+/** Each half of the ring when the percentage is off and the top no longer has to open for it. */
+private const val GAUGE_WHOLE_SIDE = 140f
+private const val GAUGE_LEFT_START = 130f
+private const val GAUGE_RIGHT_START = 310f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -285,63 +290,73 @@ fun StatusRail(
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(visualSize * .42f))
                     }
                     StatusGlyph.GAUGE -> {
-                        // The reading and the ring are one mark: a column centred in the rail, the digits dipping into
-                        // the break at the ring's top, the ring centred in its own square. Padding stays even.
+                        // With the percentage on, the ring breaks at the top to hold it; with it off, the ring closes
+                        // over the top and the mark is shorter. The break at the bottom is always there for the dots.
+                        val showsReading = style.showBatteryPercent
+                        val ringCenter = if (showsReading) GAUGE_CENTER else GAUGE_CENTER - .24f
+                        val side = if (showsReading) GAUGE_SIDE else GAUGE_WHOLE_SIDE
+                        Box(Modifier.padding(top = 2.dp).width(visualSize)
+                            .height(visualSize * if (showsReading) GAUGE_HEIGHT else GAUGE_HEIGHT - .24f),
+                        contentAlignment = Alignment.TopCenter) {
+                        // The mark McCal asked for: a ring broken at top and bottom, the reading overlapping the top
+                        // break, the connection filling the ring, and the cellular dots in a row underneath it.
                         val still = LocalReduceMotion.current
                         val level by animateFloatAsState(((status.battery ?: 0).coerceIn(0, 100)) / 100f,
                             if (still) snap() else tween(FolioMotion.GAUGE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                             label = "gauge level")
                         val arcColor by animateColorAsState(batteryColor,
                             if (still) snap() else tween(FolioMotion.GAUGE_MS), label = "gauge colour")
-                        // Nothing to connect to: the same slowly sweeping fan the Ring shows, so an empty middle never
-                        // reads as a glyph that failed to draw.
                         val searching = !status.wifiConnected && cellularVisual !is CellularSignalVisual.Available && !status.airplane
                         val sweep = if (searching && !still) rememberInfiniteTransition(label = "no connection")
                             .animateFloat(0f, 1f, infiniteRepeatable(tween(2_400, easing = LinearEasing)), label = "sweep").value else -1f
-                        val reading = status.battery?.toString() ?: "\u2014"
-                        val readingSize = if (reading.length > 2) .235f else .27f
-                        val ringSize = visualSize * .86f
-                        Column(horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(-ringSize * .03f),
-                            modifier = Modifier.padding(top = 2.dp)) {
-                            Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
-                                fontSize = (visualSize.value * readingSize / fontScale).sp,
-                                fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                            Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
-                                Canvas(Modifier.fillMaxSize()) {
-                                    val w = size.width
-                                    val center = Offset(w / 2, w / 2)
-                                    val radius = w * .44f
-                                    val corner = Offset(center.x - radius, center.y - radius)
-                                    val box = Size(radius * 2, radius * 2)
-                                    val stroke = Stroke(width = w * .095f, cap = StrokeCap.Round)
-                                    val track = ink.copy(alpha = faint(.22f))
-                                    drawArc(track, GAUGE_LEFT_START, GAUGE_SIDE, false, corner, box, style = stroke)
-                                    drawArc(track, GAUGE_RIGHT_START, GAUGE_SIDE, false, corner, box, style = stroke)
-                                    if (status.battery != null) {
-                                        val (left, right) = gaugeSweeps(level)
-                                        if (left > 0f) drawArc(arcColor, GAUGE_LEFT_START + GAUGE_SIDE, -left, false, corner, box, style = stroke)
-                                        if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
-                                    }
-                                    // The connection sits low enough in the ring to stay clear of the reading above it.
-                                    translate(0f, w * .045f) {
-                                    scale(.62f, center) {
-                                        when {
-                                            wifiVisual is WifiSignalVisual.Connected -> {
-                                                drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
-                                                for (i in 0..4) drawCircle(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .03f,
-                                                    Offset(center.x + (i - 2) * w * .095f, w * .80f))
-                                            }
-                                            cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
-                                            searching -> drawSearchingFan(w, sweep, ink, onLight)
-                                            else -> Unit
-                                        }
-                                    }
-                                    }
-                                }
-                                if (status.airplane && !status.wifiConnected)
-                                    Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(ringSize * .34f))
+                        Canvas(Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val center = Offset(w / 2, w * ringCenter)
+                            val radius = w * GAUGE_RADIUS
+                            val corner = Offset(center.x - radius, center.y - radius)
+                            val box = Size(radius * 2, radius * 2)
+                            val stroke = Stroke(width = w * .10f, cap = StrokeCap.Round)
+                            val track = ink.copy(alpha = faint(.22f))
+                            if (showsReading) {
+                                drawArc(track, GAUGE_LEFT_START, side, false, corner, box, style = stroke)
+                                drawArc(track, GAUGE_RIGHT_START, side, false, corner, box, style = stroke)
+                            } else drawArc(track, GAUGE_LEFT_START, side * 2f, false, corner, box, style = stroke)
+                            if (status.battery != null) {
+                                val (left, right) = gaugeSweeps(level, side)
+                                // Both halves fill towards the top: the left from the top down, the right from the
+                                // bottom up, so the ring closes as the battery fills.
+                                val leftTop = if (showsReading) GAUGE_LEFT_START + side else 270f
+                                if (left > 0f) drawArc(arcColor, leftTop, -left, false, corner, box, style = stroke)
+                                if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
+                            // drawWifiFan puts its apex at 56% of the width; the ring's middle is lower than that,
+                            // so the signal is moved down to sit in the ring rather than up against the reading.
+                            translate(0f, (ringCenter + .06f - .56f) * w) {
+                            scale(.72f, center) {
+                                when {
+                                    wifiVisual is WifiSignalVisual.Connected -> drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
+                                    cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
+                                    searching -> drawSearchingFan(w, sweep, ink, onLight)
+                                    else -> Unit
+                                }
+                            }
+                            }
+                            // Cellular strength as a row of dots under the ring, where the lower break opens.
+                            if (!status.airplane) for (i in 0..4) drawCircle(
+                                ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .032f,
+                                Offset(center.x + (i - 2) * w * .105f, w * (ringCenter + GAUGE_DOTS - GAUGE_CENTER)))
+                        }
+                        val reading = status.battery?.toString() ?: "\u2014"
+                        val readingSize = if (reading.length > 2) .245f else .28f
+                        if (showsReading) Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
+                            fontSize = (visualSize.value * readingSize / fontScale).sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
+                            // It rests on the ring's top break, like the mark it copies.
+                            modifier = Modifier.padding(top = visualSize *
+                                ((ringCenter - GAUGE_RADIUS) - readingSize * 1.15f).coerceAtLeast(0f)))
+                        if (status.airplane && !status.wifiConnected)
+                            Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
+                                modifier = Modifier.padding(top = visualSize * (ringCenter - .15f)).size(visualSize * .3f))
                         }
                     }
                     StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
