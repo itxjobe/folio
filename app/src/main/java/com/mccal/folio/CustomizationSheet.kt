@@ -990,6 +990,9 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
                 Icon(Icons.Rounded.ChevronRight, null, tint = androidx.compose.ui.graphics.Color.White.copy(alpha = .3f))
             }
         }
+        // Some banking apps refuse to run while any accessibility service is on, Folio's included (reported on
+        // r/GalaxyFold, 18 Sep 2026). Nothing Folio can do from its side, so say so before someone is caught out.
+        CardNote(stringResource(R.string.banking_apps_note))
     }
 }
 

@@ -701,4 +701,5 @@
     <string name="olive">Olive</string>
     <string name="ios">iOS</string>
     <string name="classic">Classic</string>
+    <string name="banking_apps_note">Some banking apps refuse to open while any accessibility service is on, including Folio\'s gestures service. That is their check, not something Folio can change. Everything except the pull-down panels and the dock and island over other apps works without it, so you can turn it off in Android\'s Accessibility settings and keep using Folio.</string>
 </resources>
