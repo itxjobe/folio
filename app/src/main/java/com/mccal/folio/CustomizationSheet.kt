@@ -627,7 +627,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     var background by remember { mutableStateOf(marketPrefs.backgroundRefresh) }
                     var wifiOnly by remember { mutableStateOf(marketPrefs.refreshOnWifiOnly) }
                     SheetGroup {
-                        SwitchRow("Check sources in the background", if (background) "Once a day" else "Off", background) {
+                        SwitchRow("Refresh in the background", if (background) "Once a day" else "Off", background) {
                             background = it
                             marketPrefs.backgroundRefresh = it
                             MarketRefreshJob.schedule(sheetContext)
