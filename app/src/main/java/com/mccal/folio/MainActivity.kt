@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
         updateDefaultHome()
         if (savedInstanceState == null && intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
         if (savedInstanceState == null && opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
+        if (savedInstanceState == null && takeMarketLink(intent)) settingsRequests.intValue++
         intent.removeExtra("duo_destination")
         // A recreated activity (rotation, fold, process restart) keeps the pending alert; the launch intent is used once.
         if (savedInstanceState == null) takeSharedTheme(intent)
@@ -448,6 +449,19 @@ class MainActivity : ComponentActivity() {
     }
     /** Android's "Home app settings" gear, or Folio's own app icon (the FolioSettingsApp alias). Until Folio is the
      * Home app, its icon opens Home instead, as a preview you can leave with Back or the Home gesture. */
+    /**
+     * A `folio://package/…` or `folio://source/…` link someone shared. Folio remembers what to open and asks for the
+     * Market; a link it doesn't understand is ignored rather than guessed at.
+     */
+    private fun takeMarketLink(intent: Intent): Boolean {
+        if (intent.action != Intent.ACTION_VIEW) return false
+        val link = MarketLink.parse(intent.data?.toString()) ?: return false
+        if (!com.mccal.folio.market.MarketFeature.isEnabled(packageName)) return false
+        MarketLink.pending = link
+        intent.data = null
+        return true
+    }
+
     private fun opensSettings(intent: Intent) = intent.action == Intent.ACTION_APPLICATION_PREFERENCES ||
         (fromAppIcon(intent) && defaultHome.value)
     private fun fromAppIcon(intent: Intent) = intent.component?.className?.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}") == true
@@ -468,6 +482,7 @@ class MainActivity : ComponentActivity() {
         updateDefaultHome()
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
         if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
+        if (takeMarketLink(intent)) settingsRequests.intValue++
         else if (intent.hasCategory(Intent.CATEGORY_HOME) || fromAppIcon(intent) || intent.getStringExtra("duo_destination") == "home") {
             closeEverything(); homeRequests.intValue++
         }

@@ -132,6 +132,21 @@ data, so both still work after a restart without the package file.
 **If Folio crashes twice within a minute of a package being applied**, that package starts turned off, with its settings
 kept. The store offers Try Again, Remove and Details, and everything else keeps working.
 
+## What the store shows before you get a package
+
+All of it comes from the manifest, never from anything the author wrote:
+
+- **A one-line summary:** code (only a `script` package runs any, in the sandbox), network (never), personal data
+  (never), and how many things it changes.
+- **What it changes:** one line per permission, in Folio's words, from the table in [Permissions](#permissions). A
+  package with no permissions says "How Folio looks, and nothing else".
+- **What it can't reach:** your apps and their data, notifications, contacts and calendar, the network, and other apps'
+  settings. Not promises — a package is data, so it has no way to reach any of them.
+- **Where it came from:** built into Folio, or a source you added, with `provenance` and the checksum when the index
+  carries them.
+
+Nothing is applied until Get is pressed on that sheet.
+
 ## Source: static files
 
 Host a source on any HTTPS server; GitHub Pages is the easy path. The layout:
@@ -285,5 +300,5 @@ Scripts can only use actions whose permission they declare. New permissions come
   - An unknown **kind, permission, section, screen or capability**, or a higher `format`, means the package needs a newer
     Folio. Folio won't install it rather than guess: those values decide what a package may change.
 - **Breaking changes** use `format: 2`, with a new schema folder. Folio keeps reading v1.
-- **Compatibility:** every v1 package in `market/src/test/resources/corpus/v1/` must keep installing in every future Folio version.
+- **Compatibility:** every v1 package in `market/src/test/resources/corpus/v1/` must keep installing in every future Folio version. They're real packed `.foliopkg` files, and `CompatibilityCorpusTest` installs, applies and removes each one on every run. Entries are added, never changed.
 - **Folio's own source** (`source/`) is part of the test suite: its files are checked against these schemas and read by the parsers on every run.

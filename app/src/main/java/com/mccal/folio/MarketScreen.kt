@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
@@ -54,13 +57,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.mccal.folio.market.Capability
 import com.mccal.folio.market.DepictionBlock
 import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.InstallResult
 import com.mccal.folio.market.InstalledPackage
 import com.mccal.folio.market.FeaturedStyle
+import com.mccal.folio.market.PackageManifest
 import com.mccal.folio.market.PackagePermission
+import com.mccal.folio.market.PackageSafety
 import com.mccal.folio.market.RepoIndex
 import com.mccal.folio.market.Section
 
@@ -92,6 +98,7 @@ internal fun MarketScreen(
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
     var introducing by rememberSaveable { mutableStateOf(!session.prefs.introductionSeen) }
     var style by rememberSaveable { mutableStateOf(session.prefs.featuredStyle) }
+    var confirming by rememberSaveable { mutableStateOf<String?>(null) }
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     // Re-read after every change, so the list always shows what's really installed.
@@ -101,7 +108,8 @@ internal fun MarketScreen(
 
     fun refresh() { revision++ }
 
-    fun get(entry: IndexPackage) {
+    fun apply(entry: IndexPackage) {
+        confirming = null
         when (val result = session.get(entry)) {
             is InstallResult.Installed -> {
                 undo = result
@@ -118,7 +126,18 @@ internal fun MarketScreen(
         refresh()
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = openId != null) { openId = null }
+
+    // A shared folio:// link opens straight on that package, once.
+    LaunchedEffect(Unit) {
+        when (val link = MarketLink.pending) {
+            is MarketLink.Package -> { tab = MarketTab.PACKAGES; openId = link.id }
+            is MarketLink.Source -> tab = MarketTab.SOURCES
+            null -> Unit
+        }
+        MarketLink.pending = null
+    }
 
     if (introducing) {
         MarketIntroduction(
@@ -150,7 +169,7 @@ internal fun MarketScreen(
                             onStyle = { chosen -> style = chosen; session.prefs.featuredStyle = chosen },
                             onIntroduce = { session.prefs.introductionSeen = false; introducing = true },
                             onOpen = { openId = it },
-                            onGet = ::get,
+                            onGet = { confirming = it.id },
                             onRemove = { id, name -> remove(id, name) },
                         )
                     }
@@ -161,10 +180,13 @@ internal fun MarketScreen(
                             entry = open,
                             session = session,
                             installed = installed[open.id],
+                            sourceName = index?.name?.english ?: "Folio",
                             showBack = !split,
                             onBack = { openId = null },
-                            onGet = { get(open) },
+                            onGet = { confirming = open.id },
                             onRemove = { remove(open.id, open.manifest?.name?.english ?: open.id) },
+                            onShare = { share(context, it) },
+                            onReport = { report(context, index?.issuesUrl, it) },
                         )
                     }
                 }
@@ -177,6 +199,24 @@ internal fun MarketScreen(
                 )
             }
             MarketTabs(tab) { tab = it; openId = null }
+        }
+        confirming?.let { id ->
+            packages.firstOrNull { it.id == id }?.let { entry ->
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { confirming = null }) {
+                    Box(
+                        Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
+                            .clickable(enabled = false) {},
+                    ) {
+                        MarketInstallSheet(
+                            entry = entry,
+                            builtIn = !entry.installable,
+                            onGet = { apply(entry) },
+                            onCancel = { confirming = null },
+                        )
+                    }
+                }
+            }
         }
         if (index == null) {
             Text(
@@ -399,10 +439,13 @@ private fun MarketPackagePage(
     entry: IndexPackage,
     session: MarketSession,
     installed: InstalledPackage?,
+    sourceName: String,
     showBack: Boolean,
     onBack: () -> Unit,
     onGet: () -> Unit,
     onRemove: () -> Unit,
+    onShare: (IndexPackage) -> Unit,
+    onReport: (IndexPackage) -> Unit,
 ) {
     val pkg = remember(entry.id) { session.read(entry.id) }
     val name = entry.manifest?.name?.english ?: entry.id
@@ -447,6 +490,13 @@ private fun MarketPackagePage(
         // The page the author wrote: Folio draws each block itself, and skips any it doesn't know.
         pkg?.depiction?.blocks?.forEach { block ->
             when (block) {
+                is DepictionBlock.Hero -> MarketImage(session, block.image, Modifier.fillMaxWidth().height(160.dp))
+                is DepictionBlock.Screenshots -> Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    block.images.forEach { MarketImage(session, it, Modifier.width(150.dp).height(260.dp)) }
+                }
                 is DepictionBlock.Markdown -> Text(block.text.english, color = Color.White.copy(alpha = .85f), fontSize = 15.sp, modifier = Modifier.padding(bottom = 10.dp))
                 is DepictionBlock.FeatureList -> Column(Modifier.padding(bottom = 10.dp)) {
                     block.items.forEach { Text("· ${it.english}", color = Color.White.copy(alpha = .85f), fontSize = 15.sp) }
@@ -457,6 +507,33 @@ private fun MarketPackagePage(
                 }
                 else -> Unit
             }
+        }
+
+        val safety = entry.manifest?.let { PackageSafety.of(it) }
+        safety?.let {
+            SheetGroupLabel("What it can't reach")
+            SheetGroup(Modifier.padding(bottom = 12.dp)) {
+                Column(Modifier.padding(14.dp)) {
+                    it.cannotAccess.forEach { line -> Text(line, color = Color.White.copy(alpha = .7f), fontSize = 14.sp) }
+                }
+            }
+        }
+
+        SheetGroupLabel("Information")
+        SheetGroup(Modifier.padding(bottom = 12.dp)) {
+            Column(Modifier.padding(14.dp)) {
+                Text("Source: ${sourceName}", color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Text(
+                    entry.provenance?.let { "Built from ${it.repo} @ ${it.commit}" } ?: "Built into Folio",
+                    color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                )
+                installed?.let { Text("Installed ${it.version}", color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
+            }
+        }
+        SheetGroup(Modifier.padding(bottom = 24.dp)) {
+            IosActionRow("Share") { onShare(entry) }
+            MenuDivider()
+            IosActionRow("Report a package", destructive = true) { onReport(entry) }
         }
 
         // The privacy label comes from the manifest's permissions, never from anything the author wrote.
@@ -509,3 +586,88 @@ private object NoLauncher : MarketLauncher {
  */
 internal fun sheetForAppIcon(linkedPage: CustomizationPage?, currentPage: CustomizationPage, marketEnabled: Boolean): String =
     if (linkedPage == null && currentPage == CustomizationPage.OVERVIEW && marketEnabled) "market" else "settings"
+
+/** An image the source ships, decoded from its own bytes. No image library: these files came with the app. */
+@Composable
+private fun MarketImage(session: MarketSession, path: String, modifier: Modifier) {
+    val image = remember(path) {
+        session.source.asset(path)?.let { bytes ->
+            runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
+        }
+    }
+    Box(modifier.padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .06f))) {
+        if (image != null) {
+            androidx.compose.foundation.Image(
+                bitmap = image,
+                contentDescription = null, // the page's text says what it is; the picture repeats it
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+/** Shares a `folio://package/<id>` link, which opens the package on another phone that has Folio. */
+private fun share(context: android.content.Context, entry: IndexPackage) {
+    val name = entry.manifest?.name?.english ?: entry.id
+    runCatching {
+        context.startActivity(
+            android.content.Intent.createChooser(
+                android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(android.content.Intent.EXTRA_TEXT, "$name for Folio: folio://package/${entry.id}"),
+                "Share $name",
+            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
+/**
+ * Opens the source's issue form with the package already filled in, so a report carries what a maintainer needs:
+ * which package, which version, and the checksum of the file that was installed.
+ */
+private fun report(context: android.content.Context, issuesUrl: String?, entry: IndexPackage) {
+    val url = issuesUrl ?: "https://github.com/McCal-Codes/folio/issues/new"
+    val name = entry.manifest?.name?.english ?: entry.id
+    val body = buildString {
+        append("Package: ").append(entry.id).append('\n')
+        append("Version: ").append(entry.version).append('\n')
+        entry.sha256?.let { append("Checksum: ").append(it).append('\n') }
+        entry.provenance?.let { append("Built from: ").append(it.repo).append(" @ ").append(it.commit).append('\n') }
+        append("\nWhat's wrong:\n")
+    }
+    val full = url + (if ('?' in url) "&" else "?") +
+        "title=" + android.net.Uri.encode("Report: $name") + "&body=" + android.net.Uri.encode(body)
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, full.toUri())
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
+/** A `folio://` link someone shared. Anything else is ignored rather than guessed at. */
+internal sealed interface MarketLink {
+    data class Package(val id: String) : MarketLink
+    data class Source(val url: String) : MarketLink
+
+    companion object {
+        /** What the Market should open, or null when this isn't a link Folio knows. */
+        fun parse(uri: String?): MarketLink? {
+            val text = uri?.trim() ?: return null
+            if (!text.startsWith("folio://")) return null
+            val rest = text.removePrefix("folio://")
+            val host = rest.substringBefore('/')
+            val value = rest.substringAfter('/', "").substringBefore('?').substringBefore('#')
+            if (value.isEmpty()) return null
+            return when (host) {
+                "package" -> Package(value).takeIf { PackageManifest.ID.containsMatchIn(it.id) }
+                // The url is encoded, because it carries its own slashes.
+                "source" -> android.net.Uri.decode(value).let { url -> Source(url).takeIf { url.startsWith("https://") } }
+                else -> null
+            }
+        }
+
+        /** Where the Market is asked to go before it opens, set by the activity that received the link. */
+        @Volatile var pending: MarketLink? = null
+    }
+}

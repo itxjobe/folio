@@ -5,7 +5,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -56,8 +58,9 @@ class MarketScreenRenderTest {
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-packages").performClick()
         compose.onNodeWithContentDescription("Get Cabinet").performClick()
-        compose.onNodeWithText("Cabinet is on").assertIsDisplayed()
-        compose.onNodeWithText("Undo").assertIsDisplayed()
+        compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
+        compose.onNodeWithText("Cabinet is on").assertExists()
+        compose.onNodeWithText("Undo").assertExists()
     }
 
     @Test fun `every tab opens, and the Market's settings offer both Featured styles`() {
@@ -96,5 +99,22 @@ class MarketScreenRenderTest {
         assertEquals("settings", sheetForAppIcon(null, CustomizationPage.OVERVIEW, marketEnabled = false))
         assertEquals("settings", sheetForAppIcon(CustomizationPage.PERMISSIONS, CustomizationPage.OVERVIEW, marketEnabled = true))
         assertEquals("settings", sheetForAppIcon(null, CustomizationPage.SOFTWARE_UPDATE, marketEnabled = true))
+    }
+
+    @Test fun `Get asks first, and the sheet says what changes and what it can't reach`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        session.installed().forEach { session.remove(it.id) }
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-packages").performClick()
+        compose.onNodeWithContentDescription("Get Cabinet").performClick()
+        // Nothing has been applied yet: this is the confirm step.
+        compose.onNodeWithTag("market-install-sheet", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Changes Folio tweaks").assertExists()
+        compose.onNodeWithText("Your apps or their data").assertExists()
+        assertEquals(emptyList<com.mccal.folio.market.InstalledPackage>(), session.installed())
+        compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
+        compose.onNodeWithText("Cabinet is on").assertExists()
+        assertEquals(listOf("com.mccal.folio.cabinet"), session.installed().map { it.id })
     }
 }
