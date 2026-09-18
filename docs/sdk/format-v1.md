@@ -46,7 +46,7 @@ Limits:
 | `screens` | array of enum | `cover`, `inner`. Both if omitted. |
 | `depends` | array of string | Package ids, optionally `id (>= 1.2)`. |
 | `conflicts` | array of string | Same syntax. |
-| `icon` | path | `assets/icon.png`, square, at least 180 px. |
+| `icon` | path | `assets/icons/cabinet.png`, square, at least 180 px. Resolved against the **source**, not the package (see Pictures). |
 | `depiction` | path | Usually `depiction.json`. |
 | `license` | string | SPDX id, e.g. `MIT`. GPL code isn't accepted in the Community source. |
 | `description` | text | One or two sentences, shown under the name. |
@@ -159,8 +159,26 @@ index.json          repo info and package list
 revoked.json        signed list of disabled packages (optional)
 revoked.json.sig
 packages/*.foliopkg
+assets/             pictures the index, the manifests and the depictions point at
 icon.png
 ```
+
+### Pictures
+
+Every picture a package names - its `icon`, and a depiction's `hero` and `screenshots` - is a **relative path on the
+source's own host**, resolved against the source's address. `assets/icons/cabinet.png` on
+`https://maya.example/folio/` is fetched from `https://maya.example/folio/assets/icons/cabinet.png`.
+
+Two reasons it works that way rather than reading them out of the `.foliopkg`:
+
+- the store shows a package's page **before** it is installed, and downloading a 20 MB package to show a thumbnail
+  would be absurd;
+- every byte then comes from the one host the user chose to trust, so listing a package can't make their phone call a
+  third party. Folio fetches pictures through the same client as everything else: https only, size-capped, no cookies,
+  and no redirect off https.
+
+A publishing tool copies these files out of the package when it packs it, so an author keeps them in one place.
+Folio's own source is inside the app, so it reads them straight from its assets and makes no request at all.
 
 Folio's own source is in [`source/`](source/), with the app's real themes and tweaks; it's the worked example.
 

@@ -20,6 +20,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/palette.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Notification cards take on a soft version of their app’s color.",

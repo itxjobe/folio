@@ -21,6 +21,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/theme-classic.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Folio’s standard look: rounded icons, iOS badges and tinted glass.",

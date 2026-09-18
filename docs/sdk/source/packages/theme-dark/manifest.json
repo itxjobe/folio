@@ -21,6 +21,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/theme-dark.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Dark app icons, softer badge colors and a dimmer status rail.",

@@ -21,6 +21,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/theme-clear.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Squircle icons, number badges, clear glass and a minimal status area without the date.",

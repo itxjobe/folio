@@ -20,6 +20,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/harborline.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Dock icons swell under your finger as you slide along the dock.",

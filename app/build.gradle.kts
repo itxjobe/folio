@@ -41,9 +41,11 @@ tasks.named("preBuild") { dependsOn(bundleChangelog) }
 
 // Bundle Folio's own source (docs/sdk/source) so the built-in themes and tweaks are real packages, read from the same
 // files the SDK documents and the tests check. One copy, not two.
-val bundleFolioSource = tasks.register<Copy>("bundleFolioSource") {
+// Sync, not Copy: a file removed from the source (or newly excluded) has to leave the APK as well.
+val bundleFolioSource = tasks.register<Sync>("bundleFolioSource") {
     from(rootProject.file("docs/sdk/source")) {
-        exclude("README.md")
+        // The drawings and the script that rasterises them are build sources, not something the phone reads.
+        exclude("README.md", "**/*.svg", "**/generate.py")
     }
     into(layout.buildDirectory.dir("generated/market/market/source"))
 }
@@ -52,6 +54,9 @@ val bundleFolioSource = tasks.register<Copy>("bundleFolioSource") {
 val indexFolioSource = tasks.register("indexFolioSource") {
     dependsOn(bundleFolioSource)
     val sourceDir = layout.buildDirectory.dir("generated/market/market/source")
+    // Without this the task is "up to date" after a file is added to the source, and files.json quietly stops
+    // listing everything that's actually there.
+    inputs.dir(rootProject.file("docs/sdk/source")).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(sourceDir)
     doLast {
         val root = sourceDir.get().asFile
@@ -142,6 +147,9 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // Images from sources the user added (Apache-2.0). Only coil3 core and the Compose binding: the bytes come from
+    // Folio's own HTTPS client, so there is no second network stack in the APK and no second set of rules.
+    implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20260814") // real org.json for StatusStyle round-trip tests

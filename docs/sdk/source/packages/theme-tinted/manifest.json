@@ -21,6 +21,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/theme-tinted.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Icons tinted from your wallpaper, with badges in each app’s color.",

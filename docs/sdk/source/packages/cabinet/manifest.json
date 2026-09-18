@@ -20,6 +20,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/cabinet.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "Swipe up on an app icon for a small panel with its shortcuts, latest notifications and music controls.",

@@ -216,6 +216,7 @@ internal fun MarketScreen(
                 } else if (split || open == null) {
                     Box(if (split) Modifier.width(360.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
                         MarketList(
+                            session = session,
                             tab = tab,
                             index = index,
                             statuses = statuses,
@@ -264,7 +265,7 @@ internal fun MarketScreen(
                             session = session,
                             installed = installed[open.id],
                             revoked = open.revokedReason,
-                            sourceName = open.source.label,
+                            source = open.source,
                             showBack = !split,
                             onBack = { openId = null },
                             onGet = { confirming = open.id },
@@ -487,6 +488,7 @@ private fun MarketTabLabel(tab: MarketTab, on: Boolean) = Text(
 
 @Composable
 private fun MarketList(
+    session: MarketSession,
     tab: MarketTab,
     index: RepoIndex?,
     statuses: List<SourceStatus>,
@@ -555,6 +557,7 @@ private fun MarketList(
                 SheetGroup(Modifier.padding(bottom = 10.dp)) {
                     for (entry in updates) {
                         MarketRow(
+                            session = session,
                             entry = entry,
                             installed = installed[entry.id],
                             busy = entry.id == busyId,
@@ -584,6 +587,7 @@ private fun MarketList(
                 SheetGroup(Modifier.padding(bottom = 10.dp)) {
                     for (entry in inSection) {
                         MarketRow(
+                            session = session,
                             entry = entry,
                             installed = installed[entry.id],
                             busy = entry.id == busyId,
@@ -601,6 +605,7 @@ private fun MarketList(
 
 @Composable
 private fun MarketRow(
+    session: MarketSession,
     entry: MarketEntry,
     installed: InstalledPackage?,
     busy: Boolean,
@@ -619,6 +624,8 @@ private fun MarketRow(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        PackageIcon(session, entry, 44.dp)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(name, color = Color.White, fontSize = 16.sp)
             Text(
@@ -715,7 +722,7 @@ private fun MarketPackagePage(
     session: MarketSession,
     installed: InstalledPackage?,
     revoked: String?,
-    sourceName: String,
+    source: Source,
     showBack: Boolean,
     onBack: () -> Unit,
     onGet: () -> Unit,
@@ -734,8 +741,14 @@ private fun MarketPackagePage(
                 Text("Back", color = Color(0xFF0A84FF), fontSize = 16.sp)
             }
         }
-        Text(name, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
-        entry.manifest?.author?.name?.english?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 14.sp) }
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            PackageIcon(session, MarketEntry(entry, source), 64.dp)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(name, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                entry.manifest?.author?.name?.english?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 14.sp) }
+            }
+        }
 
         if (installed?.enabled == false) {
             SheetGroup(Modifier.padding(top = 12.dp)) {
@@ -774,14 +787,16 @@ private fun MarketPackagePage(
         }
 
         // The page the author wrote: Folio draws each block itself, and skips any it doesn't know.
-        pkg?.depiction?.blocks?.forEach { block ->
+        val blocks = pkg?.depiction?.blocks.orEmpty()
+        if (blocks.none { it is DepictionBlock.Hero || it is DepictionBlock.Screenshots }) NoScreenshots()
+        blocks.forEach { block ->
             when (block) {
-                is DepictionBlock.Hero -> MarketImage(session, block.image, Modifier.fillMaxWidth().height(160.dp))
+                is DepictionBlock.Hero -> MarketImage(session, source, block.image, Modifier.fillMaxWidth().height(160.dp))
                 is DepictionBlock.Screenshots -> Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    block.images.forEach { MarketImage(session, it, Modifier.width(150.dp).height(260.dp)) }
+                    block.images.forEach { MarketImage(session, source, it, Modifier.width(150.dp).height(260.dp)) }
                 }
                 is DepictionBlock.Markdown -> Text(block.text.english, color = Color.White.copy(alpha = .85f), fontSize = 15.sp, modifier = Modifier.padding(bottom = 10.dp))
                 is DepictionBlock.FeatureList -> Column(Modifier.padding(bottom = 10.dp)) {
@@ -808,7 +823,7 @@ private fun MarketPackagePage(
         SheetGroupLabel("Information")
         SheetGroup(Modifier.padding(bottom = 12.dp)) {
             Column(Modifier.padding(14.dp)) {
-                Text("Source: ${sourceName}", color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Text("Source: ${source.label}", color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
                 Text(
                     entry.provenance?.let { "Built from ${it.repo} @ ${it.commit}" } ?: "Built into Folio",
                     color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
@@ -873,23 +888,131 @@ private object NoLauncher : MarketLauncher {
 internal fun sheetForAppIcon(linkedPage: CustomizationPage?, currentPage: CustomizationPage, marketEnabled: Boolean): String =
     if (linkedPage == null && currentPage == CustomizationPage.OVERVIEW && marketEnabled) "market" else "settings"
 
-/** An image the source ships, decoded from its own bytes. No image library: these files came with the app. */
+/**
+ * A picture a package shows. Folio's own packages are in the APK, so their bytes are decoded straight from assets; a
+ * package from a source names a path on that source's host, which [MarketImages] fetches through Folio's own client.
+ */
 @Composable
-private fun MarketImage(session: MarketSession, path: String, modifier: Modifier) {
-    val image = remember(path) {
-        session.source.asset(path)?.let { bytes ->
+private fun MarketImage(session: MarketSession, source: Source, path: String, modifier: Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val url = remember(source.url, path) { MarketImages.urlFor(source, path) }
+    val bundled = remember(path, url) {
+        if (url != null) null else session.source.asset(path)?.let { bytes ->
             runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
         }
     }
     Box(modifier.padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .06f))) {
-        if (image != null) {
-            androidx.compose.foundation.Image(
-                bitmap = image,
+        when {
+            bundled != null -> androidx.compose.foundation.Image(
+                bitmap = bundled,
                 contentDescription = null, // the page's text says what it is; the picture repeats it
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+            url != null -> coil3.compose.AsyncImage(
+                model = url,
+                imageLoader = MarketImages.loader(context),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
+    }
+}
+
+/**
+ * A package's icon: the one it ships if it has one, and otherwise a tile in its section's colour with its first
+ * letter. Every row has one either way, so the list doesn't change shape depending on who published what.
+ */
+@Composable
+private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androidx.compose.ui.unit.Dp) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val icon = entry.entry.manifest?.icon
+    val url = remember(entry.source.url, icon) { icon?.let { MarketImages.urlFor(entry.source, it) } }
+    // Folio's own icons are in the APK; a source's are on its host, and Coil fetches them.
+    val bundled = remember(icon, url) {
+        if (icon == null || url != null) null else session.source.asset(icon)?.let { bytes ->
+            runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
+        }
+    }
+    val tint = sectionColor(entry.entry.manifest?.section)
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(size / 4.5f)).background(tint),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            bundled != null -> androidx.compose.foundation.Image(
+                bitmap = bundled, contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            )
+            url != null -> coil3.compose.AsyncImage(
+                model = url, imageLoader = MarketImages.loader(context), contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            )
+            else -> Text(
+                entry.name.take(1).uppercase(), color = Color.White,
+                fontSize = (size.value * .42f).sp, fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+/** iOS system colours, one per section, so a package's tile says what kind of thing it is before you read it. */
+private fun sectionColor(section: com.mccal.folio.market.Section?): Color = when (section) {
+    com.mccal.folio.market.Section.THEMES -> Color(0xFF5E5CE6)
+    com.mccal.folio.market.Section.TWEAKS -> Color(0xFF0A84FF)
+    com.mccal.folio.market.Section.LAYOUTS -> Color(0xFF30D158)
+    com.mccal.folio.market.Section.WALLPAPERS -> Color(0xFFFF9F0A)
+    com.mccal.folio.market.Section.SCRIPTS -> Color(0xFFFF375F)
+    null -> Color(0xFF8E8E93)
+}
+
+/**
+ * What a package page shows where its pictures would be. A gap reads as something that failed to load, so Folio says
+ * it plainly - and the line is aimed at whoever published the package as much as at the person reading it.
+ */
+@Composable
+private fun NoScreenshots() {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = .05f)).padding(16.dp).testTag("package-no-screenshots"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SadFolio(46.dp)
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text("No screenshots", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Its publisher hasn't shown what it looks like yet.",
+                color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+            )
+        }
+    }
+}
+
+/** Folio's mark, a little sad: the same page with a folded corner, drawn with a small frown. */
+@Composable
+private fun SadFolio(size: androidx.compose.ui.unit.Dp) {
+    val face = Color.White.copy(alpha = .5f)
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val u = w / 54f
+        drawRoundRect(
+            color = Color.White.copy(alpha = .10f),
+            topLeft = androidx.compose.ui.geometry.Offset(7 * u, 4 * u),
+            size = androidx.compose.ui.geometry.Size(40 * u, 46 * u),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(9 * u),
+        )
+        drawCircle(face, radius = 2.6f * u, center = androidx.compose.ui.geometry.Offset(21 * u, 26 * u))
+        drawCircle(face, radius = 2.6f * u, center = androidx.compose.ui.geometry.Offset(33 * u, 26 * u))
+        // A frown: an arc opening upwards, which is the same curve as a smile turned over.
+        drawArc(
+            color = face,
+            startAngle = 200f, sweepAngle = 140f, useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(20 * u, 36 * u),
+            size = androidx.compose.ui.geometry.Size(14 * u, 10 * u),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.4f * u, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+        )
     }
 }
 

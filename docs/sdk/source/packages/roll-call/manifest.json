@@ -20,6 +20,7 @@
     "cover",
     "inner"
   ],
+  "icon": "assets/icons/roll-call.png",
   "depiction": "depiction.json",
   "license": "MIT",
   "description": "A row of app icons above Notification Center. Tap one to show only that app.",
