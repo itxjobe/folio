@@ -107,16 +107,25 @@ internal fun gaugeSweeps(level: Float, side: Float = GAUGE_SIDE): Pair<Float, Fl
     return minOf(halves, 1f) * side to (halves - 1f).coerceIn(0f, 1f) * side
 }
 
+/**
+ * How tall the Gauge's reading is, as a fraction of the glyph's width. A full charge is three digits and takes a
+ * smaller size so it still fits across the ring; 1 and 10 keep the larger one, since they have room.
+ */
+internal fun gaugeReadingSize(digits: Int): Float = if (digits > 2) .245f else .28f
+
+/** Roughly how wide a reading of this many digits comes out, in the same fractions, for keeping it inside the mark. */
+internal fun gaugeReadingWidth(digits: Int): Float = digits * gaugeReadingSize(digits) * .62f
+
 /** Everything below is a fraction of the glyph's width: the mark is taller than it is wide, like the one it copies. */
 private const val GAUGE_HEIGHT = 1.25f
 private const val GAUGE_CENTER = .70f
 private const val GAUGE_RADIUS = .36f
 private const val GAUGE_DOTS = 1.14f
-private const val GAUGE_SIDE = 100f
+private const val GAUGE_SIDE = 115f
 /** Each half of the ring when the percentage is off and the top no longer has to open for it. */
 private const val GAUGE_WHOLE_SIDE = 140f
-private const val GAUGE_LEFT_START = 130f
-private const val GAUGE_RIGHT_START = 310f
+private const val GAUGE_LEFT_START = 122f
+private const val GAUGE_RIGHT_START = 302f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -315,7 +324,7 @@ fun StatusRail(
                             val radius = w * GAUGE_RADIUS
                             val corner = Offset(center.x - radius, center.y - radius)
                             val box = Size(radius * 2, radius * 2)
-                            val stroke = Stroke(width = w * .10f, cap = StrokeCap.Round)
+                            val stroke = Stroke(width = w * .115f, cap = StrokeCap.Round)
                             val track = ink.copy(alpha = faint(.22f))
                             if (showsReading) {
                                 drawArc(track, GAUGE_LEFT_START, side, false, corner, box, style = stroke)
@@ -343,11 +352,11 @@ fun StatusRail(
                             }
                             // Cellular strength as a row of dots under the ring, where the lower break opens.
                             if (!status.airplane) for (i in 0..4) drawCircle(
-                                ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .032f,
-                                Offset(center.x + (i - 2) * w * .105f, w * (ringCenter + GAUGE_DOTS - GAUGE_CENTER)))
+                                ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * .040f,
+                                Offset(center.x + (i - 2) * w * .125f, w * (ringCenter + GAUGE_DOTS - GAUGE_CENTER)))
                         }
                         val reading = status.battery?.toString() ?: "\u2014"
-                        val readingSize = if (reading.length > 2) .245f else .28f
+                        val readingSize = gaugeReadingSize(reading.length)
                         if (showsReading) Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
                             fontSize = (visualSize.value * readingSize / fontScale).sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,

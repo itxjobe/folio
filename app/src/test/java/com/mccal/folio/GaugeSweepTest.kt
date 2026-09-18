@@ -34,3 +34,22 @@ class GaugeSweepTest {
         assertEquals(side to side, gaugeSweeps(1.4f))
     }
 }
+
+/** The reading inside the Gauge has to fit whether the battery reads 1, 10 or 100. */
+class GaugeReadingTest {
+    @Test fun `a full charge takes a smaller size than a shorter reading`() {
+        assertEquals(gaugeReadingSize(1), gaugeReadingSize(2), .0001f)
+        org.junit.Assert.assertTrue(gaugeReadingSize(3) < gaugeReadingSize(2))
+    }
+
+    @Test fun `every reading fits across the mark with room to spare`() {
+        for (digits in 1..3) {
+            val width = gaugeReadingWidth(digits)
+            org.junit.Assert.assertTrue("$digits digits come out $width wide", width <= .92f)
+        }
+    }
+
+    @Test fun `the reading never gets so small it stops being readable`() {
+        for (digits in 1..3) org.junit.Assert.assertTrue(gaugeReadingSize(digits) >= .20f)
+    }
+}
