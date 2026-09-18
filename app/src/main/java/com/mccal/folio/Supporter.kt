@@ -25,7 +25,7 @@ internal object Supporter {
     fun available(context: Context): Boolean = keys(context).isNotEmpty()
 
     fun code(context: Context): BetaCodes.Code? = stored(context)?.let {
-        (BetaCodes.verify(it, keys(context)) as? BetaCodes.Result.Valid)?.code
+        (BetaCodes.verify(it, keys(context), withdrawn = BetaKeys.WITHDRAWN) as? BetaCodes.Result.Valid)?.code
     }
 
     private fun stored(context: Context): String? =
@@ -33,7 +33,7 @@ internal object Supporter {
 
     /** Checks a code and keeps it when it's good. The result is what Settings shows the person. */
     fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now()): BetaCodes.Result {
-        val result = BetaCodes.verify(text, keys(context), today)
+        val result = BetaCodes.verify(text, keys(context), today, BetaKeys.WITHDRAWN)
         if (result is BetaCodes.Result.Valid) {
             context.getSharedPreferences(PREFS, 0).edit().putString(CODE, BetaCodes.group(text)).apply()
         }
@@ -67,4 +67,11 @@ internal object Supporter {
 internal object BetaKeys {
     const val SUPPORTER = ""
     const val TEST = ""
+
+    /**
+     * Serial numbers of codes that no longer work: one that was posted publicly, or one a refund took back. A code is
+     * checked on the phone, so a withdrawal only takes effect when someone updates Folio — keep the list short and
+     * only for codes that were really passed around.
+     */
+    val WITHDRAWN: Set<Long> = emptySet()
 }

@@ -71,6 +71,14 @@ class BetaCodesTest {
         assertTrue(BetaCodes.verify(code, publicKey, LocalDate.of(2026, 10, 2)) is BetaCodes.Result.Expired)
     }
 
+    @Test fun `a withdrawn code stops working`() {
+        val code = mint(0b0001, serial = 7)
+        assertTrue(BetaCodes.verify(code, publicKey, today) is BetaCodes.Result.Valid)
+        assertEquals(BetaCodes.Result.Withdrawn, BetaCodes.verify(code, publicKey, today, withdrawn = setOf(7L)))
+        // Only that one: someone else's code is untouched.
+        assertTrue(BetaCodes.verify(mint(0b0001, serial = 8), publicKey, today, withdrawn = setOf(7L)) is BetaCodes.Result.Valid)
+    }
+
     @Test fun `codes nobody signed, or someone else signed, are refused`() {
         val other = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
         assertEquals(BetaCodes.Result.NotOurs,

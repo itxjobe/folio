@@ -45,9 +45,12 @@ internal object BetaCodes {
         data object Unreadable : Result
         /** Well-formed, but not signed by Folio: a typo, or a code from somewhere else. */
         data object NotOurs : Result
+        /** Ours, but retired: a code that went around publicly, or one a refund took back. */
+        data object Withdrawn : Result
     }
 
-    fun verify(text: String, keys: List<String>, today: LocalDate = LocalDate.now()): Result {
+    fun verify(text: String, keys: List<String>, today: LocalDate = LocalDate.now(),
+        withdrawn: Set<Long> = emptySet()): Result {
         val bytes = decode(text) ?: return Result.Unreadable
         if (bytes.size != PAYLOAD + SIGNATURE || bytes[0].toInt() != VERSION) return Result.Unreadable
         val payload = bytes.copyOfRange(0, PAYLOAD)
@@ -58,7 +61,11 @@ internal object BetaCodes {
         val code = Code(scopes, payload[2].toInt() and 0xFF,
             (payload[3].toInt() and 0xFF shl 8) or (payload[4].toInt() and 0xFF),
             payload.copyOfRange(5, 9).fold(0L) { total, b -> total shl 8 or (b.toLong() and 0xFF) })
-        return if (code.expired(today)) Result.Expired(code) else Result.Valid(code)
+        return when {
+            code.serial in withdrawn -> Result.Withdrawn
+            code.expired(today) -> Result.Expired(code)
+            else -> Result.Valid(code)
+        }
     }
 
     private fun verifyWith(key: String, payload: ByteArray, signature: ByteArray): Boolean {

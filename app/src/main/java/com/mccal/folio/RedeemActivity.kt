@@ -1,0 +1,48 @@
+package com.mccal.folio
+
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+
+/**
+ * A folio://redeem link from a supporter email, so a code is one tap instead of a copy and paste. The link is
+ * untrusted, which costs nothing here: a code only works if it carries McCal's signature, so the worst a bad link can
+ * do is be refused. Nothing is claimed silently — Settings opens on the Supporter page to show what happened.
+ */
+class RedeemActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val code = redeemCode(intent?.data?.toString())
+        val said = when {
+            code == null -> "That link doesn't carry a Folio code."
+            else -> when (Supporter.redeem(this, code)) {
+                is BetaCodes.Result.Valid -> "Code added. Thank you."
+                is BetaCodes.Result.Expired -> "That code has run out."
+                BetaCodes.Result.Withdrawn -> "That code has been withdrawn."
+                BetaCodes.Result.NotOurs -> "Folio doesn't recognize that code."
+                BetaCodes.Result.Unreadable -> "That doesn't look like a Folio code."
+            }
+        }
+        Toast.makeText(this, said, Toast.LENGTH_LONG).show()
+        runCatching {
+            startActivity(android.content.Intent(this, MainActivity::class.java)
+                .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP))
+        }
+        finish()
+    }
+}
+
+/** The code in a folio://redeem?c=… link, or null for anything else. Plain string work, so it can be tested. */
+internal fun redeemCode(link: String?): String? {
+    val text = link?.trim() ?: return null
+    val prefix = "folio://redeem"
+    if (!text.startsWith(prefix, ignoreCase = true)) return null
+    val rest = text.substring(prefix.length)
+    val query = rest.substringAfter('?', "")
+    val code = query.split('&').firstOrNull { it.startsWith("c=", ignoreCase = true) }?.substringAfter('=')
+        ?: rest.substringBefore('?').trim('/').takeIf { it.isNotEmpty() }
+    val decoded = runCatching { java.net.URLDecoder.decode(code ?: return null, "UTF-8") }.getOrNull() ?: return null
+    // Long enough to be a code, and only characters a code can hold: anything else isn't worth passing on.
+    return decoded.trim().takeIf { it.length in 20..200 && it.all { c -> c.isLetterOrDigit() || c == '-' } }
+}

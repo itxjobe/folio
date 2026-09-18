@@ -81,6 +81,7 @@ internal fun SupporterPage() {
                 code = result.code; stored = Supporter.storedText(context); problem = null; redeeming = false
             }
             is BetaCodes.Result.Expired -> problem = "That code has run out. Ko-fi codes have a date on them; a new one will work."
+            BetaCodes.Result.Withdrawn -> problem = "That code has been withdrawn. If you think that's wrong, message me on Ko-fi and I'll sort it out."
             BetaCodes.Result.NotOurs -> problem = "Folio doesn't recognize that code. Check for a typo — the letters I, L and O aren't used."
             BetaCodes.Result.Unreadable -> problem = "That doesn't look like a Folio code. Paste the whole thing, dashes and all."
         }

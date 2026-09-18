@@ -25,6 +25,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
 - **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
 - **Big Buttons:** optional large Back, Home and Recents buttons over other apps, for when the system's are too small (Dynamic Island › In Every App). They sit above Android's own navigation, hide in full-screen apps and fade when idle.
+- **Supporter codes:** redeem a Ko-fi code in Settings › Supporter for early access to beta features. The code is checked on your phone — offline, with no account, and nothing about it is sent anywhere. Beta features stay off until you turn them on, and turning them off puts everything back.
 - **Swipe Down on Home:** pick what a swipe down the middle of Home does — Spotlight, Notification Center or nothing (Gestures & Actions). Set to Notification Center it works like Android's usual one-finger pull-down, and follows your choice of Folio's panels or Android's own shade.
 - **Move the buttons:** long-press and drag Big Buttons up the screen, away from the keyboard or an app's own bottom bar; Settings puts them back.
 - **The island steps aside in full screen:** the island in every app now leaves full-screen video and games alone, with switches for full screen and landscape (Dynamic Island › In Every App).
