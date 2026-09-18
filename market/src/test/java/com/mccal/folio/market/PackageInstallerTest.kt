@@ -169,6 +169,23 @@ class PackageInstallerTest {
         assertTrue("nothing is recorded as installed", store.installed().isEmpty())
     }
 
+    @Test fun `an update that fails leaves the version that was working in place`() {
+        installer.install(pack())
+        assertEquals("applied appPanels", host.state)
+        // Only the new version's change fails; putting the old one back still works.
+        var attempts = 0
+        host.failOn = { attempts++ == 0 }
+        val failed = failure(installer.install(pack(replace = mapOf("\"version\": \"1.0.0\"" to "\"version\": \"1.1.0\""))))
+        assertEquals(InstallResult.Reason.APPLY, failed.reason)
+        // The old version is still installed and still applied.
+        assertEquals(DebVersion.parse("1.0.0"), store.find("com.mccal.folio.cabinet")?.version)
+        host.failOn = null
+        assertEquals("applied appPanels", host.state)
+        // And it can still be removed cleanly afterwards.
+        assertTrue(installer.remove("com.mccal.folio.cabinet"))
+        assertEquals("tweaks off", host.state)
+    }
+
     @Test fun `a conflicting package is refused with the name of what it replaces`() {
         installer.install(pack())
         val rival = pack(

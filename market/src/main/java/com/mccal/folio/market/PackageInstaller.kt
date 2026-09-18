@@ -118,6 +118,16 @@ class PackageInstaller(
             pkg.changes.take(snapshots.size).zip(snapshots).reversed().forEach { (change, snapshot) ->
                 runCatching { host.restore(change, snapshot) }
             }
+            // An update undoes the version it replaces before applying the new one, so put that version back too:
+            // a failed update leaves the phone exactly as it was, with the old version still working.
+            replaced?.let { old ->
+                val previous = store.changesFor(old.id, old.version)
+                if (previous != null) {
+                    val again = mutableListOf<String>()
+                    runCatching { previous.forEach { again += host.apply(it) } }
+                    store.put(old.copy(snapshots = again), previous)
+                }
+            }
             safeMode.endChange()
             return InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't apply that package, so nothing changed")
         }
