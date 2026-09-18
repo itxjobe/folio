@@ -1,5 +1,6 @@
 package com.mccal.folio
 
+import androidx.compose.ui.platform.LocalDensity
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.focus.focusRequester
@@ -678,11 +679,18 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
         Column(Modifier.weight(1f).edgeFade(bodyScroll).verticalScroll(bodyScroll).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp), content = pageContent)
     } else {
-        // Split arrangement by shape, not device: wider than tall, sidebar and page are tiled; taller than wide,
-        // the page gets the width and the sidebar opens over it from the sidebar button (iPhone Duo split views).
-        val tiled = maxWidth > maxHeight
+        // iPad Settings keeps both columns in portrait as well as landscape, as long as the window is wide enough for
+        // two readable ones; under that the page gets the width and the list opens over it from the sidebar button
+        // (iPhone Duo split views). 700 dp is the same threshold the Market and the Mockup Lab use.
+        val tiled = maxWidth >= 700.dp
+        // Half folded with the fold running down the screen, the divider goes on the fold, so no row sits on the
+        // crease (iPhone Duo: controls move away from the fold). Flat, it's a share of the width.
+        val hinge = LocalHinge.current?.takeIf { it.active && it.vertical }
+        val density = LocalDensity.current
+        val onFold = hinge?.let { with(density) { it.startPx.toDp() } }?.takeIf { it >= 280.dp && it <= fullWidth * .7f }
         // Tiled it shares the width; as an overlay it can be a little wider so rows don't wrap.
-        val sidebarWidth = if (tiled) (fullWidth * .4f).coerceIn(280.dp, 380.dp) else minOf(360.dp, fullWidth * .6f)
+        val sidebarWidth = onFold
+            ?: if (tiled) (fullWidth * .4f).coerceIn(280.dp, 380.dp) else minOf(360.dp, fullWidth * .6f)
         var sidebarOpen by rememberSaveable { mutableStateOf(tiled || page == CustomizationPage.OVERVIEW) }
         var shownPage by remember { mutableStateOf(page) }
         // Opening a page slides the list away; coming back to the top brings it back, since the list is all that page has.

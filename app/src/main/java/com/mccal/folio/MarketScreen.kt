@@ -181,11 +181,22 @@ internal fun MarketScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val split = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale) && maxWidth.value >= 700f
+        val regular = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale)
+        val split = regular && maxWidth.value >= 700f
+        // Where the tabs go, the same rule the Mockup Lab draws: a sidebar once the window is as wide as the Fold8
+        // inner screen (iPad), a rail on the long edge when the window is too short for a bar under it (the cover
+        // screen rotated), and the bar itself everywhere else.
+        val tabs = when {
+            !regular && maxWidth > maxHeight -> TabPlacement.RAIL
+            split && maxWidth.value >= 920f -> TabPlacement.SIDEBAR
+            else -> TabPlacement.BOTTOM
+        }
         val packages = entries.map { it.entry }
         val open = openId?.let { id -> entries.firstOrNull { it.id == id } }
 
-        Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize()) {
+        if (tabs == TabPlacement.SIDEBAR) MarketSidebar(tab) { tab = it; openId = null }
+        Column(Modifier.weight(1f)) {
             Row(Modifier.weight(1f)) {
                 if (tab == MarketTab.SETTINGS && settingsContent != null) {
                     Box(Modifier.fillMaxSize()) { settingsContent() }
@@ -257,7 +268,9 @@ internal fun MarketScreen(
                     onDismiss = { message = null },
                 )
             }
-            MarketTabs(tab) { tab = it; openId = null }
+            if (tabs == TabPlacement.BOTTOM) MarketTabs(tab) { tab = it; openId = null }
+        }
+        if (tabs == TabPlacement.RAIL) MarketRail(tab) { tab = it; openId = null }
         }
         importing?.let { (bytes, pkg) ->
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { importing = null }) {
@@ -374,18 +387,90 @@ internal fun MarketScreen(
 private fun MarketTabs(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
     Row(Modifier.fillMaxWidth().background(Color(0xFF1C1C1E)).padding(vertical = 6.dp)) {
         for (tab in MarketTab.entries) {
-            val on = tab == selected
             Column(
-                Modifier.weight(1f).clickable(onClickLabel = tab.label) { onSelect(tab) }
-                    .testTag("market-tab-${tab.name.lowercase()}").padding(vertical = 4.dp),
+                Modifier.weight(1f).marketTab(tab, onSelect).padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
+            ) { MarketTabIcon(tab, tab == selected); MarketTabLabel(tab, tab == selected) }
+        }
+    }
+}
+
+/** Where the tabs sit: under the content, up the trailing edge, or as a labelled sidebar on a big screen. */
+private enum class TabPlacement { BOTTOM, RAIL, SIDEBAR }
+
+/**
+ * The tabs on the long edge, for a window too short for a bar underneath (the Fold8 cover screen rotated). The
+ * content keeps the height it has, which is the scarce direction there.
+ */
+@Composable
+private fun MarketRail(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
+    Column(
+        Modifier.width(76.dp).fillMaxHeight().background(Color(0xFF1C1C1E)).padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        for (tab in MarketTab.entries) {
+            Column(
+                Modifier.fillMaxWidth().marketTab(tab, onSelect).padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { MarketTabIcon(tab, tab == selected); MarketTabLabel(tab, tab == selected) }
+        }
+    }
+}
+
+/**
+ * A labelled sidebar instead of a tab bar, the way iPad Settings and the App Store use the width they have. The
+ * selected row is a rounded highlight, inset from the edges like the sidebar rows in Folio's own Settings.
+ */
+@Composable
+private fun MarketSidebar(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
+    Column(
+        Modifier.width(180.dp).fillMaxHeight().background(Color(0xFF1C1C1E))
+            .windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            "Market", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 10.dp),
+        )
+        for (tab in MarketTab.entries) {
+            val on = tab == selected
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(if (on) Color(0xFF0A84FF) else Color.Transparent)
+                    .marketTab(tab, onSelect).padding(horizontal = 12.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(tab.icon, contentDescription = null, tint = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), modifier = Modifier.size(22.dp))
-                Text(tab.label, color = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), fontSize = 11.sp)
+                Icon(
+                    tab.icon, contentDescription = null, modifier = Modifier.size(20.dp),
+                    tint = if (on) Color.White else Color.White.copy(alpha = .55f),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    tab.label, color = if (on) Color.White else Color.White.copy(alpha = .85f), fontSize = 15.sp,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
             }
         }
     }
 }
+
+/** One tab is one control wherever it's drawn, so the tag and the spoken label don't depend on the layout. */
+private fun Modifier.marketTab(tab: MarketTab, onSelect: (MarketTab) -> Unit) =
+    clickable(onClickLabel = tab.label) { onSelect(tab) }.testTag("market-tab-${tab.name.lowercase()}")
+
+@Composable
+private fun MarketTabIcon(tab: MarketTab, on: Boolean) = Icon(
+    tab.icon, contentDescription = null, modifier = Modifier.size(22.dp),
+    tint = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f),
+)
+
+@Composable
+private fun MarketTabLabel(tab: MarketTab, on: Boolean) = Text(
+    tab.label, color = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), fontSize = 11.sp,
+    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+)
 
 @Composable
 private fun MarketList(
