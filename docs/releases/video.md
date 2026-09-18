@@ -47,6 +47,33 @@ Where recordings are genuinely free to use:
 | **Wikimedia Commons** | Per file, mostly PD or CC BY-SA | Slower to browse, but each file states its licence plainly. |
 | **classicals.de** (Gregor Quendel) | CC BY-NC 4.0 | What 0.6.0 used. Fine for posts that sell nothing; see above. |
 
+### What 0.7.0 uses
+
+**Vivaldi, *Spring* (Allegro) — John Harrison with the Wichita State University Chamber Players, CC BY-SA 3.0**
+(McCal, 2026-09-18). The file is `~/Downloads/vivaldi-spring-harrison.mp3`, from the Internet Archive item
+`The_Four_Seasons_Vivaldi-10361`. The video takes its first thirty seconds — the opening ritornello, which is the
+part everyone knows — with a fade in and out.
+
+Two things follow from that licence, and they're worth keeping straight:
+
+- **The video is CC BY-SA.** Syncing music to moving images is an adaptation under Creative Commons, so the video
+  carries the recording's licence. **Folio is untouched** — still MIT. Only the video.
+- **Every post that carries it needs the credit**, the way the 0.6.0 post credited Rossini:
+
+  > Music: Vivaldi, *Spring* (Allegro) — John Harrison with the Wichita State University Chamber Players,
+  > CC BY-SA 3.0, trimmed for the video.
+
+Commercial use is allowed, which is why this beats reusing the CC BY-NC arrangement now that a video points at a
+paid shop item.
+
+Rebuild it with the music in place:
+
+```bash
+python3 tools/make-video.py --music ~/Downloads/vivaldi-spring-harrison.mp3
+```
+
+### The options that were on the table
+
 Picking for this cut, in order of fit:
 
 1. **Bach, Well-Tempered Clavier Book 1, Prelude in C.** A steady pulse that never stops, which is exactly what eight
