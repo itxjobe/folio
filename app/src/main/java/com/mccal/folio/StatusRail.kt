@@ -98,9 +98,9 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
  * The Gauge's ring, split in two: gaps at the top for the percentage and at the bottom for the signal's dots.
  * Angles are Compose's: 0 is 3 o'clock and they grow clockwise.
  */
-private const val GAUGE_SIDE = 120f
-private const val GAUGE_LEFT_START = 120f
-private const val GAUGE_RIGHT_START = 300f
+private const val GAUGE_SIDE = 114f
+private const val GAUGE_LEFT_START = 123f
+private const val GAUGE_RIGHT_START = 303f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -302,7 +302,7 @@ fun StatusRail(
                                 if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
                             }
                             // The connection sits between the two gaps, small enough to keep clear of the ring.
-                            translate(0f, w * .06f) {
+                            translate(0f, w * .085f) {
                                 scale(.66f, center) {
                                     when {
                                         wifiVisual is WifiSignalVisual.Connected -> {
@@ -316,9 +316,12 @@ fun StatusRail(
                                 }
                             }
                         }
-                        Text(status.battery?.toString() ?: "\u2014", color = if (status.charging && style.colorfulBattery) charging else ink,
-                            fontSize = (visualSize.value * .27f / fontScale).sp, fontWeight = FontWeight.SemiBold,
-                            maxLines = 1, softWrap = false)
+                        // A full charge is three digits wide; it takes a smaller size so it never touches the arc.
+                        val reading = status.battery?.toString() ?: "\u2014"
+                        Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
+                            fontSize = (visualSize.value * (if (reading.length > 2) .225f else .27f) / fontScale).sp,
+                            fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
+                            modifier = Modifier.padding(top = visualSize * .02f))
                         if (status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
                                 modifier = Modifier.padding(top = visualSize * .34f).size(visualSize * .3f))
