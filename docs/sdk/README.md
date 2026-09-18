@@ -8,7 +8,8 @@ Make themes, tweaks and layouts for the Folio Market.
 |---|---|
 | [Package format v1](format-v1.md) | `.foliopkg` files, sources, permissions, links |
 | [JSON Schemas](schema/v1/) | Manifest, page, index, entry, revocation list, tweak bundle, settings page |
-| [Example package](examples/cabinet/) | Cabinet, a built-in tweak packaged as a v1 package |
+| [Folio's own source](source/) | The app's real themes and tweaks as packages: the worked example |
+| [ADR 0002: signing](../adr/0002-signing.md) | Why ECDSA P-256, and how keys are pinned |
 | [Threat model](threat-model.md) | What the Market defends against, and how |
 | [Cabinet sample](examples/cabinet/) | A complete `tweakBundle` package |
 | [Decision records](../adr/) | Why the format works this way |

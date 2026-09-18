@@ -145,7 +145,8 @@
           },
           "url": {
             "type": "string",
-            "maxLength": 2048
+            "maxLength": 2048,
+            "pattern": "^(https://\\S+|(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+)$"
           },
           "sha256": {
             "type": "string",
@@ -182,25 +183,18 @@
             }
           }
         },
-        "if": {
-          "properties": {
-            "manifest": {
-              "properties": {
-                "kind": {
-                  "contains": {
-                    "const": "externalApp"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "then": {},
-        "else": {
-          "required": [
-            "url",
+        "dependentRequired": {
+          "url": [
             "sha256",
             "size"
+          ],
+          "sha256": [
+            "url",
+            "size"
+          ],
+          "size": [
+            "url",
+            "sha256"
           ]
         }
       }

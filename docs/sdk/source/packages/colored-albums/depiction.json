@@ -1,0 +1,44 @@
+{
+  "$schema": "https://folio.mccal.dev/schema/v1/depiction.schema.json",
+  "format": 1,
+  "tint": "#FF375F",
+  "blocks": [
+    {
+      "type": "markdown",
+      "text": "The music card and the island’s sound bars take on the album art’s color.\n\nInspired by ColorFlow by David Goldman. Re-created from scratch for Folio; no tweak code is included."
+    },
+    {
+      "type": "featureList",
+      "items": [
+        "The music card follows the album art",
+        "The island’s sound bars match it"
+      ]
+    },
+    {
+      "type": "compatibility",
+      "screens": [
+        "cover",
+        "inner"
+      ]
+    },
+    {
+      "type": "changelog",
+      "entries": [
+        {
+          "version": "1.0.0",
+          "date": "2026-09-17",
+          "notes": "Colored Albums becomes a package in the Folio Market. The tweak itself has shipped with Folio since 0.6.0."
+        }
+      ]
+    },
+    {
+      "type": "link",
+      "title": "Folio on GitHub",
+      "url": "https://github.com/McCal-Codes/folio"
+    },
+    {
+      "type": "donation",
+      "url": "https://ko-fi.com/mccal"
+    }
+  ]
+}

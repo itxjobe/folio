@@ -95,6 +95,18 @@ internal class Fields(private val json: JSONObject, private val path: String, pr
         return value
     }
 
+    /** A JSON integer within [range]. `1.0` counts as an integer, like the schemas; `1.5` and `"1"` don't. */
+    fun long(key: String, required: Boolean, range: LongRange): Long? {
+        if (missing(key, required)) return null
+        val number = json.opt(key) as? Number ?: return null.also { p.errors += "${where(key)} must be a whole number" }
+        val exact = runCatching { BigDecimal(number.toString()).toBigIntegerExact() }.getOrNull()
+            ?: return null.also { p.errors += "${where(key)} must be a whole number" }
+        if (exact < BigDecimal(range.first.toString()).toBigInteger() || exact > BigDecimal(range.last.toString()).toBigInteger()) {
+            return null.also { p.errors += "${where(key)} must be between ${range.first} and ${range.last}" }
+        }
+        return exact.toLong()
+    }
+
     fun anyString(key: String) {
         if (json.has(key) && json.opt(key) !is String) p.errors += "${where(key)} must be a string"
     }

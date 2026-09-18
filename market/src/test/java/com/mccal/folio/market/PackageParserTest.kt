@@ -11,9 +11,9 @@ import java.io.File
 
 class PackageParserTest {
     private val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "CHANGELOG.md").exists() }
-    private val cabinet = File(root, "docs/sdk/examples/cabinet/manifest.json").readText()
-    private val full = javaClass.getResource("/conformance/manifest-full.json")!!.readText()
-    private val fullDepiction = javaClass.getResource("/conformance/depiction-full.json")!!.readText()
+    private val cabinet = File(root, "docs/sdk/source/packages/cabinet/manifest.json").readText()
+    private val full = javaClass.getResource("/conformance/manifest-all-fields.json")!!.readText()
+    private val fullDepiction = javaClass.getResource("/conformance/depiction-all-blocks.json")!!.readText()
 
     private fun <T> ok(result: ParseResult<T>): T {
         if (result !is ParseResult.Ok) fail("expected Ok, got $result")
@@ -43,14 +43,14 @@ class PackageParserTest {
 
     @Test fun `reads every manifest field`() {
         val m = ok(PackageManifest.parse(full))
-        assertEquals("Iconos Mono Línea", m.name.resolve(listOf("es")))
+        assertEquals("Todos los campos", m.name.resolve(listOf("es")))
         assertEquals(DebVersion.parse("2:1.4.0~beta2-1"), m.version)
         assertEquals(setOf(Screen.INNER), m.screens)
-        assertEquals(listOf("com.mccal.folio.classic (>= 1.0)", "dev.example.base"), m.depends.map { it.toString() })
+        assertEquals(listOf("com.mccal.folio.theme.classic (>= 1.0)", "com.mccal.folio.cabinet"), m.depends.map { it.toString() })
         assertEquals(PackageRelation.Op.EARLIER, m.conflicts.single().op)
-        assertEquals(listOf(ExternalSource.Store.PLAY_STORE, ExternalSource.Store.FDROID, ExternalSource.Store.OBTAINIUM), m.via.map { it.store })
-        assertEquals("https://github.com/example/monoline", m.via[2].repoUrl)
-        assertEquals(setOf(Provides.ICON_PACK), m.provides)
+        assertEquals(listOf(ExternalSource.Store.OBTAINIUM), m.via.map { it.store })
+        assertEquals("https://github.com/McCal-Codes/folio", m.via.single().repoUrl)
+        assertEquals(setOf(Provides.FOLIO_THEME), m.provides)
     }
 
     @Test fun `screens default to both`() {
@@ -134,11 +134,14 @@ class PackageParserTest {
     }
 
     @Test fun `reads the Cabinet page and every block type`() {
-        val cabinetPage = ok(Depiction.parse(File(root, "docs/sdk/examples/cabinet/depiction.json").readText()))
+        val cabinetPage = ok(Depiction.parse(File(root, "docs/sdk/source/packages/cabinet/depiction.json").readText()))
         assertEquals(0xFF0A84FF.toInt(), cabinetPage.tint)
-        assertEquals(6, cabinetPage.blocks.size)
+        assertEquals(
+            listOf("Markdown", "FeatureList", "Compatibility", "Changelog", "Link", "Donation"),
+            cabinetPage.blocks.map { it::class.simpleName },
+        )
         val page = ok(Depiction.parse(fullDepiction))
-        assertEquals(0xFFD85A30.toInt(), page.tint)
+        assertEquals(0xFF0A84FF.toInt(), page.tint)
         assertEquals(
             listOf("Hero", "Screenshots", "Markdown", "FeatureList", "Compatibility", "Compatibility", "Changelog", "Link", "Donation"),
             page.blocks.map { it::class.simpleName },

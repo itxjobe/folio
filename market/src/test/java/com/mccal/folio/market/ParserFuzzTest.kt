@@ -40,6 +40,50 @@ class ParserFuzzTest {
         }
     }
 
+    @FuzzTest(maxDuration = "5m")
+    fun entry(data: FuzzedDataProvider) {
+        val result = SourceEntry.parse(data.consumeRemainingAsString())
+        checkReport(result)
+        if (result is ParseResult.Ok) {
+            val entry = result.value
+            check(SourceEntry.KEY_ID.containsMatchIn(entry.keyId))
+            check(FileRef.SHA256.containsMatchIn(entry.index.sha256))
+            check(entry.index.size in 1..SourceEntry.MAX_INDEX_BYTES && entry.maxAge in 3600..2592000)
+            check(!entry.index.path.startsWith("/") && ".." !in entry.index.path)
+        }
+    }
+
+    @FuzzTest(maxDuration = "5m")
+    fun index(data: FuzzedDataProvider) {
+        val result = RepoIndex.parse(data.consumeRemainingAsString())
+        checkReport(result)
+        if (result is ParseResult.Ok) {
+            val index = result.value
+            check(index.packages.size <= RepoIndex.MAX_PACKAGES && index.featured.size <= RepoIndex.MAX_FEATURED)
+            for (pkg in index.packages) {
+                // An entry is only installable when the index and the manifest copy agree.
+                check(pkg.manifest == null || (pkg.manifest.id == pkg.id && pkg.manifest.version == pkg.version))
+                pkg.url?.let { check(!it.startsWith("/") && ".." !in it) }
+                check(!pkg.installable || pkg.sha256?.let(FileRef.SHA256::containsMatchIn) == true)
+            }
+        }
+    }
+
+    @FuzzTest(maxDuration = "5m")
+    fun revoked(data: FuzzedDataProvider) {
+        val result = RevocationList.parse(data.consumeRemainingAsString())
+        checkReport(result)
+        if (result is ParseResult.Ok) {
+            val list = result.value
+            check(list.packages.size <= RevocationList.MAX_ENTRIES)
+            for (entry in list.packages) {
+                check(entry.versions.isNotEmpty() && entry.versions.size <= RevocationList.MAX_VERSIONS)
+                // A named version must be a real version; null is the "*" wildcard.
+                entry.versions.filterNotNull().forEach { check(DebVersion.parse(it) != null) }
+            }
+        }
+    }
+
     /** Whatever JsonGuard accepts, org.json must read without an exception. */
     @FuzzTest(maxDuration = "5m")
     fun jsonGuard(data: FuzzedDataProvider) {

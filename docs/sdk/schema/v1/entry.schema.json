@@ -12,6 +12,9 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "format": {
       "const": 1
     },
@@ -21,7 +24,8 @@
     },
     "timestamp": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 4102444800
     },
     "maxAge": {
       "type": "integer",

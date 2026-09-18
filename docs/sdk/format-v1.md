@@ -116,6 +116,7 @@ Folio adds its own rows for privacy, source, "Built from" and Report.
 Host a source on any HTTPS server; GitHub Pages is the easy path. The layout:
 
 ```
+key.pub             the source's public key (base64 SPKI), shown as a fingerprint when the source is added
 entry.json          signed pointer to the index
 entry.json.sig      detached signature over entry.json's exact bytes
 index.json          repo info and package list
@@ -124,6 +125,8 @@ revoked.json.sig
 packages/*.foliopkg
 icon.png
 ```
+
+Folio's own source is in [`source/`](source/), with the app's real themes and tweaks; it's the worked example.
 
 ### `entry.json`
 
@@ -143,7 +146,13 @@ The client accepts an entry only when all of these hold:
 3. `timestamp + maxAge` hasn't passed; `maxAge` is at most 30 days (freeze protection).
 4. The downloaded index matches `size` and `sha256`.
 
-The signature algorithm is decided in ADR 0002, during Phase 2.
+Signatures are ECDSA P-256 with SHA-256, over the file's exact bytes, in base64 DER ([ADR 0002](../adr/0002-signing.md)).
+The key is pinned the first time the source is added, and Folio won't follow a key change without asking.
+
+**How often Folio asks:** a background refresh waits at least six hours and sends `If-None-Match`, so an unchanged
+source answers 304 with no body. When the entry still pins the hash of the list Folio already has, the list isn't
+downloaded at all. One refresh is at most five requests: `entry.json`, its signature, the index, `revoked.json` and its
+signature. Folio never calls a repository API, which is what keeps it clear of GitHub's 60-requests-an-hour limit.
 
 ### `index.json`
 
@@ -170,6 +179,8 @@ The signature algorithm is decided in ADR 0002, during Phase 2.
 ```
 
 - **Package URLs:** relative to the index, or absolute https (for example a GitHub Release asset URL). Folio never calls the GitHub API for each package.
+- **`url`, `sha256` and `size` come together**, or not at all. A package built into Folio has none of them, because
+  there's nothing to download; a hosted package needs all three, which `folio-pkg index` checks when it builds the list.
 - **Consistency:** the manifest copy must match the manifest inside the downloaded file, or the install fails.
 
 ### `revoked.json`
@@ -178,7 +189,10 @@ The signature algorithm is decided in ADR 0002, during Phase 2.
 { "format": 1, "timestamp": 1789660320, "packages": [{ "id": "dev.bad.pkg", "versions": ["*"], "reason": "Malware" }], "sources": [] }
 ```
 
-It's signed the same way as `entry.json`. Revoked packages are turned off, and the user is told why.
+It's signed the same way as `entry.json`. Revoked packages are turned off, and the user is told why. `"*"` in
+`versions` means every version. An unsigned, broken or older revocation list is ignored rather than trusted, so a host
+can't un-revoke something by serving an older list. A source can also be listed in a source the user already trusts,
+which drops it before Folio calls it at all.
 
 ### Trust
 
@@ -251,3 +265,4 @@ Scripts can only use actions whose permission they declare. New permissions come
     Folio. Folio won't install it rather than guess: those values decide what a package may change.
 - **Breaking changes** use `format: 2`, with a new schema folder. Folio keeps reading v1.
 - **Compatibility:** every v1 package in `market/src/test/resources/corpus/v1/` must keep installing in every future Folio version.
+- **Folio's own source** (`source/`) is part of the test suite: its files are checked against these schemas and read by the parsers on every run.

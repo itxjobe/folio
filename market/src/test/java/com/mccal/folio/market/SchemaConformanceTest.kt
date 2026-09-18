@@ -21,8 +21,11 @@ import kotlin.random.Random
  * - Schema says invalid → the parser rejects it, says it needs a newer Folio, or reports what it skipped
  *   (newer fields and blocks are skipped on purpose; see "Versioning this format").
  *
- * Known places where the parser is stricter than the schemas can express, kept out of the generated samples:
- * language tags that differ only in case, and a trailing newline where Java's `$` would match.
+ * Two kinds of rule the parser applies that JSON Schema can't express:
+ * - **Cross-field:** an index entry's `id` and `version` must match the manifest copy beside it, or a source could show
+ *   one package and ship another. Errors like these are listed in [CROSS_FIELD] and don't count as a disagreement.
+ * - **Kept out of the generated samples:** language tags that differ only in case, and a trailing newline, which Java's
+ *   `$` would accept but Folio won't.
  */
 class SchemaConformanceTest {
     private val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "CHANGELOG.md").exists() }
@@ -30,9 +33,17 @@ class SchemaConformanceTest {
     private val mapper = ObjectMapper()
         .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-    private val factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+    // index.schema.json refers to manifest.schema.json by its published URL; map that prefix to this folder so the
+    // tests read the schemas from disk and never reach for the network.
+    private val factory = JsonSchemaFactory.builder(JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012))
+        .schemaMappers { it.mapPrefix("https://folio.mccal.dev/schema/v1/", schemaDir.toURI().toString()) }
+        .build()
     private val manifestSchema = schema("manifest")
     private val depictionSchema = schema("depiction")
+    private val entrySchema = schema("entry")
+    private val indexSchema = schema("index")
+    private val revokedSchema = schema("revoked")
+    private val sourceDir = File(root, "docs/sdk/source")
 
     private fun schema(name: String): JsonSchema = factory.getSchema(File(schemaDir, "$name.schema.json").readText())
     private fun resource(name: String) = javaClass.getResource("/conformance/$name")!!.readText()
@@ -47,6 +58,7 @@ class SchemaConformanceTest {
         val errors = schemaErrors(schema, text)
         val result = parse(text)
         val clean = result is ParseResult.Ok && result.ignored.isEmpty()
+        if (result is ParseResult.Invalid && result.errors.all { e -> CROSS_FIELD.any { it in e } }) return null
         return when {
             errors.isEmpty() && !clean -> "schema accepts, parser says $result"
             errors.isNotEmpty() && clean -> "schema rejects ($errors), parser accepts"
@@ -54,17 +66,54 @@ class SchemaConformanceTest {
         }
     }
 
-    @Test fun `the samples are valid for both`() {
-        val samples = listOf(
-            manifestSchema to File(root, "docs/sdk/examples/cabinet/manifest.json").readText(),
-            manifestSchema to resource("manifest-full.json"),
-            depictionSchema to File(root, "docs/sdk/examples/cabinet/depiction.json").readText(),
-            depictionSchema to resource("depiction-full.json"),
-        )
-        for ((schema, text) in samples) {
-            assertEquals(emptyList<String>(), schemaErrors(schema, text))
-            assertEquals(null, agree(schema, text) { if (schema === manifestSchema) PackageManifest.parse(it) else Depiction.parse(it) })
+    @Test fun `every file Folio publishes is valid for both the schema and the parser`() {
+        val files = mutableListOf<Triple<JsonSchema, String, (String) -> ParseResult<*>>>()
+        for (dir in sourceDir.resolve("packages").listFiles()!!.sortedBy { it.name }) {
+            files += Triple(manifestSchema, File(dir, "manifest.json").readText(), PackageManifest::parse)
+            files += Triple(depictionSchema, File(dir, "depiction.json").readText(), Depiction::parse)
         }
+        files += Triple(indexSchema, sourceDir.resolve("index.json").readText(), RepoIndex::parse)
+        files += Triple(revokedSchema, sourceDir.resolve("revoked.json").readText(), RevocationList::parse)
+        files += Triple(manifestSchema, resource("manifest-all-fields.json"), PackageManifest::parse)
+        files += Triple(depictionSchema, resource("depiction-all-blocks.json"), Depiction::parse)
+        assertEquals(22, files.size)
+        for ((schema, text, parse) in files) {
+            assertEquals(emptyList<String>(), schemaErrors(schema, text))
+            assertEquals(null, agree(schema, text, parse))
+        }
+    }
+
+    @Test fun `mutated source files get the same answer from the schema and the parser`() {
+        val entry = """{"format":1,"keyId":"A1B2C3D4E5F60789","timestamp":1789660320,"maxAge":1209600,
+            "index":{"path":"index.json","sha256":"${"3b".repeat(32)}","size":18342}}"""
+        differential(entrySchema, listOf(entry), seed = 13, minValid = 20) { SourceEntry.parse(it) }
+        differential(revokedSchema, listOf(sourceDir.resolve("revoked.json").readText(), REVOKED_ENTRIES), seed = 17, minValid = 40) {
+            RevocationList.parse(it)
+        }
+        differential(indexSchema, listOf(sourceDir.resolve("index.json").readText()), seed = 19, rounds = 1500, minValid = 20) {
+            RepoIndex.parse(it)
+        }
+    }
+
+    @Test fun `a thousand packages parse quickly`() {
+        val one = org.json.JSONObject(sourceDir.resolve("index.json").readText()).getJSONArray("packages").getJSONObject(0)
+        val packages = JSONArray()
+        repeat(1000) { i ->
+            val copy = org.json.JSONObject(one.toString())
+            val id = "com.mccal.folio.bulk-" + "%04d".format(i)
+            copy.put("id", id)
+            copy.getJSONObject("manifest").put("id", id)
+            packages.put(copy)
+        }
+        val text = org.json.JSONObject(sourceDir.resolve("index.json").readText()).put("packages", packages).toString()
+        // Warm up, then measure: the plan's budget is 150 ms, and this bound only catches a real regression.
+        RepoIndex.parse(text)
+        val started = System.nanoTime()
+        val parsed = RepoIndex.parse(text)
+        val millis = (System.nanoTime() - started) / 1_000_000
+        assertEquals(1000, ((parsed as ParseResult.Ok).value).packages.size)
+        assertTrue("1,000 packages took $millis ms", millis < 1500)
+        println("1,000-package index parsed in $millis ms")
     }
 
     @Test fun `Kotlin enums list exactly the schema's values`() {
@@ -108,22 +157,27 @@ class SchemaConformanceTest {
     }
 
     @Test fun `mutated manifests get the same answer from the schema and the parser`() {
-        differential(manifestSchema, listOf(File(root, "docs/sdk/examples/cabinet/manifest.json").readText(), resource("manifest-full.json")), seed = 7) {
+        differential(manifestSchema, listOf(sourceDir.resolve("packages/cabinet/manifest.json").readText(), resource("manifest-all-fields.json")), seed = 7) {
             PackageManifest.parse(it)
         }
     }
 
     @Test fun `mutated pages get the same answer from the schema and the parser`() {
-        differential(depictionSchema, listOf(File(root, "docs/sdk/examples/cabinet/depiction.json").readText(), resource("depiction-full.json")), seed = 11) {
+        differential(depictionSchema, listOf(sourceDir.resolve("packages/cabinet/depiction.json").readText(), resource("depiction-all-blocks.json")), seed = 11) {
             Depiction.parse(it)
         }
     }
 
-    private fun differential(schema: JsonSchema, seeds: List<String>, seed: Int, parse: (String) -> ParseResult<*>) {
+    /**
+     * Mutates [seeds] and fails on any disagreement. [minValid] is how many mutants must still be valid for the run to
+     * prove anything; small files where every field is required survive mutation far less often than a manifest does.
+     */
+    private fun differential(schema: JsonSchema, seeds: List<String>, seed: Int, rounds: Int = ROUNDS, minValid: Int = rounds / 20,
+                             parse: (String) -> ParseResult<*>) {
         val random = Random(seed)
         val disagreements = LinkedHashMap<String, String>()
         var clean = 0
-        repeat(ROUNDS) {
+        repeat(rounds) {
             val doc = JSONObject(seeds.random(random))
             repeat(1 + random.nextInt(3)) { mutate(doc, random) }
             val text = doc.toString()
@@ -133,7 +187,7 @@ class SchemaConformanceTest {
         }
         assertTrue(disagreements.entries.take(5).joinToString("\n\n") { "${it.key}\n  ${it.value}" }, disagreements.isEmpty())
         // The generator must still produce a good share of valid files, or the check proves little.
-        assertTrue("only $clean of $ROUNDS mutants were valid", clean > ROUNDS / 20)
+        assertTrue("only $clean of $rounds mutants were valid", clean >= minValid)
     }
 
     private fun containers(node: Any, out: MutableList<Any>) {
@@ -174,11 +228,15 @@ class SchemaConformanceTest {
 
     private companion object {
         const val ROUNDS = 4000
+        val CROSS_FIELD = listOf("doesn't match the manifest's")
         val FIELD_NAMES = listOf(
             "format", "id", "name", "version", "author", "minFolio", "section", "kind", "permissions", "screens", "depends", "conflicts",
             "icon", "depiction", "license", "description", "via", "provides", "requires", "features", "url", "store", "repoUrl",
             "tint", "blocks", "type", "image", "images", "text", "items", "notes", "entries", "date", "title", "\$schema", "en", "es",
         )
+        val REVOKED_ENTRIES = """{"format":1,"timestamp":1789660320,
+            "packages":[{"id":"com.mccal.folio.cabinet","versions":["*","1.0.0"],"reason":"Test input"}],
+            "sources":[{"url":"https://folio.mccal.dev/source/","reason":"Test input"}]}"""
         val POOL: List<Any> = listOf(
             JSONObject.NULL, true, 0, 1, 2, -1, 1.5, "", "a", "x".repeat(40), "x".repeat(41), "x".repeat(400), "x".repeat(401),
             "x".repeat(4001), "https://example.com", "http://example.com", "https://", "https://a b", "assets/a.png", "/abs.png",
@@ -191,7 +249,10 @@ class SchemaConformanceTest {
             "{\"en\":\"\"}", "{\"EN\":\"x\"}", "{\"en\":\"x\",\"e\":\"y\"}", "{\"store\":\"playStore\"}",
             "{\"store\":\"playStore\",\"id\":\"com.example.app\"}", "{\"store\":\"obtainium\",\"repoUrl\":\"https://github.com/a/b\"}",
             "{\"type\":\"hero\",\"image\":\"a.png\"}", "{\"type\":\"future\"}", "{\"type\":\"markdown\"}", "{\"features\":[\"icons\"]}",
-            "{\"version\":\"1.0\",\"notes\":\"x\"}", "{\"name\":\"x\"}",
+            "{\"version\":\"1.0\",\"notes\":\"x\"}", "{\"name\":\"x\"}", "index.json", "packages/a_1.0.0.foliopkg",
+            "A1B2C3D4E5F60789", "a1b2c3d4e5f60789", "${"a".repeat(64)}", "*", 1789660320, 1209600, 3599, 18342,
+            "{\"path\":\"index.json\",\"sha256\":\"${"a".repeat(64)}\",\"size\":10}", "{\"repo\":\"McCal-Codes/folio\",\"commit\":\"3f9c2a1\"}",
+            "{\"package\":\"com.mccal.folio.cabinet\"}", "{\"id\":\"com.mccal.folio.cabinet\",\"versions\":[\"*\"],\"reason\":\"x\"}",
         )
     }
 }

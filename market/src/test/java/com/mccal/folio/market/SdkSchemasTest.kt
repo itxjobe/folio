@@ -20,14 +20,18 @@ class SdkSchemasTest {
         }
     }
 
-    @Test fun `the Cabinet sample uses only declared permissions and kinds`() {
+    @Test fun `every package in the Folio source uses only declared permissions and kinds`() {
         val schema = JSONObject(File(sdk, "schema/v1/manifest.schema.json").readText()).getJSONObject("properties")
         val allowed = { name: String -> schema.getJSONObject(name).getJSONObject("items").getJSONArray("enum").let { a -> (0 until a.length()).map(a::getString) } }
-        val manifest = JSONObject(File(sdk, "examples/cabinet/manifest.json").readText())
-        assertEquals(1, manifest.getInt("format"))
-        val kinds = manifest.getJSONArray("kind").let { a -> (0 until a.length()).map(a::getString) }
-        val permissions = manifest.getJSONArray("permissions").let { a -> (0 until a.length()).map(a::getString) }
-        assertTrue(kinds.all { it in allowed("kind") })
-        assertTrue(permissions.all { it in allowed("permissions") })
+        val packages = File(sdk, "source/packages").listFiles()!!.sortedBy { it.name }
+        assertEquals(9, packages.size)
+        for (dir in packages) {
+            val manifest = JSONObject(File(dir, "manifest.json").readText())
+            assertEquals(dir.name, 1, manifest.getInt("format"))
+            val kinds = manifest.getJSONArray("kind").let { a -> (0 until a.length()).map(a::getString) }
+            val permissions = manifest.getJSONArray("permissions").let { a -> (0 until a.length()).map(a::getString) }
+            assertTrue(dir.name, kinds.all { it in allowed("kind") })
+            assertTrue(dir.name, permissions.all { it in allowed("permissions") })
+        }
     }
 }

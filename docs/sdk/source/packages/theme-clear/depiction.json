@@ -1,0 +1,47 @@
+{
+  "$schema": "https://folio.mccal.dev/schema/v1/depiction.schema.json",
+  "format": 1,
+  "blocks": [
+    {
+      "type": "markdown",
+      "text": "Squircle icons, number badges, clear glass and a minimal status area without the date.\n\nA built-in Folio theme. Applying it changes how Folio draws your Home screen; it never changes other apps."
+    },
+    {
+      "type": "screenshots",
+      "images": [
+        "assets/home-clear.webp"
+      ]
+    },
+    {
+      "type": "featureList",
+      "items": [
+        "Squircle icons",
+        "Number badges",
+        "Clear glass",
+        "Minimal status area, no date"
+      ]
+    },
+    {
+      "type": "compatibility",
+      "screens": [
+        "cover",
+        "inner"
+      ]
+    },
+    {
+      "type": "changelog",
+      "entries": [
+        {
+          "version": "1.0.0",
+          "date": "2026-09-17",
+          "notes": "The Clear theme becomes a package in the Folio Market. It has shipped with Folio since 0.4.0."
+        }
+      ]
+    },
+    {
+      "type": "link",
+      "title": "Folio on GitHub",
+      "url": "https://github.com/McCal-Codes/folio"
+    }
+  ]
+}
