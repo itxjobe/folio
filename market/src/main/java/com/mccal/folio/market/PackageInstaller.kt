@@ -103,6 +103,16 @@ class PackageInstaller(
             is ReadResult.NeedsNewerFolio -> return InstallResult.NeedsNewerFolio(read.missing)
             is ReadResult.Failed -> return InstallResult.Failed(read.reason, read.message)
         }
+        // A package shared as a file has no index to carry a signature, so it carries its own. The same rules
+        // apply: a name that already belongs to another key is refused, whichever way the package arrived.
+        if (expected?.signedBy == null) {
+            when (val author = authors.checkFiles(pkg.id, pkg.version, pkg.files)) {
+                is AuthorTrust.Result.FirstTime -> pinning = pkg.id to author.keyBase64
+                else -> if (!author.installable) {
+                    return InstallResult.Failed(InstallResult.Reason.AUTHOR, author.message)
+                }
+            }
+        }
         if (expected != null && (expected.id != pkg.id || expected.version != pkg.version)) {
             return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
         }
@@ -303,7 +313,7 @@ class PackageInstaller(
             change?.let(changes::add)
         }
         val assets = files.filterKeys { it.startsWith("assets/") }
-        return ReadResult.Ok(FolioPackage(manifest, depiction, changes, assets, notes.take(Problems.MAX_REPORTED)))
+        return ReadResult.Ok(FolioPackage(manifest, depiction, changes, assets, notes.take(Problems.MAX_REPORTED), files))
     }
 
     private fun readIconPackName(text: String): String? {

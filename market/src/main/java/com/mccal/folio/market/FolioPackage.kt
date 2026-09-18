@@ -55,6 +55,8 @@ data class FolioPackage(
     val assets: Map<String, ByteArray>,
     /** Fields and blocks from a newer format that this Folio skipped while reading the package. */
     val notes: List<String> = emptyList(),
+    /** Everything the archive held, which is what an author's own signature is taken over. */
+    val files: Map<String, ByteArray> = emptyMap(),
 ) {
     val id: String get() = manifest.id
     val version: DebVersion get() = manifest.version

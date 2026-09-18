@@ -31,6 +31,24 @@ internal object MarketWork {
     var finished by mutableStateOf<Finished?>(null)
         private set
 
+    /** How far the install has got, for the ring in the Get button. */
+    var progress by mutableStateOf<MarketProgress?>(null)
+        private set
+
+    /** Called from the download as bytes arrive. [total] is -1 when the source didn't say how big the file is. */
+    fun downloaded(bytes: Long, total: Long) {
+        val started = progress?.takeIf { it.phase == MarketProgress.Phase.DOWNLOADING }?.startedAt
+            ?: System.currentTimeMillis()
+        progress = MarketProgress(
+            MarketProgress.Phase.DOWNLOADING, bytes, total, started, System.currentTimeMillis(),
+        )
+    }
+
+    /** The bytes are here and checked; what's left is writing, which is quick and has nothing to measure. */
+    fun applying() {
+        progress = MarketProgress(MarketProgress.Phase.APPLYING)
+    }
+
     data class Finished(val name: String, val result: InstallResult)
 
     /** True while a package is being installed. Only one at a time: two would each record the other out of the list. */
@@ -43,12 +61,14 @@ internal object MarketWork {
     fun install(id: String, name: String, work: suspend () -> InstallResult): Boolean {
         if (busy) return false
         busyId = id
+        progress = MarketProgress(MarketProgress.Phase.APPLYING)
         scope.launch {
             val result = runCatching { work() }.getOrElse {
                 InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't finish that install")
             }
             finished = Finished(name, result)
             busyId = null
+            progress = null
         }
         return true
     }

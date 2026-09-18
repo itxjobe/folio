@@ -327,12 +327,24 @@ internal fun MarketScreen(
                         .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
                         .clickable(enabled = false) {},
                 ) {
+                    // A file can carry its author's own signature now, so say which it is rather than assuming.
+                    val signing = session.authorOf(pkg)
                     MarketInstallSheet(
                         manifest = pkg.manifest,
                         origin = InstallOrigin(
-                            line = "From a file you opened.",
+                            line = when (signing) {
+                                is com.mccal.folio.market.AuthorTrust.Result.Signed,
+                                is com.mccal.folio.market.AuthorTrust.Result.FirstTime,
+                                -> "From a file you opened, signed by its developer."
+                                else -> "From a file you opened."
+                            },
                             checksum = null,
-                            warning = "Nobody signed this file. Only open packages from someone you trust.",
+                            warning = when (signing) {
+                                is com.mccal.folio.market.AuthorTrust.Result.Signed -> null
+                                is com.mccal.folio.market.AuthorTrust.Result.FirstTime ->
+                                    "Folio will remember this developer's key for this package."
+                                else -> signing.message + ". Only open packages from someone you trust."
+                            },
                         ),
                         onGet = {
                             importing = null
@@ -684,7 +696,7 @@ private fun MarketRow(
             }
         }
         when {
-            busy -> Text("Working…", color = Color.White.copy(alpha = .55f), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp))
+            busy -> InstallProgress(MarketWork.progress)
             // A revoked package can be removed but never installed again - including as an update, which is how a
             // pulled package used to slip back in.
             entry.revokedReason != null && installed != null -> MarketActionButton("Remove", name, onRemove)
@@ -994,6 +1006,47 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
                 entry.name.take(1).uppercase(), color = Color.White,
                 fontSize = (size.value * .42f).sp, fontWeight = FontWeight.SemiBold,
             )
+        }
+    }
+}
+
+/**
+ * The App Store's filling ring, where the Get button was.
+ *
+ * Determinate while bytes are arriving and the source said how big the file is; a turning ring otherwise, because
+ * a bar that sits at an invented percentage is worse than one that admits it doesn't know. The line underneath
+ * says roughly how long is left - see [MarketProgress] for why "roughly".
+ */
+@Composable
+private fun InstallProgress(progress: MarketProgress?) {
+    val fraction = progress?.fraction
+    Row(
+        Modifier.padding(horizontal = 10.dp).semantics {
+            contentDescription = progress?.words ?: "Installing"
+        },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        progress?.words?.let {
+            Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp, maxLines = 1)
+            Spacer(Modifier.width(8.dp))
+        }
+        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+            if (fraction != null) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.size(26.dp),
+                    color = Color(0xFF0A84FF),
+                    trackColor = Color.White.copy(alpha = .16f),
+                    strokeWidth = 3.dp,
+                )
+            } else {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(26.dp),
+                    color = Color(0xFF0A84FF),
+                    trackColor = Color.White.copy(alpha = .16f),
+                    strokeWidth = 3.dp,
+                )
+            }
         }
     }
 }

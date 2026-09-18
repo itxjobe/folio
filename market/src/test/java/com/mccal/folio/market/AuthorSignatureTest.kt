@@ -92,6 +92,36 @@ class AuthorSignatureTest {
         assertTrue(!AuthorTrust.Result.SignatureMissing.installable)
     }
 
+    @Test fun `a package shared as a file carries its own signature`() {
+        val files = mapOf(
+            "manifest.json" to """{"id":"$id"}""".toByteArray(),
+            "assets/hero.png" to byteArrayOf(1, 2, 3),
+        )
+        val payload = AuthorSignature.filesPayload(id, version, files)
+        val signature = AuthorSignature(
+            publicKey(maya),
+            Base64.getEncoder().encodeToString(
+                Signature.getInstance(SourceKey.ALGORITHM).run { initSign(maya.private); update(payload.toByteArray()); sign() },
+            ),
+        )
+        val signed = files + ("signature.json" to
+            """{"format":1,"key":"${signature.keyBase64}","signature":"${signature.signature}"}""".toByteArray())
+
+        val authors = trust()
+        val first = authors.checkFiles(id, version, signed)
+        assertTrue("$first", first is AuthorTrust.Result.FirstTime)
+        authors.remember(id, publicKey(maya))
+        assertEquals(AuthorTrust.Result.Signed, authors.checkFiles(id, version, signed))
+
+        // Changing any file in the package breaks it, because the signature is over all of them.
+        val edited = signed + ("assets/hero.png" to byteArrayOf(9, 9, 9))
+        assertEquals(AuthorTrust.Result.Broken, authors.checkFiles(id, version, edited))
+        // And re-zipping the same files doesn't: the signature is over the files, not the archive's bytes.
+        assertEquals(AuthorTrust.Result.Signed, authors.checkFiles(id, version, LinkedHashMap(signed.entries.reversed().associate { it.toPair() })))
+        // Stripping it out is refused, once a signed copy has been seen.
+        assertEquals(AuthorTrust.Result.SignatureMissing, authors.checkFiles(id, version, files))
+    }
+
     @Test fun `an index carries the signature through the parser`() {
         val signature = signedBy(maya)
         val manifest = java.io.File(

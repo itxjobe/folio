@@ -12,6 +12,14 @@ interface HttpClient {
      * rate limits: a source that hasn't changed answers 304 with no body.
      */
     fun get(url: String, maxBytes: Int, etag: String? = null): HttpResult
+
+    /**
+     * The same, reporting how much has arrived so a download can show its progress. [onProgress] is called with
+     * the bytes read so far and the length the server declared, which is -1 when it didn't say.
+     *
+     * The default ignores progress, so a client that doesn't care - or a fake in a test - needs no change.
+     */
+    fun get(url: String, maxBytes: Int, onProgress: (Long, Long) -> Unit): HttpResult = get(url, maxBytes, null)
 }
 
 sealed interface HttpResult {
@@ -43,7 +51,12 @@ class UrlHttpClient(
     private val open: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
 ) : HttpClient {
 
-    override fun get(url: String, maxBytes: Int, etag: String?): HttpResult {
+    override fun get(url: String, maxBytes: Int, onProgress: (Long, Long) -> Unit): HttpResult =
+        get(url, maxBytes, etag = null, onProgress = onProgress)
+
+    override fun get(url: String, maxBytes: Int, etag: String?): HttpResult = get(url, maxBytes, etag) { _, _ -> }
+
+    private fun get(url: String, maxBytes: Int, etag: String?, onProgress: (Long, Long) -> Unit): HttpResult {
         var target = url
         repeat(maxRedirects + 1) { hop ->
             val parsed = try {
@@ -89,7 +102,7 @@ class UrlHttpClient(
                 } else {
                     connection.inputStream
                 }
-                val bytes = stream.use { it.readAtMost(maxBytes) } ?: return HttpResult.TooLarge
+                val bytes = stream.use { it.readAtMost(maxBytes, declared, onProgress) } ?: return HttpResult.TooLarge
                 return HttpResult.Body(bytes, connection.getHeaderField("ETag"))
             } catch (e: IOException) {
                 return HttpResult.Failed("couldn't read from the source")
@@ -104,14 +117,22 @@ class UrlHttpClient(
         const val USER_AGENT = "Folio"
 
         /** Reads up to [maxBytes], or null when there's more, so a huge or endless response can't fill memory. */
-        internal fun InputStream.readAtMost(maxBytes: Int): ByteArray? {
+        internal fun InputStream.readAtMost(
+            maxBytes: Int,
+            declared: Long = -1,
+            onProgress: (Long, Long) -> Unit = { _, _ -> },
+        ): ByteArray? {
             val out = java.io.ByteArrayOutputStream()
             val buffer = ByteArray(16 * 1024)
             while (true) {
                 val read = read(buffer)
-                if (read < 0) return out.toByteArray()
+                if (read < 0) {
+                    onProgress(out.size().toLong(), out.size().toLong())
+                    return out.toByteArray()
+                }
                 if (out.size() + read > maxBytes) return null
                 out.write(buffer, 0, read)
+                onProgress(out.size().toLong(), declared)
             }
         }
     }

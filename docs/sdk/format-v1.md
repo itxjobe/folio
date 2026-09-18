@@ -221,8 +221,36 @@ So a mirror can carry Sunset Icons and Folio still says **published by maya**; t
 of it, and cannot publish its own package under her name. Unsigned packages stay welcome - most first packages are -
 and the store says so plainly rather than implying a guarantee it doesn't have.
 
+#### A package shared as a file
+
+A `.foliopkg` sent to someone directly has no index to carry a signature, so it carries its own, as
+`signature.json` inside the archive:
+
+```json
+{
+  "format": 1,
+  "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE…",
+  "signature": "MEUCIQ…"
+}
+```
+
+It can't sign the archive it lives in, and signing the zip's bytes would be worse than useless - rebuilding a zip
+from the same files changes them. It signs the files:
+
+```
+folio-pkg-files:<id>:<version>:<sha256 of "<name> <sha256>\n" for every other file, sorted by name>
+```
+
+so changing any file in the package breaks it, while repacking the same files doesn't. The same pinning applies: a
+file claiming an id that belongs to another key is refused whether it arrived from a source or through a share
+sheet, and the confirm sheet says which of the two it is rather than assuming nobody signed it.
+
+Both signatures are worth having. The one in the index means the store can say who wrote a package **before**
+downloading it; the one inside the package means the file still proves itself when it arrives another way.
+
 Signing is on the publisher's side: `tools/build.py --author-keys <folder>` in `folio-packages` signs each package
-with `<folder>/<package-id>.pem`. An author key belongs to its author and never goes in a repo.
+with `<folder>/<package-id>.pem`, inside the archive and in the index. An author key belongs to its author and
+never goes in a repo.
 
 ### Pictures
 

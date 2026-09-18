@@ -164,17 +164,27 @@ internal class MarketSources(
      * Downloads a package and installs it: size and checksum are checked against the index entry before anything is
      * opened, and [PackageInstaller] does the rest.
      */
-    suspend fun download(entry: IndexPackage, source: Source, installer: PackageInstaller): InstallResult = withContext(io) {
+    suspend fun download(
+        entry: IndexPackage,
+        source: Source,
+        installer: PackageInstaller,
+        /** Bytes so far and the length the source declared, for the ring in the Get button. */
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        onApplying: () -> Unit = {},
+    ): InstallResult = withContext(io) {
         val url = entry.url ?: return@withContext InstallResult.Failed(InstallResult.Reason.ARCHIVE, "that package has nowhere to download from")
         val size = entry.size ?: return@withContext InstallResult.Failed(InstallResult.Reason.SIZE, "that package didn't say how big it is")
         val full = if (url.startsWith("https://")) url else source.url + url
-        when (val result = http.get(full, size)) {
-            is HttpResult.Body -> installer.install(
-                result.bytes,
-                expected = entry,
-                origin = com.mccal.folio.market.InstalledPackage.Origin.FOLIO_SOURCE,
-                sourceUrl = source.url,
-            )
+        when (val result = http.get(full, size, onProgress)) {
+            is HttpResult.Body -> {
+                onApplying()
+                installer.install(
+                    result.bytes,
+                    expected = entry,
+                    origin = com.mccal.folio.market.InstalledPackage.Origin.FOLIO_SOURCE,
+                    sourceUrl = source.url,
+                )
+            }
             is HttpResult.TooLarge -> InstallResult.Failed(InstallResult.Reason.SIZE, "that download is bigger than the source said")
             is HttpResult.NotModified -> InstallResult.Failed(InstallResult.Reason.ARCHIVE, "the source answered oddly")
             is HttpResult.Failed -> InstallResult.Failed(InstallResult.Reason.ARCHIVE, result.message)

@@ -34,6 +34,26 @@ class OpensslInteropTest {
         assertTrue(!signature.verifies(id, requireNotNull(DebVersion.parse("9.9.9")), sha))
     }
 
+    @Test fun `a foliopkg the tool signed carries proof of who made it`() {
+        val bytes = File(dir, "signed-file.foliopkg").readBytes()
+        val opened = PackageArchive.read(bytes)
+        assertTrue("$opened", opened is PackageArchive.Result.Ok)
+        val files = (opened as PackageArchive.Result.Ok).files
+        // Read straight from the file: this is about the signature, and the template package names a capability
+        // this build hasn't got, which is a different check entirely.
+        val manifest = org.json.JSONObject(files["manifest.json"]!!.decodeToString())
+        val id = manifest.getString("id")
+        val version = requireNotNull(DebVersion.parse(manifest.getString("version")))
+
+        val authors = AuthorTrust(MemoryStore())
+        val first = authors.checkFiles(id, version, files)
+        assertTrue("a file signed by tools/build.py has to verify here: $first", first is AuthorTrust.Result.FirstTime)
+
+        // The same package with one file changed is not that package any more.
+        val edited = files + ("depiction.json" to "{}".toByteArray())
+        assertEquals(AuthorTrust.Result.Broken, authors.checkFiles(id, version, edited))
+    }
+
     @Test fun `an entry signed by openssl verifies, and an edited one doesn't`() {
         val key = requireNotNull(SourceKey.parse(File(dir, "key.pub").readText().trim()))
         val entry = File(dir, "entry.json").readBytes()

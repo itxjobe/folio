@@ -27,10 +27,48 @@ data class AuthorSignature(val keyBase64: String, val signature: String) {
     fun verifies(id: String, version: DebVersion, sha256: String): Boolean =
         key?.verifies(payload(id, version, sha256).toByteArray(), signature) == true
 
+    /** True when this is [id] at [version] with exactly these files, signed by [key]. */
+    fun verifiesFiles(id: String, version: DebVersion, files: Map<String, ByteArray>): Boolean =
+        key?.verifies(filesPayload(id, version, files).toByteArray(), signature) == true
+
     companion object {
         const val PREFIX = "folio-pkg"
 
+        /** A signature inside the package, which can't sign the archive it lives in. */
+        const val FILES_PREFIX = "folio-pkg-files"
+        const val FILE = "signature.json"
+
         fun payload(id: String, version: DebVersion, sha256: String) = "$PREFIX:$id:${version.text}:$sha256"
+
+        /**
+         * What a signature inside the package signs.
+         *
+         * Not the archive's own hash - a file can't contain a signature over itself - and not the zip's bytes
+         * either, because rebuilding a zip from the same files changes them. It's a digest over what's actually in
+         * the package: every other file, by name, with its own hash, in a fixed order.
+         */
+        fun filesPayload(id: String, version: DebVersion, files: Map<String, ByteArray>): String {
+            val digest = sha256Hex(
+                files.filterKeys { it != FILE }
+                    .toSortedMap()
+                    .entries
+                    .joinToString("") { (name, bytes) -> "$name ${sha256Hex(bytes)}\n" }
+                    .toByteArray(),
+            )
+            return "$FILES_PREFIX:$id:${version.text}:$digest"
+        }
+
+        /** Reads `signature.json` out of a package's files. Absent is fine; malformed is not. */
+        fun fromFiles(files: Map<String, ByteArray>): AuthorSignature? {
+            val text = files[FILE]?.decodeToString() ?: return null
+            val problems = Problems()
+            val json = parseStrictObject(text, 8 * 1024, problems) ?: return null
+            if (problems.errors.isNotEmpty()) return null
+            val key = json.optString("key").takeIf { it.isNotEmpty() } ?: return null
+            val signature = json.optString("signature").takeIf { it.isNotEmpty() } ?: return null
+            if (SourceKey.parse(key) == null) return null
+            return AuthorSignature(key, signature)
+        }
 
         /** Reads the `author` signing block from an index entry. Absent is fine; malformed is not. */
         internal fun read(f: Fields, at: String): AuthorSignature? {
@@ -70,12 +108,22 @@ class AuthorTrust(private val store: KeyValueStore) {
      * of them are, and Folio says so on the page - but not once a signed one has been seen, because dropping the
      * signature is how an attacker would get around this.
      */
-    fun check(id: String, version: DebVersion, sha256: String, signedBy: AuthorSignature?): Result {
+    fun check(id: String, version: DebVersion, sha256: String, signedBy: AuthorSignature?): Result =
+        judge(id, signedBy) { it.verifies(id, version, sha256) }
+
+    /**
+     * The same question for a package that arrived as a file rather than from a source: there's no index to carry
+     * the signature, so it's inside the package, over the files rather than the archive's bytes.
+     */
+    fun checkFiles(id: String, version: DebVersion, files: Map<String, ByteArray>): Result =
+        judge(id, AuthorSignature.fromFiles(files)) { it.verifiesFiles(id, version, files) }
+
+    private fun judge(id: String, signedBy: AuthorSignature?, verify: (AuthorSignature) -> Boolean): Result {
         val known = keyFor(id)
         if (signedBy == null) {
             return if (known == null) Result.Unsigned else Result.SignatureMissing
         }
-        if (!signedBy.verifies(id, version, sha256)) return Result.Broken
+        if (!verify(signedBy)) return Result.Broken
         if (known != null && known != signedBy.keyBase64) return Result.WrongAuthor
         return if (known == null) Result.FirstTime(signedBy.keyBase64) else Result.Signed
     }

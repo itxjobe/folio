@@ -19,12 +19,15 @@ import com.mccal.folio.market.Source
 import com.mccal.folio.market.SourceList
 import com.mccal.folio.market.SourceStore
 import com.mccal.folio.market.UrlHttpClient
+import com.mccal.folio.market.AuthorTrust
 import com.mccal.folio.market.EarlyAccess
 import com.mccal.folio.market.MarketPrefs
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.PackageSafeMode
 import com.mccal.folio.market.RepoIndex
 import java.io.File
+
+private typealias EarlyAuthor = AuthorTrust.Result
 
 /**
  * Everything the Market needs on the phone, wired together: the packages Folio ships (read from assets), what's
@@ -105,7 +108,11 @@ internal class MarketSession(
             "${entry.source.label} offers this under a name that belongs to one of Folio's own packages",
         )
         entry.source.kind == Source.Kind.BUILT_IN -> withContext(io) { get(entry.entry) }
-        else -> sources.download(entry.entry, entry.source, installer)
+        else -> sources.download(
+            entry.entry, entry.source, installer,
+            onProgress = { bytes, total -> MarketWork.downloaded(bytes, total) },
+            onApplying = { MarketWork.applying() },
+        )
     }
 
     fun installed(): List<InstalledPackage> = store.installed()
@@ -122,6 +129,9 @@ internal class MarketSession(
         val files = source.filesFor(entry.id) ?: return InstallResult.Failed(InstallResult.Reason.ARCHIVE, "Folio couldn't find that package")
         return installer.installBuiltIn(files)
     }
+
+    /** Who signed a package that arrived as a file, for the confirm sheet. Checks nothing else. */
+    fun authorOf(pkg: FolioPackage): EarlyAuthor = AuthorTrust(files).checkFiles(pkg.id, pkg.version, pkg.files)
 
     /** Reads a `.foliopkg` someone opened, without applying it: the confirm sheet shows what's inside. */
     fun read(bytes: ByteArray): PackageInstaller.ReadResult = installer.read(bytes)
