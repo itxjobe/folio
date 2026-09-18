@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -265,27 +266,22 @@ fun StatusRail(
                         if (style.glyph == StatusGlyph.RING && status.airplane && !status.wifiConnected)
                             Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(visualSize * .42f))
                     }
-                    StatusGlyph.GAUGE -> Column(horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 2.dp)) {
-                        // The number reads first, then the arc says how full, then what's inside says how you're connected.
-                        Text(status.battery?.toString() ?: "\u2014", color = if (status.charging && style.colorfulBattery) charging else ink,
-                            fontSize = (visualSize.value * .30f / fontScale).sp, fontWeight = FontWeight.SemiBold,
-                            maxLines = 1, softWrap = false, modifier = Modifier.padding(bottom = 1.dp))
-                        Box(Modifier.size(visualSize * .88f), contentAlignment = Alignment.Center) {
-                            Canvas(Modifier.fillMaxSize()) {
-                                val w = size.width
-                                val center = Offset(w / 2, w / 2)
-                                // An arc open at the top, where the number sits: it starts at the left and fills clockwise.
-                                val radius = w * .46f
-                                val corner = Offset(center.x - radius, center.y - radius)
-                                val box = Size(radius * 2, radius * 2)
-                                val stroke = Stroke(width = w * .085f, cap = StrokeCap.Round)
-                                drawArc(ink.copy(alpha = faint(.22f)), GAUGE_START, GAUGE_SWEEP, false, corner, box, style = stroke)
-                                status.battery?.let { level ->
-                                    drawArc(batteryColor, GAUGE_START, GAUGE_SWEEP * level / 100f, false, corner, box, style = stroke)
-                                }
-                                // The connection sits inside the arc, drawn a little smaller so it keeps clear of it.
-                                scale(.72f, center) {
+                    StatusGlyph.GAUGE -> Box(Modifier.padding(top = 2.dp).size(visualSize), contentAlignment = Alignment.TopCenter) {
+                        // One mark: the number sits in the arc's opening, the connection below it, inside the arc.
+                        Canvas(Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val center = Offset(w / 2, w / 2)
+                            val radius = w * .46f
+                            val corner = Offset(center.x - radius, center.y - radius)
+                            val box = Size(radius * 2, radius * 2)
+                            val stroke = Stroke(width = w * .085f, cap = StrokeCap.Round)
+                            drawArc(ink.copy(alpha = faint(.22f)), GAUGE_START, GAUGE_SWEEP, false, corner, box, style = stroke)
+                            status.battery?.let { level ->
+                                drawArc(batteryColor, GAUGE_START, GAUGE_SWEEP * level / 100f, false, corner, box, style = stroke)
+                            }
+                            // The connection sits under the number and clear of the arc.
+                            translate(0f, w * .10f) {
+                                scale(.62f, center) {
                                     when {
                                         wifiVisual is WifiSignalVisual.Connected -> {
                                             drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
@@ -297,9 +293,13 @@ fun StatusRail(
                                     }
                                 }
                             }
-                            if (status.airplane && !status.wifiConnected)
-                                Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink, modifier = Modifier.size(visualSize * .34f))
                         }
+                        Text(status.battery?.toString() ?: "\u2014", color = if (status.charging && style.colorfulBattery) charging else ink,
+                            fontSize = (visualSize.value * .26f / fontScale).sp, fontWeight = FontWeight.SemiBold,
+                            maxLines = 1, softWrap = false)
+                        if (status.airplane && !status.wifiConnected)
+                            Icon(Icons.Rounded.AirplanemodeActive, null, tint = ink,
+                                modifier = Modifier.padding(top = visualSize * .34f).size(visualSize * .3f))
                     }
                     StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.padding(top = 2.dp)) {
