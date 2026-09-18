@@ -75,7 +75,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
 /** Spotlight sections that can be turned off in settings. */
-internal enum class SpotlightSection(val title: String) { SUGGESTIONS("Suggestions"), CONTACTS("Contacts"), SETTINGS("Settings"), CALCULATOR("Calculator"), WEB("Search the Web & Ask AI") }
+internal enum class SpotlightSection(@androidx.annotation.StringRes val title: Int) { SUGGESTIONS(R.string.suggestions), CONTACTS(R.string.contacts), SETTINGS(R.string.settings), CALCULATOR(R.string.calculator), WEB(R.string.search_the_web_ask_ai) }
 
 /** Remembers the last apps launched from Folio, for Spotlight suggestions. Stays on the device. */
 internal object RecentApps {
@@ -219,7 +219,8 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
     fun shows(section: SpotlightSection) = section.name !in state.spotlightHidden
     val engine = runCatching { WebSearchTarget.valueOf(state.searchEngine) }.getOrDefault(WebSearchTarget.GOOGLE)
     val appHits = remember(q, apps, frecency) { if (q.isEmpty()) emptyList() else rankApps(apps, q, frecency) }
-    val settingHits = remember(q) { if (q.length < 2) emptyList() else SettingShortcuts.filter { it.matches(q) }.take(4) }
+    val shortcuts = remember(context) { settingShortcuts(context) }
+    val settingHits = remember(q, shortcuts) { if (q.length < 2) emptyList() else shortcuts.filter { it.matches(q) }.take(4) }
     val math = remember(q) { evaluateMath(q) }
     var contactsGranted by remember { mutableStateOf(context.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { contactsGranted = it }
@@ -280,11 +281,11 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                 contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (q.isEmpty()) {
                     if (shows(SpotlightSection.SUGGESTIONS) && recent.isNotEmpty()) item("suggestions") {
-                        Section("Suggestions") { AppGrid(recent, launch, fullRows = true) }
+                        Section(stringResource(R.string.suggestions)) { AppGrid(recent, launch, fullRows = true) }
                     }
                 } else {
                     math?.takeIf { shows(SpotlightSection.CALCULATOR) }?.let { result -> item("math") {
-                        Section("Calculator") {
+                        Section(stringResource(R.string.calculator)) {
                             ResultRow(Icons.Rounded.Calculate, "= $result", q) {
                                 val clip = context.getSystemService(android.content.ClipboardManager::class.java)
                                 clip.setPrimaryClip(android.content.ClipData.newPlainText("Result", result))
@@ -292,11 +293,11 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                         }
                     } }
                     appHits.firstOrNull()?.let { top -> item("top") {
-                        Section("Top Hit") { TopHit(top) { launch(top) } }
+                        Section(stringResource(R.string.top_hit)) { TopHit(top) { launch(top) } }
                     } }
-                    if (appHits.size > 1) item("apps") { Section("Apps") { AppGrid(appHits.drop(1).take(8), launch) } }
+                    if (appHits.size > 1) item("apps") { Section(stringResource(R.string.apps)) { AppGrid(appHits.drop(1).take(8), launch) } }
                     if (shows(SpotlightSection.CONTACTS) && contacts.isNotEmpty()) item("contacts") {
-                        Section("Contacts") { contacts.forEach { c ->
+                        Section(stringResource(R.string.contacts)) { contacts.forEach { c ->
                             ResultRow(Icons.Rounded.Person, c.name, c.address, trailing = c.address?.let { address -> {
                                 // iPhone-style quick actions: message (default texting app or OpenBubbles) and call.
                                 if (!address.contains('@')) SpotlightRoundAction(Icons.Rounded.Call, "Call ${c.name}") {
@@ -316,7 +317,7 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                         Section("Settings") { settingHits.forEach { s -> ResultRow(Icons.Rounded.Settings, s.title, "Settings") { start(Intent(s.action)) } } }
                     }
                     if (shows(SpotlightSection.WEB)) item("web") {
-                        Section("Search the Web & Ask AI") {
+                        Section(stringResource(R.string.search_the_web_ask_ai)) {
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 WebSearchTarget.entries.forEach { target ->
                                     Row(Modifier.clip(RoundedCornerShape(50)).background(SpotGlass)
@@ -392,7 +393,7 @@ private fun TopHit(app: AppEntry, onClick: () -> Unit) {
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(app.label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text(if (app.profileLabel == "Personal") "Application" else "${app.profileLabel} app", color = Color.White.copy(alpha = .6f), fontSize = 13.sp)
+            Text(if (app.profileLabel == stringResource(R.string.personal)) stringResource(R.string.application) else "${app.profileLabel} app", color = Color.White.copy(alpha = .6f), fontSize = 13.sp)
         }
         Text(stringResource(R.string.open), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .18f)).padding(horizontal = 14.dp, vertical = 6.dp))
@@ -530,28 +531,28 @@ private data class SettingShortcut(val title: String, val action: String, val ke
     fun matches(q: String) = title.contains(q, true) || keywords.any { it.startsWith(q, true) }
 }
 
-private val SettingShortcuts = listOf(
-    SettingShortcut("Wi-Fi", Settings.ACTION_WIFI_SETTINGS, listOf("wifi", "wireless", "internet", "network")),
-    SettingShortcut("Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS, listOf("bluetooth", "pair", "headphones")),
-    SettingShortcut("Mobile network", Settings.ACTION_NETWORK_OPERATOR_SETTINGS, listOf("cellular", "mobile", "data", "sim")),
-    SettingShortcut("Airplane mode", Settings.ACTION_AIRPLANE_MODE_SETTINGS, listOf("airplane", "flight")),
-    SettingShortcut("Display & brightness", Settings.ACTION_DISPLAY_SETTINGS, listOf("display", "brightness", "screen", "dark")),
-    SettingShortcut("Sounds & vibration", Settings.ACTION_SOUND_SETTINGS, listOf("sound", "volume", "ringtone", "vibration")),
+private fun settingShortcuts(context: android.content.Context) = listOf(
+    SettingShortcut(context.getString(R.string.wi_fi), Settings.ACTION_WIFI_SETTINGS, listOf("wifi", "wireless", "internet", "network")),
+    SettingShortcut(context.getString(R.string.bluetooth), Settings.ACTION_BLUETOOTH_SETTINGS, listOf("bluetooth", "pair", "headphones")),
+    SettingShortcut(context.getString(R.string.mobile_network), Settings.ACTION_NETWORK_OPERATOR_SETTINGS, listOf("cellular", "mobile", "data", "sim")),
+    SettingShortcut(context.getString(R.string.airplane_mode), Settings.ACTION_AIRPLANE_MODE_SETTINGS, listOf("airplane", "flight")),
+    SettingShortcut(context.getString(R.string.display_brightness), Settings.ACTION_DISPLAY_SETTINGS, listOf("display", "brightness", "screen", "dark")),
+    SettingShortcut(context.getString(R.string.sounds_vibration), Settings.ACTION_SOUND_SETTINGS, listOf("sound", "volume", "ringtone", "vibration")),
     SettingShortcut("Notifications", if (android.os.Build.VERSION.SDK_INT >= 33) Settings.ACTION_ALL_APPS_NOTIFICATION_SETTINGS else Settings.ACTION_SETTINGS, listOf("notification", "alerts")),
-    SettingShortcut("Battery", Intent.ACTION_POWER_USAGE_SUMMARY, listOf("battery", "power", "charging")),
-    SettingShortcut("Apps", Settings.ACTION_APPLICATION_SETTINGS, listOf("apps", "applications", "uninstall")),
-    SettingShortcut("Default apps", Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, listOf("default", "home app", "browser", "assistant")),
-    SettingShortcut("Storage", Settings.ACTION_INTERNAL_STORAGE_SETTINGS, listOf("storage", "space")),
-    SettingShortcut("Location", Settings.ACTION_LOCATION_SOURCE_SETTINGS, listOf("location", "gps")),
-    SettingShortcut("Security & privacy", Settings.ACTION_SECURITY_SETTINGS, listOf("security", "privacy", "lock", "password", "fingerprint")),
-    SettingShortcut("Accessibility", Settings.ACTION_ACCESSIBILITY_SETTINGS, listOf("accessibility")),
-    SettingShortcut("Date & time", Settings.ACTION_DATE_SETTINGS, listOf("date", "time", "clock")),
-    SettingShortcut("Language & keyboard", Settings.ACTION_LOCALE_SETTINGS, listOf("language", "keyboard")),
-    SettingShortcut("Do Not Disturb", Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS, listOf("dnd", "do not disturb", "focus")),
-    SettingShortcut("NFC & payments", Settings.ACTION_NFC_SETTINGS, listOf("nfc", "pay", "wallet", "contactless")),
-    SettingShortcut("Developer options", Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, listOf("developer", "usb debugging")),
-    SettingShortcut("About phone", Settings.ACTION_DEVICE_INFO_SETTINGS, listOf("about", "phone", "software", "version")),
-    SettingShortcut("Settings", Settings.ACTION_SETTINGS, listOf("settings", "preferences")),
+    SettingShortcut(context.getString(R.string.battery), Intent.ACTION_POWER_USAGE_SUMMARY, listOf("battery", "power", "charging")),
+    SettingShortcut(context.getString(R.string.apps), Settings.ACTION_APPLICATION_SETTINGS, listOf("apps", "applications", "uninstall")),
+    SettingShortcut(context.getString(R.string.default_apps), Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, listOf("default", "home app", "browser", "assistant")),
+    SettingShortcut(context.getString(R.string.storage), Settings.ACTION_INTERNAL_STORAGE_SETTINGS, listOf("storage", "space")),
+    SettingShortcut(context.getString(R.string.location), Settings.ACTION_LOCATION_SOURCE_SETTINGS, listOf("location", "gps")),
+    SettingShortcut(context.getString(R.string.security_privacy), Settings.ACTION_SECURITY_SETTINGS, listOf("security", "privacy", "lock", "password", "fingerprint")),
+    SettingShortcut(context.getString(R.string.accessibility), Settings.ACTION_ACCESSIBILITY_SETTINGS, listOf("accessibility")),
+    SettingShortcut(context.getString(R.string.date_time), Settings.ACTION_DATE_SETTINGS, listOf("date", "time", "clock")),
+    SettingShortcut(context.getString(R.string.language_keyboard), Settings.ACTION_LOCALE_SETTINGS, listOf("language", "keyboard")),
+    SettingShortcut(context.getString(R.string.do_not_disturb), Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS, listOf("dnd", "do not disturb", "focus")),
+    SettingShortcut(context.getString(R.string.nfc_payments), Settings.ACTION_NFC_SETTINGS, listOf("nfc", "pay", "wallet", "contactless")),
+    SettingShortcut(context.getString(R.string.developer_options), Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, listOf("developer", "usb debugging")),
+    SettingShortcut(context.getString(R.string.about_phone), Settings.ACTION_DEVICE_INFO_SETTINGS, listOf("about", "phone", "software", "version")),
+    SettingShortcut(context.getString(R.string.settings), Settings.ACTION_SETTINGS, listOf("settings", "preferences")),
 )
 
 private val SpotGlass = FolioGlass.card

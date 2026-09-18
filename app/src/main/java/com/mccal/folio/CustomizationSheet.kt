@@ -326,7 +326,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         SettingsSwitch(stringResource(R.string.big_clock_in_notification_center), state.notificationClock, model::setNotificationClock, "notification-clock-switch")
                         SettingsSwitch(stringResource(R.string.stack_notifications_by_app), state.groupNotifications, model::setGroupNotifications, "notification-group-switch")
                         SettingsSwitch(stringResource(R.string.unfolded_clock_beside_notifications), state.ncSplit, model::setNcSplit, "notification-split-switch")
-                        IosMenuRow(stringResource(R.string.control_center_size), PanelSize.entries.map { it to it.label }, state.ccSize, model::setCcSize, tag = "cc-size")
+                        IosMenuRow(stringResource(R.string.control_center_size), PanelSize.entries.map { it to stringResource(it.label) }, state.ccSize, model::setCcSize, tag = "cc-size")
                         SettingsSwitch(stringResource(R.string.unfolded_control_center_in_the_middle), state.ccCentered, model::setCcCentered, "cc-centered-switch")
                         CardNote(stringResource(R.string.tip_tap_at_the_top_of_control_center_to))
                         CardNote(stringResource(R.string.to_restyle_samsungs_own_pull_down_colors))
@@ -336,7 +336,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         IosMenuRow(stringResource(R.string.search_with_enter), listOf(WebSearchTarget.GOOGLE.name to "Google (no AI)", WebSearchTarget.DUCKDUCKGO.name to "DuckDuckGo"),
                             state.searchEngine, model::setSearchEngine, tag = "search-engine")
                         SpotlightSection.entries.forEach { section ->
-                            SettingsSwitch(section.title, section.name !in state.spotlightHidden,
+                            SettingsSwitch(stringResource(section.title), section.name !in state.spotlightHidden,
                                 { model.setSpotlightSection(section.name, it) }, "spotlight-${section.name.lowercase()}")
                         }
                         val messageContext = androidx.compose.ui.platform.LocalContext.current
@@ -1965,7 +1965,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
     var beta by remember { mutableStateOf(SoftwareUpdate.beta(context)) }
     SettingsCard(stringResource(R.string.updates)) {
-        IosMenuRow(stringResource(R.string.automatic_updates), SoftwareUpdate.Mode.entries.map { it to it.label }, mode, {
+        IosMenuRow(stringResource(R.string.automatic_updates), SoftwareUpdate.Mode.entries.map { it to stringResource(it.label) }, mode, {
             mode = it; SoftwareUpdate.setMode(context, it)
             if (it != SoftwareUpdate.Mode.MANUAL && !SoftwareUpdate.canPostNotifications(context))
                 notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
