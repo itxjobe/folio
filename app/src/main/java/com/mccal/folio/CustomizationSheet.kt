@@ -1446,8 +1446,10 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         CustomizationSlider("Space between rows", "${p.rowGap.toInt()} dp", p.rowGap, 0f..28f, d.rowGap, peek = true) { model.setPreset(wide, p.copy(rowGap = it)) }
         CustomizationSlider("Space between columns", "${p.columnGap.toInt()} dp", p.columnGap, 8f..40f, d.columnGap, peek = true) { model.setPreset(wide, p.copy(columnGap = it)) }
         CustomizationSlider("Widget size", "${(p.widgetScale * 100).roundToInt()}%", p.widgetScale, .8f..1.25f, d.widgetScale, peek = true) { model.setPreset(wide, p.copy(widgetScale = it)) }
-        IosMenuRow("Rows", listOf(0 to "Automatic", 4 to "4"), state.homeRows, model::setHomeRows, tag = "home-rows")
+        // Automatic says which number it landed on, so the count is never a mystery.
+        IosMenuRow("Rows", listOf(0 to "Automatic (${state.homeAppRows})", 4 to "4"), state.homeRows, model::setHomeRows, tag = "home-rows")
         CardNote("Automatic adds up to 3 more rows of apps where your screen has room. On a foldable, both screens use the same number, so your pages stay the same when you fold.")
+        CardNote(automaticRowsNote(state))
     }
     SettingsCard("Position") {
         IosMenuRow("Dock", listOf(DockPlacement.AUTOMATIC to "Automatic", DockPlacement.SIDE to "Side Bar", DockPlacement.BOTTOM to "Bottom"),
@@ -2039,3 +2041,21 @@ internal fun releaseNoteLines(markdown: String): List<String> = markdown.lines()
             .replace(Regex("""\[([^\]]+)]\([^)]+\)"""), "$1")
             .let { if (it.startsWith("- ") || it.startsWith("* ")) "• " + it.drop(2) else it }
     }
+
+/** Why Automatic landed on this many rows: which screens Folio has measured, and which one sets the limit. */
+internal fun automaticRowsNote(state: LauncherState): String {
+    val cover = state.homeFitCompact
+    val inner = state.homeFitExpanded
+    return when {
+        state.homeRows > 0 -> "Fixed at ${state.homeRows} rows on both screens."
+        cover == 0 && inner == 0 ->
+            "Folio hasn't measured a screen yet, so it's showing four rows for now. Open Home once on each screen."
+        cover == 0 || inner == 0 -> "Measured so far: the ${if (inner == 0) "cover" else "inner"} screen fits " +
+            "${maxOf(cover, inner)}. Open Home on the other screen and Folio will use the smaller of the two."
+        cover == inner && cover < MAX_APP_ROWS ->
+            "Both screens fit $cover rows. Smaller icons or labels make room for another row."
+        cover == inner -> "Both screens fit $cover rows, the most Folio shows."
+        else -> "The cover screen fits $cover and the inner screen fits $inner, so Folio shows ${minOf(cover, inner)} " +
+            "on both. Smaller icons or labels make room for another row."
+    }
+}
