@@ -324,7 +324,7 @@ fun LauncherScreen(
         if (SoftwareUpdate.openRequested) { SoftwareUpdate.openRequested = false; customizationPage = CustomizationPage.SOFTWARE_UPDATE }
         val linked = SettingsLink.page?.also { customizationPage = it; SettingsLink.page = null }
         sheet = if (MarketLink.pending != null) "market"
-            else sheetForAppIcon(linked, customizationPage, com.mccal.folio.market.MarketFeature.isEnabled(launcherActivity.packageName))
+            else sheetForAppIcon(linked, customizationPage, MarketAccess.isOpen(launcherActivity))
     } }
     LaunchedEffect(searchRequests) { if (searchRequests > 0) { drag.clear(); widgetSession = null; resizeSlot = null; sheet = ""; widgetPackage = null; widgetExactTarget = false; selectedId = null
         if (!state.googleSearch || !onGoogleSearch(null)) pager.animateScrollToPage(homePages)

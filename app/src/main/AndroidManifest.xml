@@ -111,6 +111,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="folio" android:host="package" />
                 <data android:scheme="folio" android:host="source" />
+                <data android:scheme="folio" android:host="early" />
             </intent-filter>
             <!-- Settings › Apps › Default apps › Home app (gear) and App info › Additional settings open Folio's settings. -->
             <intent-filter>

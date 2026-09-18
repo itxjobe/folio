@@ -34,4 +34,11 @@ class MarketLinkTest {
             assertNull(bad, MarketLink.parse(bad))
         }
     }
+
+    @Test fun `a supporter code link carries the code`() {
+        val code = "folio-early:market:0.MEUCIQ" + "x".repeat(40)
+        assertEquals(MarketLink.Early(code), MarketLink.parse("folio://early/" + android.net.Uri.encode(code)))
+        // Too short to be a signed code, so it isn't treated as one.
+        assertNull(MarketLink.parse("folio://early/short"))
+    }
 }

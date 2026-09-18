@@ -48,7 +48,7 @@ class MarketRefreshJob : JobService() {
         fun schedule(context: Context) {
             val jobs = scheduler(context) ?: return
             val prefs = rememberedMarketPrefs(context)
-            if (!MarketFeature.isEnabled(context.packageName) || !prefs.backgroundRefresh) {
+            if (!MarketAccess.isOpen(context) || !prefs.backgroundRefresh) {
                 jobs.cancel(REFRESH)
                 return
             }

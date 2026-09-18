@@ -14,6 +14,7 @@ import com.mccal.folio.market.Source
 import com.mccal.folio.market.SourceList
 import com.mccal.folio.market.SourceStore
 import com.mccal.folio.market.UrlHttpClient
+import com.mccal.folio.market.EarlyAccess
 import com.mccal.folio.market.MarketPrefs
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.PackageSafeMode
@@ -44,7 +45,7 @@ internal class MarketSession(context: Context, launcher: MarketLauncher) {
     private val installer = PackageInstaller(store, MarketHost(launcher), safeMode)
 
     /** Whether this build can read an unsigned source served from the phone: Folio Dev only. */
-    val localDevAllowed = MarketFeature.isEnabled(appContext.packageName) && appContext.packageName.endsWith(".dev")
+    val localDevAllowed = MarketFeature.isDevBuild(appContext.packageName)
 
     /** Sources the user added. Folio Dev can also point at a source served from the phone (unsigned, localhost only). */
     val sources = MarketSources(
@@ -127,3 +128,21 @@ internal fun rememberedMarketPrefs(context: Context): MarketPrefs =
 
 /** Where `folio-pkg serve` plus `adb reverse tcp:8787 tcp:8787` puts a source being written. */
 internal const val DEFAULT_LOCAL_SOURCE = "http://localhost:8787/"
+
+/**
+ * Whether this phone sees the Market: Folio Dev, Beta Updates, or a supporter's code. Everything the Market hands out
+ * is also in Settings, so a stable-release user isn't missing a feature — only the store that lists them.
+ */
+internal object MarketAccess {
+    fun isOpen(context: Context): Boolean = MarketFeature.isEnabled(
+        packageName = context.packageName,
+        onBeta = runCatching { SoftwareUpdate.beta(context) }.getOrDefault(false),
+        hasEarlyCode = early(context).has(EarlyAccess.MARKET),
+    )
+
+    fun early(context: Context) = EarlyAccess(FileStore(File(context.applicationContext.filesDir, "market")))
+
+    /** Takes a supporter's code and says what happened, in the words the user sees. */
+    fun redeem(context: Context, code: String): EarlyAccess.Result =
+        early(context).redeem(code, EarlyAccess.MARKET)
+}

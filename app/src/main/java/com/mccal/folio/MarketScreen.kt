@@ -164,6 +164,8 @@ internal fun MarketScreen(
         when (val link = MarketLink.pending) {
             is MarketLink.Package -> { tab = MarketTab.PACKAGES; openId = link.id }
             is MarketLink.Source -> tab = MarketTab.SOURCES
+            // A code is redeemed by the activity that received it; by the time the Market opens it's already done.
+            is MarketLink.Early -> Unit
             null -> Unit
         }
         MarketLink.pending = null
@@ -823,6 +825,9 @@ internal sealed interface MarketLink {
     data class Package(val id: String) : MarketLink
     data class Source(val url: String) : MarketLink
 
+    /** A supporter's early-access code, checked on the phone against Folio's key. */
+    data class Early(val code: String) : MarketLink
+
     companion object {
         /** What the Market should open, or null when this isn't a link Folio knows. */
         fun parse(uri: String?): MarketLink? {
@@ -836,6 +841,7 @@ internal sealed interface MarketLink {
                 "package" -> Package(value).takeIf { PackageManifest.ID.containsMatchIn(it.id) }
                 // The url is encoded, because it carries its own slashes.
                 "source" -> android.net.Uri.decode(value).let { url -> Source(url).takeIf { url.startsWith("https://") } }
+                "early" -> Early(android.net.Uri.decode(value)).takeIf { it.code.length in 16..512 }
                 else -> null
             }
         }

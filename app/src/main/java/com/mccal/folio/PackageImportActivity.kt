@@ -23,7 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 class PackageImportActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!MarketFeature.isEnabled(packageName)) {
+        if (!MarketAccess.isOpen(this)) {
             finish()
             return
         }

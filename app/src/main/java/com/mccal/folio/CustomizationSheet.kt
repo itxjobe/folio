@@ -168,7 +168,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.AutoAwesome, 0xFFBF5AF2, "Tweaks", "customization-tweaks",
                             "${state.installedTweaks.size} installed", selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
                         // The Market (0.7.0), while it's being built: Folio Dev shows it, the release doesn't.
-                        if (com.mccal.folio.market.MarketFeature.isEnabled(sheetContext.packageName)) {
+                        if (MarketAccess.isOpen(sheetContext)) {
                             MenuDivider()
                             TweakRow(Icons.Rounded.Storefront, 0xFF0A84FF, "Market", "customization-market",
                                 selected = selected == CustomizationPage.MARKET, chevron = !sidebar) { onPage(CustomizationPage.MARKET) }
@@ -866,8 +866,22 @@ private val IosBlue = androidx.compose.ui.graphics.Color(0xFF0A84FF)
             Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(19.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Text(title, color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp, modifier = Modifier.weight(1f))
-        value?.let { Text(it, color = androidx.compose.ui.graphics.Color.White.copy(alpha = if (selected) .85f else .5f), fontSize = 17.sp) }
+        // A long title wraps to two lines rather than being cut off — iOS does the same in a narrow window or at a
+        // large text size — and the value drops under it when there isn't room beside it.
+        val config = androidx.compose.ui.platform.LocalConfiguration.current
+        val tight = config.screenWidthDp < 360 || config.fontScale >= 1.3f
+        val valueColor = androidx.compose.ui.graphics.Color.White.copy(alpha = if (selected) .85f else .5f)
+        Column(Modifier.weight(1f)) {
+            Text(
+                title, color = androidx.compose.ui.graphics.Color.White, fontSize = 17.sp,
+                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            if (tight) value?.let { Text(it, color = valueColor, fontSize = 15.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
+        }
+        if (!tight) value?.let {
+            Text(it, color = valueColor, fontSize = 17.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp))
+        }
         if (chevron) Icon(Icons.Rounded.ChevronRight, null, tint = androidx.compose.ui.graphics.Color.White.copy(alpha = .3f))
     }
 }
@@ -1986,6 +2000,14 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
             SoftwareUpdate.Mode.MANUAL -> "Folio only checks when you open this page or tap Check for Updates."
         }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosMenuRow("Beta Updates", listOf(false to "Off", true to "Folio Beta"), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
+        // What Beta Updates gets you right now, said plainly, so nobody has to guess what they're missing.
+        if (!MarketAccess.isOpen(context)) {
+            Text(
+                com.mccal.folio.market.MarketFeature.NOT_YET,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+            )
+        }
         Text(if (beta) "You'll get Folio betas as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
             else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
