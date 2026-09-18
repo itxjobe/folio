@@ -618,8 +618,18 @@ class MainActivity : ComponentActivity() {
         LiveDiscover.setExternalResultPending(this, "main", "appearance-location", false)
     }
 
+    /** The window's size in dp, to tell a fold or a resize from a change that leaves the layout alone. */
+    private var lastWindowSize: Pair<Int, Int>? = null
+
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
+        // A panel is drawn for the screen it opened on. Folding, unfolding or being resized leaves it laid out for a
+        // screen that is no longer there, and on some phones it can't be dismissed at all (reported on r/GalaxyFold
+        // from a Fold8 Ultra), so a real size change closes it and Home comes back clean.
+        val size = newConfig.screenWidthDp to newConfig.screenHeightDp
+        val was = lastWindowSize
+        lastWindowSize = size
+        if (windowChangedShape(was, size)) closeOverlays()
         // Folding, Display size, Smallest width or split screen can bring Android's status bar back over the Side Bar
         // status; hide it again once the new layout is in place.
         window.decorView.post { setStatusMode(model.state.value.verticalStatus) }

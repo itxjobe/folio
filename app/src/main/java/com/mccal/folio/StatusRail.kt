@@ -102,10 +102,29 @@ enum class StatusGlyph(@androidx.annotation.StringRes val label: Int) {
  * How far each half of the Gauge's ring is filled, in degrees, for a battery level from 0 to 1. The left half fills
  * first, from the top down, so half a charge is the left half dark; the right then fills from the bottom up.
  */
-internal fun gaugeSweeps(level: Float, side: Float = GAUGE_SIDE): Pair<Float, Float> {
+internal fun gaugeSweeps(level: Float, side: Float = gaugeRing(2, showsReading = true).side): Pair<Float, Float> {
     val halves = level.coerceIn(0f, 1f) * 2f
     return minOf(halves, 1f) * side to (halves - 1f).coerceIn(0f, 1f) * side
 }
+
+/**
+ * The Gauge's ring, as angles: the break at the top is opened just wide enough for the reading plus a margin either
+ * side, so 100 has the same air around it as 9 does, and closes altogether when the percentage is off. The break at
+ * the bottom is fixed, for the dots.
+ */
+internal fun gaugeRing(digits: Int, showsReading: Boolean): GaugeRing {
+    val topGap = if (!showsReading) 0f else {
+        val needed = gaugeReadingWidth(digits) + 2f * GAUGE_READING_PAD
+        val half = Math.toDegrees(kotlin.math.asin((needed / (2f * GAUGE_RADIUS)).coerceIn(0f, 1f).toDouble())).toFloat()
+        (half * 2f).coerceIn(60f, 130f)
+    }
+    val side = (360f - topGap - GAUGE_BOTTOM_GAP) / 2f
+    val leftStart = 90f + GAUGE_BOTTOM_GAP / 2f
+    return GaugeRing(topGap, side, leftStart, leftStart + side + topGap)
+}
+
+/** Where the Gauge's two arcs begin and how long they are, in degrees (0 is 3 o'clock, growing clockwise). */
+internal data class GaugeRing(val topGap: Float, val side: Float, val leftStart: Float, val rightStart: Float)
 
 /**
  * How tall the Gauge's reading is, as a fraction of the glyph's width. A full charge is three digits and takes a
@@ -122,11 +141,9 @@ private const val GAUGE_RADIUS = .36f
 private const val GAUGE_DOT_GAP = .10f
 private const val GAUGE_DOT_RADIUS = .045f
 private const val GAUGE_DOT_PITCH = .15f
-private const val GAUGE_SIDE = 115f
-/** Each half of the ring when the percentage is off and the top no longer has to open for it. */
-private const val GAUGE_WHOLE_SIDE = 140f
-private const val GAUGE_LEFT_START = 122f
-private const val GAUGE_RIGHT_START = 302f
+private const val GAUGE_BOTTOM_GAP = 66f
+/** Air either side of the reading inside the break. */
+private const val GAUGE_READING_PAD = .055f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -308,7 +325,9 @@ fun StatusRail(
                         val showsDots = !status.airplane && cellularVisual is CellularSignalVisual.Available
                         val headroom = if (showsReading) GAUGE_CENTER - GAUGE_RADIUS else .06f
                         val ringCenter = headroom + GAUGE_RADIUS
-                        val side = if (showsReading) GAUGE_SIDE else GAUGE_WHOLE_SIDE
+                        val reading = status.battery?.toString() ?: "\u2014"
+                        val readingSize = gaugeReadingSize(reading.length)
+                        val ring = gaugeRing(reading.length, showsReading)
                         val dotsY = ringCenter + GAUGE_RADIUS + GAUGE_DOT_GAP
                         val markHeight = if (showsDots) dotsY + GAUGE_DOT_RADIUS + .04f else ringCenter + GAUGE_RADIUS + .06f
                         Box(Modifier.padding(top = 2.dp).width(visualSize).height(visualSize * markHeight),
@@ -332,17 +351,16 @@ fun StatusRail(
                             val box = Size(radius * 2, radius * 2)
                             val stroke = Stroke(width = w * .115f, cap = StrokeCap.Round)
                             val track = ink.copy(alpha = faint(.22f))
-                            if (showsReading) {
-                                drawArc(track, GAUGE_LEFT_START, side, false, corner, box, style = stroke)
-                                drawArc(track, GAUGE_RIGHT_START, side, false, corner, box, style = stroke)
-                            } else drawArc(track, GAUGE_LEFT_START, side * 2f, false, corner, box, style = stroke)
+                            if (ring.topGap > 0f) {
+                                drawArc(track, ring.leftStart, ring.side, false, corner, box, style = stroke)
+                                drawArc(track, ring.rightStart, ring.side, false, corner, box, style = stroke)
+                            } else drawArc(track, ring.leftStart, ring.side * 2f, false, corner, box, style = stroke)
                             if (status.battery != null) {
-                                val (left, right) = gaugeSweeps(level, side)
+                                val (left, right) = gaugeSweeps(level, ring.side)
                                 // Both halves fill towards the top: the left from the top down, the right from the
                                 // bottom up, so the ring closes as the battery fills.
-                                val leftTop = if (showsReading) GAUGE_LEFT_START + side else 270f
-                                if (left > 0f) drawArc(arcColor, leftTop, -left, false, corner, box, style = stroke)
-                                if (right > 0f) drawArc(arcColor, GAUGE_RIGHT_START + GAUGE_SIDE, -right, false, corner, box, style = stroke)
+                                if (left > 0f) drawArc(arcColor, ring.leftStart + ring.side, -left, false, corner, box, style = stroke)
+                                if (right > 0f) drawArc(arcColor, ring.rightStart + ring.side, -right, false, corner, box, style = stroke)
                             }
                             // drawWifiFan puts its apex at 56% of the width; the ring's middle is lower than that,
                             // so the signal is moved down to sit in the ring rather than up against the reading.
@@ -361,8 +379,6 @@ fun StatusRail(
                                 ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)), w * GAUGE_DOT_RADIUS,
                                 Offset(center.x + (i - 2) * w * GAUGE_DOT_PITCH, w * dotsY))
                         }
-                        val reading = status.battery?.toString() ?: "\u2014"
-                        val readingSize = gaugeReadingSize(reading.length)
                         if (showsReading) Text(reading, color = if (status.charging && style.colorfulBattery) charging else ink,
                             fontSize = (visualSize.value * readingSize / fontScale).sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
