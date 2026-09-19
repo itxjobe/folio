@@ -620,6 +620,7 @@ class MainActivity : ComponentActivity() {
 
     /** The window's size in dp, to tell a fold or a resize from a change that leaves the layout alone. */
     private var lastWindowSize: Pair<Int, Int>? = null
+        get() = field ?: (resources.configuration.screenWidthDp to resources.configuration.screenHeightDp).also { field = it }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -629,7 +630,9 @@ class MainActivity : ComponentActivity() {
         val size = newConfig.screenWidthDp to newConfig.screenHeightDp
         val was = lastWindowSize
         lastWindowSize = size
-        if (windowChangedShape(was, size)) closeOverlays()
+        // Only the panel: Spotlight lays itself out for the new screen, and closing it would throw away a search
+        // somebody is halfway through typing.
+        if (windowChangedShape(was, size)) topPanel.value = null
         // Folding, Display size, Smallest width or split screen can bring Android's status bar back over the Side Bar
         // status; hide it again once the new layout is in place.
         window.decorView.post { setStatusMode(model.state.value.verticalStatus) }
