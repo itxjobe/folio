@@ -14,6 +14,18 @@ class UntranslatedNoticeTest {
         .first { File(it, "CHANGELOG.md").exists() }
         .let { File(it, "app/src/main/java/com/mccal/folio") }.listFiles()?.filter { it.extension == "kt" }.orEmpty()
 
+    /**
+     * Text() given an English sentence. Numbers, names and formats are what's left after the sentences moved to
+     * strings.xml — a page count, a widget's size, the version beside Folio's name — so they're named here rather
+     * than left to a pattern that would quietly let a new sentence through.
+     */
+    @Test fun `no screen text is written in English in the code`() {
+        val sentence = Regex("""(?<![A-Za-z])Text\(\s*"[^"$]*[A-Za-z]{2}[^"]*"""")
+        val named = setOf("CustomizationSheet.kt")  // "Folio <version>", a name and a number
+        val bad = sources.filter { it.name !in named && sentence.containsMatchIn(it.readText()) }.map { it.name }
+        assertTrue("Screen text in $bad is an English literal; use stringResource so it can be translated.", bad.isEmpty())
+    }
+
     @Test fun `no toast or notice is written in English in the code`() {
         // A literal as the message: Toast.makeText(context, "…" or IslandEvents.notice(context, "…".
         val literal = Regex("""(Toast\.makeText|notice)\([^,()]+,\s*"""")
