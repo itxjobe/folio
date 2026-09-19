@@ -153,7 +153,9 @@ class PackageInstaller(
         safeMode.beginChange(pkg.id)
         val snapshots = mutableListOf<String>()
         try {
-            replaced?.let { undoChanges(it) }
+            // A version Safe Mode turned off has already had its changes taken off Home, so undoing them again
+            // would put back what Home looked like before it, over whatever has happened since.
+            replaced?.takeIf { it.enabled }?.let { undoChanges(it) }
             for (change in pkg.changes) snapshots += host.apply(change)
         } catch (e: Exception) {
             // Put back everything this install had already changed, newest first.
@@ -163,7 +165,7 @@ class PackageInstaller(
             // An update undoes the version it replaces before applying the new one, so put that version back too:
             // a failed update leaves the phone exactly as it was, with the old version still working.
             replaced?.let { old ->
-                val previous = store.changesFor(old.id, old.version)
+                val previous = store.changesFor(old.id, old.version)?.takeIf { old.enabled }
                 if (previous != null) {
                     val again = mutableListOf<String>()
                     runCatching { previous.forEach { again += host.apply(it) } }
@@ -277,7 +279,9 @@ class PackageInstaller(
         if (previous == null || changes == null) return true
         safeMode.beginChange(previous.id)
         val snapshots = mutableListOf<String>()
-        runCatching { changes.forEach { snapshots += host.apply(it) } }
+        // A version that was turned off goes back into the list still turned off: putting its changes on would
+        // leave the record saying one thing and the Home screen showing another.
+        if (previous.enabled) runCatching { changes.forEach { snapshots += host.apply(it) } }
         store.put(previous.copy(snapshots = snapshots, installedAt = clock()), changes)
         safeMode.endChange()
         return true

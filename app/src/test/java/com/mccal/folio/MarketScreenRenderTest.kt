@@ -69,6 +69,31 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Undo").assertExists()
     }
 
+    @Test fun `a package Safe Mode turned off says so, and Try Again puts it back`() {
+        val context = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val launcher = NoopLauncher()
+        val session = MarketSession(context, launcher, kotlinx.coroutines.Dispatchers.Unconfined)
+        session.prefs.introductionSeen = true
+        session.installed().forEach { session.remove(it.id) }
+
+        val cabinet = session.source.index()!!.packages.first { it.id == "com.mccal.folio.cabinet" }
+        session.get(cabinet)
+        assertEquals("the tweak is on", setOf("appPanels"), launcher.state.installedTweaks)
+
+        // What Safe Mode does after two crashes: the changes come off Home, the record stays.
+        session.disable(cabinet.id, "Folio stopped twice just after this package changed.")
+        assertEquals("off means off", emptySet<String>(), launcher.state.installedTweaks)
+
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-packages").performClick()
+        compose.onNodeWithText("Cabinet").performClick()
+        compose.onNodeWithText("Turned off after a crash").assertIsDisplayed()
+
+        compose.onNodeWithTag("package-try-again").performScrollTo().performClick()
+        awaitText("Cabinet is back on")
+        assertEquals("and the tweak is on again", setOf("appPanels"), launcher.state.installedTweaks)
+    }
+
     @Test fun `every tab opens, and the Market's settings offer both Featured styles`() {
         val session = session()
         session.prefs.introductionSeen = true

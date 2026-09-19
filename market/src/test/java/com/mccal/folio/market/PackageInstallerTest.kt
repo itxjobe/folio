@@ -137,6 +137,29 @@ class PackageInstallerTest {
         assertEquals("applied appPanels", host.state)
     }
 
+    @Test fun `updating a package that Safe Mode turned off brings it back on, once`() {
+        installer.install(pack())
+        installer.disable("com.mccal.folio.cabinet", "crashed")
+        assertEquals("nothing of it is on Home", "tweaks off", host.state)
+        val undone = host.restored.size
+
+        val update = installed(installer.install(pack(replace = mapOf("\"version\": \"1.0.0\"" to "\"version\": \"1.1.0\""))))
+        // The old version's changes were already off; undoing them again would put back what Home looked like
+        // before it, over whatever the user has done since.
+        assertEquals(undone, host.restored.size)
+        assertEquals("applied appPanels", host.state)
+        val now = store.find("com.mccal.folio.cabinet")!!
+        assertTrue("a new version is the fix you hoped for, so it comes back on", now.enabled)
+        assertNull(now.disabledReason)
+
+        // And Undo puts the old one back the way it was: off, with nothing of it on Home.
+        assertTrue(installer.undo(update))
+        val back = store.find("com.mccal.folio.cabinet")!!
+        assertEquals(DebVersion.parse("1.0.0"), back.version)
+        assertTrue("still off", !back.enabled)
+        assertEquals("tweaks off", host.state)
+    }
+
     @Test fun `Undo with nothing recorded for the previous version keeps the one that works`() {
         installed(installer.install(pack()))
         now += 60

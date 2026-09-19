@@ -341,22 +341,30 @@ internal fun MarketScreen(
                         .clickable(enabled = false) {},
                 ) {
                     // A file can carry its author's own signature now, so say which it is rather than assuming.
-                    val signing = session.authorOf(pkg)
+                    // Checking it hashes every file in the package and verifies a signature, so it happens once,
+                    // off the main thread: in a composable it would run again on every redraw of the sheet, over
+                    // as much as 20 MB.
+                    val signing by produceState<com.mccal.folio.market.AuthorTrust.Result?>(null, pkg.id, pkg.version) {
+                        value = withContext(session.io) { session.authorOf(pkg) }
+                    }
                     MarketInstallSheet(
                         manifest = pkg.manifest,
                         origin = InstallOrigin(
                             line = when (signing) {
+                                null -> stringResource(R.string.from_a_file_you_opened_checking_who_made)
                                 is com.mccal.folio.market.AuthorTrust.Result.Signed,
                                 is com.mccal.folio.market.AuthorTrust.Result.FirstTime,
                                 -> stringResource(R.string.from_a_file_you_opened_signed_by_its)
                                 else -> stringResource(R.string.from_a_file_you_opened)
                             },
                             checksum = null,
+                            // Nothing is claimed while the check is still running: an empty warning for a moment
+                            // is better than one that says the wrong thing and then corrects itself.
                             warning = when (signing) {
-                                is com.mccal.folio.market.AuthorTrust.Result.Signed -> null
+                                null, is com.mccal.folio.market.AuthorTrust.Result.Signed -> null
                                 is com.mccal.folio.market.AuthorTrust.Result.FirstTime ->
                                     stringResource(R.string.folio_will_remember_this_developer_s_key)
-                                else -> stringResource(R.string.text_1_s_only_open_packages_from_someone_you, signing.message)
+                                else -> stringResource(R.string.text_1_s_only_open_packages_from_someone_you, signing!!.message)
                             },
                         ),
                         onGet = {
