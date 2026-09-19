@@ -47,7 +47,7 @@ jobs:
         env:
           JAZZER_FUZZ: 1
         run: |
-          for target in manifest depiction entry index revoked archive tweaks jsonGuard versions localizedText; do
+          for target in manifest depiction entry index revoked archive tweaks jsonGuard versions localizedText authorSignature authorPayload; do
             ./gradlew :market:testDebugUnitTest --tests "*ParserFuzzTest.$target"
           done
       - name: Keep any input that failed

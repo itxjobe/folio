@@ -14,10 +14,12 @@
 ## Trust boundaries
 
 1. The network, between Folio and a source's HTTPS host.
-2. A source's publisher, who controls the signing key and the files.
-3. The package's contents, which are parsed and applied on the phone.
-4. A script's code, which runs in the sandbox.
-5. Files the user shares with Folio: `.foliopkg` files and launcher backups.
+2. A source's publisher, who controls the list and the files it serves.
+3. A package's author, who is not always its publisher: a mirror can carry someone else's package, so the author
+   signs the package and the source signs the list.
+4. The package's contents, which are parsed and applied on the phone.
+5. A script's code, which runs in the sandbox.
+6. Files the user shares with Folio: `.foliopkg` files and launcher backups.
 
 ## Threats and mitigations
 
@@ -31,7 +33,7 @@
 | T6 | A malicious package ships code | E | Folio never loads DEX, JAR or native code; unknown file types are rejected; kinds are a closed list | `PackageInstallerTest` T6 |
 | T7 | Zip-slip, zip bomb or symlink in a package | T/D | The package is read in memory and never extracted, so no name in it reaches the file system; names must be relative with no `..`; caps on packed size, unpacked size and file count; only a closed set of file types, which also refuses an entry claiming to be a link | `PackageInstallerTest` T7, and the `archive` fuzz target |
 | T8 | A malformed manifest or depiction crashes Folio | D | Strict parsers with size caps, where unknown values fall back to safe defaults; Jazzer fuzzing | `ParserFuzzTest`, 5 minutes per parser |
-| T9 | A package or script misbehaves and makes Home unusable | D | Safe Mode: two crashes within 60 s of a package change start Folio with that package turned off and its settings kept (Try Again / Remove / Details); everything else keeps working | `PackageInstallerTest` T9 |
+| T9 | A package or script misbehaves and makes Home unusable | D | Safe Mode: two crashes within 60 s of a package change start Folio with that package's changes taken off Home and its record and settings kept, so Try Again puts it back and Remove takes it away; everything else keeps working | `PackageInstallerTest` T9, `InstallStateMachineTest` |
 | T10 | A script escapes the sandbox or does too much | E | QuickJS or LuaJ with no network, file or reflection access; memory and CPU caps; actions only through declared permissions; auto-disable after 3 failures | Over-budget and undeclared-action scripts are stopped |
 | T11 | A package hides what it does | I | The privacy label is generated from `permissions`, never from the author's text; permissions are checked when the package runs | A permission missing from the manifest is denied |
 | T12 | A depiction leaks data or phishes | I/S | Closed set of block types; Markdown subset with no HTML or remote images; links must be https and show their domain | HTML and http depictions are rejected by the schema |
@@ -39,6 +41,8 @@
 | T14 | Market traffic uses up GitHub rate limits | D | Static files only, conditional requests (ETag), refresh at most every 6 h | `RepoClientTest` T14 |
 | T15 | A launcher backup import is malicious | T/D | Only files the user picks; strict parsing and size caps; preview before anything is applied; full undo | Oversized and malformed backup fixtures fail |
 | T16 | A reported package stays live | R | Report opens the source's issue form with the package id, version and sha256; Community takedowns go into `revoked.json` | Process documented in the Community repo |
+| T17 | A mirror alters a package it carries, or publishes under an author's name | T/S | A source's signature only says the list came from that source. An author signs the package itself: `folio-pkg:<id>:<version>:<sha256>` in the index, and `folio-pkg-files:<id>:<version>:<digest of the files>` in `signature.json` inside the package, so a file shared by hand carries its own proof. The first signed copy pins that key to the package id, the way a phone pins an app's signing key; a later copy signed by another key, one that doesn't match its bytes, or one that has dropped a signature the id has always had, is refused. An unsigned package is allowed and the page says nobody signed it. | `AuthorSignatureTest`, `OpensslInteropTest`, and the `authorSignature` and `authorPayload` fuzz targets |
+| T18 | Two sources use one package id | S | An id that belongs to a package inside Folio is refused outright; an id two added sources both offer is shown on both and marked as such. Where the package is signed, the author key pinned to that id settles it: the copy signed by another key is refused. Where neither copy is signed there is nothing to tell them apart, so the store says so and the user chooses | `MarketSourcesTest` |
 
 ## Out of scope
 
