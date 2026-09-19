@@ -706,4 +706,9 @@
     <string name="classic">Classic</string>
     <string name="banking_apps_note">Some banking apps refuse to open while any accessibility service is on, including Folio\'s gestures service. That is their check, not something Folio can change. Everything except the pull-down panels and the dock and island over other apps works without it, so you can turn it off in Android\'s Accessibility settings and keep using Folio.</string>
     <string name="gauge">Gauge</string>
+    <string name="code_added_thank_you">Code added. Thank you.</string>
+    <string name="that_link_doesn_t_carry_a_folio_code">That link doesn\'t carry a Folio code.</string>
+    <string name="this_device_can_t_show_discover_beside">This device can\'t show Discover beside the dock.</string>
+    <string name="app_is_unavailable">%1$s is unavailable.</string>
+    <string name="install_or_enable_the_google_app_first">Install or enable the Google app first.</string>
 </resources>

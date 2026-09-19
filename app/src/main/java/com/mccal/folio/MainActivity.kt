@@ -492,7 +492,7 @@ class MainActivity : ComponentActivity() {
             val shortcut = app.shortcutId
             if (shortcut != null) launcherApps.startShortcut(app.packageName, shortcut, screenBounds(bounds), launchOptions(bounds), user)
             else launcherApps.startMainActivity(app.component, user, screenBounds(bounds), launchOptions(bounds))
-        } catch (_: Exception) { IslandEvents.notice(this, "${app.label} is unavailable.", app.icon); model.refresh() }
+        } catch (_: Exception) { IslandEvents.notice(this, getString(R.string.app_is_unavailable, app.label), app.icon); model.refresh() }
     }
 
     private fun screenBounds(bounds: android.graphics.Rect?): android.graphics.Rect? = bounds?.takeUnless { it.isEmpty }?.let {
@@ -660,7 +660,7 @@ class MainActivity : ComponentActivity() {
                 ?: throw IllegalStateException(getString(R.string.profile_is_unavailable))
             getSystemService(LauncherApps::class.java).startAppDetailsActivity(app.component, user, null, null)
         } catch (_: Exception) {
-            IslandEvents.notice(this, "${app.label} is unavailable.", app.icon)
+            IslandEvents.notice(this, getString(R.string.app_is_unavailable, app.label), app.icon)
             model.refresh()
         }
     }
