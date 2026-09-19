@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -852,7 +853,16 @@ private fun MarketPackagePage(
                 ) {
                     block.images.forEach { MarketImage(session, source, it, Modifier.width(150.dp).height(260.dp)) }
                 }
-                is DepictionBlock.Markdown -> Text(block.text.english, color = Color.White.copy(alpha = .85f), fontSize = 15.sp, modifier = Modifier.padding(bottom = 10.dp))
+                // The subset format-v1 promises authors: paragraphs, bold, italic, lists and links, nothing else.
+                is DepictionBlock.Markdown -> Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MarketText.paragraphs(block.text.english).forEach { para ->
+                        Text(
+                            if (para.bullet) buildAnnotatedString { append("·  "); append(para.text) } else para.text,
+                            color = Color.White.copy(alpha = .85f), fontSize = 15.sp, lineHeight = 21.sp,
+                            modifier = if (para.bullet) Modifier.padding(start = 4.dp) else Modifier,
+                        )
+                    }
+                }
                 is DepictionBlock.FeatureList -> Column(Modifier.padding(bottom = 10.dp)) {
                     block.items.forEach { Text("· ${it.english}", color = Color.White.copy(alpha = .85f), fontSize = 15.sp) }
                 }

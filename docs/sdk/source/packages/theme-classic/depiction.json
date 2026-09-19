@@ -4,14 +4,16 @@
   "blocks": [
     {
       "type": "markdown",
-      "text": "Folio’s standard look: rounded icons, iOS badges and tinted glass.\n\nA built-in Folio theme. Applying it changes how Folio draws your Home screen; it never changes other apps."
+      "text": "Folio as it comes: the icons your apps ship with in their own shape, red dot badges, and glass tinted from what is behind it.\n\nThe status area shows the time, the date and the battery with the ring glyphs. This is the theme to apply to put everything back the way it was.\n\nA built-in Folio theme. Applying it changes how Folio draws your Home screen and nothing else - it never touches other apps, and every setting it changes can be changed back by hand in Settings."
     },
     {
       "type": "featureList",
       "items": [
-        "Rounded app icons",
-        "iOS-style badges",
-        "Tinted glass"
+        "The icons apps ship with, in their own shape",
+        "Red dot badges",
+        "Tinted glass",
+        "Time, date and battery in the status area",
+        "Live clock and calendar icons"
       ]
     },
     {

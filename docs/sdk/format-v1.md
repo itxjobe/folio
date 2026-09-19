@@ -102,7 +102,10 @@ This is the package page. It's a list of blocks, and Folio draws every block wit
 Block types:
 - `hero`
 - `screenshots`
-- `markdown`: a safe subset (paragraphs, bold, italic, lists and links); no HTML or images.
+- `markdown`: a safe subset; no HTML or images. Blank lines separate paragraphs, lines starting `- ` are
+  bullets, `**bold**` and `*italic*` are emphasis, and `[words](https://…)` is a link. Anything else -
+  a heading, a table, an unclosed `*`, a link to anything but https - is drawn exactly as it was typed,
+  so a stray marker shows up as a marker instead of swallowing a sentence.
 - `featureList`
 - `compatibility`
 - `changelog`
