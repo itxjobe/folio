@@ -141,12 +141,15 @@ internal class MarketSources(
     }
 
     suspend fun refresh(url: String, force: Boolean): RefreshResult = withContext(io) {
-        val source = sources().firstOrNull { it.url == normalizeSourceUrl(url) }
-        val result = if (source?.kind == Source.Kind.LOCAL_DEV) client.refreshLocalDev(url)
-        else client.refresh(url, force, knownRevocations())
+        // One spelling for the rest of this function. RepoClient and SourceList each normalize again at their own
+        // door, so this changes nothing today; it's here so the lookup and the writes can't drift apart later.
+        val base = normalizeSourceUrl(url)
+        val source = sources().firstOrNull { it.url == base }
+        val result = if (source?.kind == Source.Kind.LOCAL_DEV) client.refreshLocalDev(base)
+        else client.refresh(base, force, knownRevocations())
         val name = (result as? RefreshResult.Updated)?.snapshot?.index?.name?.english
             ?: (result as? RefreshResult.Unchanged)?.snapshot?.index?.name?.english
-        name?.let { list.rename(url, it) }
+        name?.let { list.rename(base, it) }
         result
     }
 

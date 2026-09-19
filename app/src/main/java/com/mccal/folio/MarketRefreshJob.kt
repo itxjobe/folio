@@ -6,10 +6,11 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
-import com.mccal.folio.market.MarketFeature
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 /**
@@ -26,7 +27,14 @@ class MarketRefreshJob : JobService() {
         scope.launch {
             try {
                 val prefs = rememberedMarketPrefs(applicationContext)
-                if (prefs.backgroundRefresh) refreshSources(applicationContext)
+                // The gate is asked again here, not only when the job was scheduled: a supporter's code can run out
+                // between one day and the next, and a phone that can't open the store shouldn't be going online for
+                // it. The setting is asked again for the same reason.
+                if (MarketAccess.isOpen(applicationContext) && prefs.backgroundRefresh) {
+                    refreshSources(applicationContext)
+                } else {
+                    schedule(applicationContext)
+                }
             } finally {
                 jobFinished(params, false)
             }
@@ -34,7 +42,16 @@ class MarketRefreshJob : JobService() {
         return true
     }
 
-    override fun onStopJob(params: JobParameters) = true
+    /** Android wants the work to stop. It stops: the refresh is a nicety, and it runs again tomorrow. */
+    override fun onStopJob(params: JobParameters): Boolean {
+        scope.coroutineContext.cancelChildren()
+        return true
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
 
     companion object {
         private const val REFRESH = 4104

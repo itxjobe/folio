@@ -113,6 +113,21 @@ class MarketSourcesTest {
         assertEquals(1, sources.cached().single().packages.size)
     }
 
+    @Test fun `a source refreshed by an address spelled differently is the same source`() = runTest {
+        publish()
+        sources.trust(base, (sources.inspect(base) as RefreshResult.NeedsTrust).key)
+        assertEquals(listOf(base), sources.sources().map { it.url })
+
+        // The list, the cache and the pinned key are all keyed on the address, and each normalizes it at its own
+        // door. This holds them to it: a trailing slash left off must not turn one source into two.
+        val same = base.trimEnd('/')
+        val again = sources.refresh(same, force = true)
+        assertTrue("$again", again is RefreshResult.Updated || again is RefreshResult.Unchanged)
+        assertEquals("still one source", listOf(base), sources.sources().map { it.url })
+        assertEquals("and it still has its name", "Maya's packages", sources.sources().single().name)
+        assertEquals(1, sources.cached().single().packages.size)
+    }
+
     @Test fun `a package from a source is checked against what the source promised`() = runTest {
         publish()
         sources.trust(base, key)

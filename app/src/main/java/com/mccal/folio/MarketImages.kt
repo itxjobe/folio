@@ -1,6 +1,7 @@
 package com.mccal.folio
 
 import android.content.Context
+import androidx.compose.ui.graphics.asImageBitmap
 import coil3.ImageLoader
 import coil3.Uri
 import coil3.decode.DataSource
@@ -35,6 +36,24 @@ internal object MarketImages {
     const val MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
     private const val DISK_CACHE_BYTES = 32L * 1024 * 1024
+
+    /**
+     * Folio's own icons and screenshots, decoded once.
+     *
+     * These come out of the APK rather than off a source, so Coil never sees them, and the obvious thing —
+     * `remember { decode() }` in the row — decodes again every time a row scrolls back into view, on the main
+     * thread. A small map of the ones already decoded costs a few hundred kilobytes and makes scrolling free.
+     * Bounded, because a source's page can name any number of pictures.
+     */
+    private val decoded = object : android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(24) {}
+
+    /** The bundled picture at [path], decoded, or null when the source hasn't got one. */
+    fun bundled(read: (String) -> ByteArray?, path: String): androidx.compose.ui.graphics.ImageBitmap? =
+        decoded[path] ?: read(path)?.let { bytes ->
+            runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+                ?.asImageBitmap()
+                ?.also { decoded.put(path, it) }
+        }
 
     @Volatile private var loader: ImageLoader? = null
 

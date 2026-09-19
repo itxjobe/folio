@@ -996,9 +996,7 @@ private fun MarketImage(session: MarketSession, source: Source, path: String, mo
     val context = androidx.compose.ui.platform.LocalContext.current
     val url = remember(source.url, path) { MarketImages.urlFor(source, path) }
     val bundled = remember(path, url) {
-        if (url != null) null else session.source.asset(path)?.let { bytes ->
-            runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
-        }
+        if (url != null) null else MarketImages.bundled(session.source::asset, path)
     }
     Box(modifier.padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .06f))) {
         when {
@@ -1030,9 +1028,7 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
     val url = remember(entry.source.url, icon) { icon?.let { MarketImages.urlFor(entry.source, it) } }
     // Folio's own icons are in the APK; a source's are on its host, and Coil fetches them.
     val bundled = remember(icon, url) {
-        if (icon == null || url != null) null else session.source.asset(icon)?.let { bytes ->
-            runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
-        }
+        if (icon == null || url != null) null else MarketImages.bundled(session.source::asset, icon)
     }
     val tint = sectionColor(entry.entry.manifest?.section)
     Box(
