@@ -5,6 +5,34 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
+## [0.7.0] - Unreleased
+
+### Added
+- The Folio Market: the app icon opens a store with Featured, Sources, Packages, Installed and Settings. In 0.7.0 it's for testers - Folio Dev, anyone on Beta Updates, and supporters with a code - and every theme and tweak it hands out is still in Settings for everyone else.
+- Folio's own themes and tweaks are packages now, with a page each: what they do, what you see, screenshots, what's changed, and a privacy label built from what the package actually asks for rather than from anything its author wrote.
+- Add a source by address (any HTTPS host) or a `folio://source/` link. Folio shows the source's key fingerprint before you trust it, remembers it, and says plainly what a changed key looks like.
+- Getting a package checks its size, its checksum and its signature before anything is applied, applies it in one go, and leaves Undo next to it. A package that fails halfway is put back the way it was.
+- Packages can be signed by their developer, not just by the source handing them out, so a mirror can carry a package but can't change it or publish under someone else's name. A `.foliopkg` sent to you carries its own signature too.
+- Progress where the Get button was, App Store style: a ring that fills, and roughly how much longer on the package's page.
+- Open a `.foliopkg` file to install it, and `folio://package/<id>` to open a package's page.
+- Updates in Installed, with a banner and an optional badge when one is ready. Background refresh is off by default and waits for Wi-Fi when it's on.
+- Per-package Safe Mode: if Folio stops twice just after a package changed something, only that package is turned off, and its settings are kept (Try Again, Remove, Details).
+- A source can pull a package it published; a pulled package can be removed but never installed again, including as an update.
+- A package's page has Share and Report a Package, which opens its source's issue form with the id, version and checksum filled in.
+- Supporter codes in Settings: a code from Ko-fi is checked on the phone against a key built into Folio - no account, no server, and nothing recorded about who redeemed it.
+- Settings uses three columns on a large screen: the list, the page, and whatever you opened from it. Opening a tweak no longer replaces the list you opened it from.
+
+### Changed
+- Settings shows two columns from 700 dp in either orientation, not only in landscape, and three from 920 dp. Half folded the divider stays on the crease.
+- A settings row title wraps to a second line in a narrow window or at a large text size instead of being cut short, and its value moves underneath when there isn't room beside it.
+
+### Fixed
+- An install now outlives the screen that started it: pressing Back during a download used to leave the package applied with no message and no Undo.
+- A failed write to Folio's own store no longer destroys the value it was replacing - for a source, that value is its pinned key.
+- A source that published a list Folio couldn't read used to stay stuck on a tamper warning; it recovers as soon as the source publishes a good one.
+- A shared `.foliopkg` opened while Settings was on a sub-page was dropped, and one opened while the Market was up was ignored until later.
+- Reading the installed list, the bundled index, cached source lists and a package's files no longer happens while a frame is being drawn.
+
 ## [0.6.1] - Unreleased
 
 ### Added
