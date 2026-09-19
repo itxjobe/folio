@@ -696,7 +696,7 @@ private fun MarketRow(
             }
         }
         when {
-            busy -> InstallProgress(MarketWork.progress)
+            busy -> InstallProgress(MarketWork.progress, words = false, name = name)
             // A revoked package can be removed but never installed again - including as an update, which is how a
             // pulled package used to slip back in.
             entry.revokedReason != null && installed != null -> MarketActionButton("Remove", name, onRemove)
@@ -825,6 +825,7 @@ private fun MarketPackagePage(
                     Text("Unavailable", color = Color(0xFFFFB340), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Text("Its source pulled it: $revoked", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
+                MarketWork.busyId == entry.id -> InstallProgress(MarketWork.progress, words = true, name = name)
                 installed != null -> MarketActionButton("Remove", name, onRemove)
                 else -> MarketActionButton("Get", name, onGet)
             }
@@ -1014,21 +1015,27 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
  * The App Store's filling ring, where the Get button was.
  *
  * Determinate while bytes are arriving and the source said how big the file is; a turning ring otherwise, because
- * a bar that sits at an invented percentage is worse than one that admits it doesn't know. The line underneath
- * says roughly how long is left - see [MarketProgress] for why "roughly".
+ * a bar that sits at an invented percentage is worse than one that admits it doesn't know. [words] adds roughly how
+ * long is left, which only fits on a package's page - see [MarketProgress] for why "roughly".
  */
 @Composable
-private fun InstallProgress(progress: MarketProgress?) {
+private fun InstallProgress(progress: MarketProgress?, words: Boolean, name: String) {
     val fraction = progress?.fraction
+    val doing = if (progress?.phase == MarketProgress.Phase.APPLYING) "Applying" else "Installing"
     Row(
         Modifier.padding(horizontal = 10.dp).semantics {
-            contentDescription = progress?.words ?: "Installing"
+            // A list can have a ring in it with nothing else to read, so the ring says which package it belongs to.
+            contentDescription = "$doing $name"
         },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        progress?.words?.let {
-            Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp, maxLines = 1)
-            Spacer(Modifier.width(8.dp))
+        // Only on the page. In a row the line squeezes the package's name, which the lab's checks caught on a
+        // small phone; the App Store shows a bare ring in a list for the same reason.
+        if (words) {
+            progress?.words?.let {
+                Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp, maxLines = 1)
+                Spacer(Modifier.width(8.dp))
+            }
         }
         Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
             if (fraction != null) {
