@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mccal.folio.market.FeaturedItem
@@ -56,9 +56,10 @@ internal fun MarketFeatured(
             banners.forEachIndexed { index, (item, entry) ->
                 if (index > 0) MenuDivider()
                 val name = entry.manifest?.name?.english ?: entry.id
+                val openLabel = stringResource(R.string.open_1_s, name)
                 Column(
                     Modifier.fillMaxWidth()
-                        .clickable(onClickLabel = "Open $name") { onOpen(entry.id) }
+                        .clickable(onClickLabel = openLabel) { onOpen(entry.id) }
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
                     item.label?.english?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 12.sp) }
@@ -75,7 +76,17 @@ internal fun MarketFeatured(
     val pager = rememberPagerState(pageCount = { banners.size })
     var touched by remember { mutableStateOf(false) }
     val still = LocalReduceMotion.current
-    LaunchedEffect(pager) { snapshotFlow { pager.isScrollInProgress }.collect { if (it) touched = true } }
+    // A drag by a finger, not any scroll at all: `isScrollInProgress` is true while the carousel advances itself,
+    // so watching that made the first advance count as a touch and the carousel stopped after one banner.
+    LaunchedEffect(pager) {
+        pager.interactionSource.interactions.collect {
+            if (it is androidx.compose.foundation.interaction.DragInteraction.Start ||
+                it is androidx.compose.foundation.interaction.PressInteraction.Press
+            ) {
+                touched = true
+            }
+        }
+    }
     if (!still && banners.size > 1) {
         LaunchedEffect(touched) {
             while (!touched) {
@@ -93,10 +104,11 @@ internal fun MarketFeatured(
     ) { page ->
         val (item, entry) = banners[page]
         val name = entry.manifest?.name?.english ?: entry.id
+        val openLabel = stringResource(R.string.open_1_s, name)
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(bannerColor(page))
-                .clickable(onClickLabel = "Open $name") { onOpen(entry.id) }
+                .clickable(onClickLabel = openLabel) { onOpen(entry.id) }
                 .padding(16.dp),
             verticalArrangement = Arrangement.Bottom,
         ) {
@@ -108,10 +120,12 @@ internal fun MarketFeatured(
         }
     }
     if (banners.size > 1) {
-        // One control, not one per dot: you swipe the carousel, and the dots say where you are.
+        // One control, not one per dot: you swipe the carousel, and the dots say where you are. The words are read
+        // before the semantics block, which isn't a composable scope.
+        val dots = stringResource(R.string.featured_page_1_d_of_2_d, pager.currentPage + 1, banners.size)
         Row(
             Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                .semantics { contentDescription = "Featured, page ${pager.currentPage + 1} of ${banners.size}" },
+                .semantics { contentDescription = dots },
             horizontalArrangement = Arrangement.Center,
         ) {
             repeat(banners.size) { page ->

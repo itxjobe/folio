@@ -865,4 +865,5 @@
     <string name="text_1_s_is_back_on">%1$s is back on</string>
     <string name="folio_couldn_t_put_1_s_back_on">Folio couldn\'t put %1$s back on</string>
     <string name="from_a_file_you_opened_checking_who_made">From a file you opened. Checking who made it…</string>
+    <string name="featured_page_1_d_of_2_d">Featured, page %1$d of %2$d</string>
 </resources>
