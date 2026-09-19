@@ -286,14 +286,60 @@ class PackageInstallerTest {
         assertNull(safeMode.noteCrash())
     }
 
-    @Test fun `Safe Mode turns a package off but keeps its settings`() {
+    @Test fun `Safe Mode takes a package's changes off Home, and keeps its settings`() {
         installer.install(pack())
-        store.disable("com.mccal.folio.cabinet", "Folio crashed twice after this package changed")
+        val applied = host.state
+        assertTrue("the package is on Home", applied != "tweaks off")
+
+        assertTrue(installer.disable("com.mccal.folio.cabinet", "Folio crashed twice after this package changed"))
         val off = store.find("com.mccal.folio.cabinet")!!
         assertTrue(!off.enabled)
         assertEquals("Folio crashed twice after this package changed", off.disabledReason)
+        // Off means off: marking the record and leaving a theme applied turns nothing off, and Folio would start,
+        // crash on the same thing, and say it had already dealt with it.
+        assertEquals("tweaks off", host.state)
         // Its settings are still there, so Try Again can put it back without downloading anything.
         assertEquals(1, store.changesFor(off.id, off.version)?.size)
+        assertTrue("it's still in the list", store.installed().any { it.id == off.id })
+        assertTrue("and turning it off twice is not a thing", !installer.disable(off.id, "again"))
+    }
+
+    @Test fun `Try Again puts a package Safe Mode turned off back on`() {
+        installer.install(pack())
+        val applied = host.state
+        installer.disable("com.mccal.folio.cabinet", "crashed")
+
+        assertTrue(installer.enable("com.mccal.folio.cabinet"))
+        assertEquals("what it changed is back", applied, host.state)
+        val on = store.find("com.mccal.folio.cabinet")!!
+        assertTrue(on.enabled)
+        assertNull("and the reason goes with it", on.disabledReason)
+        assertTrue("one that is already on has nothing to put back", !installer.enable(on.id))
+    }
+
+    @Test fun `Try Again that fails leaves the package off rather than half on`() {
+        installer.install(pack())
+        installer.disable("com.mccal.folio.cabinet", "crashed")
+        val off = host.state
+        host.failOn = { true }
+
+        assertTrue(!installer.enable("com.mccal.folio.cabinet"))
+        assertEquals("Home is where it was", off, host.state)
+        assertTrue("and it is still off", store.find("com.mccal.folio.cabinet")?.enabled == false)
+    }
+
+    @Test fun `removing a package that is already off doesn't undo its changes twice`() {
+        installer.install(pack())
+        installer.disable("com.mccal.folio.cabinet", "crashed")
+        val off = host.state
+        val undone = host.restored.size
+
+        assertTrue(installer.remove("com.mccal.folio.cabinet"))
+        // Its changes came off when it was turned off. Undoing them again would put back whatever Home looked like
+        // before it, over whatever the user has done since.
+        assertEquals(undone, host.restored.size)
+        assertEquals(off, host.state)
+        assertTrue(store.installed().none { it.id == "com.mccal.folio.cabinet" })
     }
 
     @Test fun `what a package changed survives a restart`() {

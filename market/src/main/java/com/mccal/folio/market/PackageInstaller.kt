@@ -212,11 +212,54 @@ class PackageInstaller(
         return apply(pkg, InstalledPackage.Origin.FOLIO_SOURCE, sourceUrl = null, builtIn = true)
     }
 
+    /**
+     * Turns a package off the way Safe Mode does: its changes come off the Home screen, and its record stays so it
+     * can be put back with [enable].
+     *
+     * Taking the changes off is the point. Marking the record and leaving a theme applied turns nothing off — Folio
+     * would start, crash on the same thing, and say it had already dealt with it.
+     */
+    fun disable(id: String, reason: String): Boolean {
+        val installed = store.find(id)?.takeIf { it.enabled } ?: return false
+        safeMode.beginChange(id)
+        undoChanges(installed)
+        store.setEnabled(id, enabled = false, reason = reason)
+        safeMode.endChange()
+        return true
+    }
+
+    /**
+     * Puts a package that was turned off back on: Try Again, after Safe Mode.
+     *
+     * The changes are the ones recorded when it was installed, applied again from where Home is now, so the
+     * snapshots are new. If applying fails halfway it goes back off rather than being left half on.
+     */
+    fun enable(id: String): Boolean {
+        val installed = store.find(id)?.takeIf { !it.enabled } ?: return false
+        val changes = store.changesFor(installed.id, installed.version) ?: return false
+        safeMode.beginChange(id)
+        val snapshots = mutableListOf<String>()
+        try {
+            for (change in changes) snapshots += host.apply(change)
+        } catch (e: Exception) {
+            changes.take(snapshots.size).zip(snapshots).reversed().forEach { (change, snapshot) ->
+                runCatching { host.restore(change, snapshot) }
+            }
+            safeMode.endChange()
+            return false
+        }
+        store.setEnabled(id, enabled = true, snapshots = snapshots)
+        safeMode.endChange()
+        return true
+    }
+
     /** Takes a package off, putting back whatever it replaced. */
     fun remove(id: String): Boolean {
         val installed = store.find(id) ?: return false
         safeMode.beginChange(id)
-        undoChanges(installed)
+        // One that Safe Mode turned off has already had its changes taken off; undoing them again would restore
+        // whatever Home looked like before it, over whatever the user has done since.
+        if (installed.enabled) undoChanges(installed)
         store.remove(id)
         safeMode.endChange()
         return true
@@ -393,10 +436,16 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
         write(all)
     }
 
-    /** Turns a package off without losing its settings, the way Safe Mode does. */
-    fun disable(id: String, reason: String) {
+    /**
+     * Marks a package off or on again, keeping its record and what it changed. Only the record: putting the changes
+     * back or taking them off is [PackageInstaller.disable] and [PackageInstaller.enable], because that touches Home.
+     */
+    fun setEnabled(id: String, enabled: Boolean, reason: String? = null, snapshots: List<String>? = null) {
         val all = read().toMutableMap()
-        all[id]?.let { all[id] = it.copy(enabled = false, disabledReason = reason) }
+        all[id]?.let {
+            all[id] = it.copy(enabled = enabled, disabledReason = if (enabled) null else reason,
+                snapshots = snapshots ?: it.snapshots)
+        }
         write(all)
     }
 

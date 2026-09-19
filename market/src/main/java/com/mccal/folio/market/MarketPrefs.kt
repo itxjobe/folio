@@ -1,9 +1,14 @@
 package com.mccal.folio.market
 
-/** How Featured looks. McCal's call (2026-09-17): the carousel is the default, and the introduction offers both. */
-enum class FeaturedStyle(val id: String, val label: String, val description: String) {
-    CAROUSEL("carousel", "Carousel", "Large banners you can swipe through"),
-    CALM("calm", "Calm", "A simple list, like Settings");
+/**
+ * How Featured looks. McCal's call (2026-09-17): the carousel is the default, and the introduction offers both.
+ *
+ * The words for each one live with the screens that draw them, so they can be translated; this is the choice, not
+ * its label.
+ */
+enum class FeaturedStyle(val id: String) {
+    CAROUSEL("carousel"),
+    CALM("calm");
 
     companion object {
         fun from(id: String?) = entries.firstOrNull { it.id == id } ?: CAROUSEL

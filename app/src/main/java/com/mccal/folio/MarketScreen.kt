@@ -162,6 +162,16 @@ internal fun MarketScreen(
         MarketWork.taken()?.let { announce(it.name, it.result) }
     }
 
+    /** Puts back a package Safe Mode turned off. Its changes go on again, so it runs off the main thread too. */
+    fun tryAgain(id: String, name: String) {
+        if (MarketWork.busy) return
+        scope.launch {
+            val back = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { session.enable(id) }
+            say(context.getString(if (back) R.string.text_1_s_is_back_on else R.string.folio_couldn_t_put_1_s_back_on, name))
+            refresh()
+        }
+    }
+
     fun remove(id: String, name: String) {
         if (MarketWork.busy) return
         scope.launch {
@@ -295,6 +305,7 @@ internal fun MarketScreen(
                             onBack = { openId = null },
                             onGet = { confirming = open.id },
                             onRemove = { remove(open.id, open.name) },
+                            onTryAgain = { tryAgain(open.id, open.name) },
                             onShare = { share(context, it) },
                             onReport = { report(context, index?.issuesUrl, it) },
                         )
@@ -725,14 +736,14 @@ private fun MarketOwnSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> 
     Column {
         SheetGroupLabel(stringResource(R.string.featured_style))
         IosSegmented(
-            options = FeaturedStyle.entries.map { it to it.label },
+            options = FeaturedStyle.entries.map { it to stringResource(it.label) },
             selected = style,
             onSelect = onStyle,
             modifier = Modifier.padding(vertical = 8.dp),
             tag = "market-featured-style",
         )
         Text(
-            style.description,
+            stringResource(style.description),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp),
         )
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
@@ -784,6 +795,7 @@ private fun MarketPackagePage(
     onBack: () -> Unit,
     onGet: () -> Unit,
     onRemove: () -> Unit,
+    onTryAgain: () -> Unit,
     onShare: (IndexPackage) -> Unit,
     onReport: (IndexPackage) -> Unit,
 ) {
@@ -819,6 +831,15 @@ private fun MarketPackagePage(
                         Text(
                             installed.disabledReason ?: stringResource(R.string.your_settings_are_kept),
                             color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                        )
+                        // Safe Mode took its changes off Home. This puts them back, for a crash that wasn't its
+                        // fault; Remove, below, is the other way out.
+                        Text(
+                            stringResource(R.string.try_again),
+                            color = Color(0xFF0A84FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
+                                .clickable(onClick = onTryAgain).heightIn(min = 44.dp)
+                                .padding(vertical = 11.dp).testTag("package-try-again"),
                         )
                     }
                 }
@@ -1049,7 +1070,12 @@ private fun InstallProgress(progress: MarketProgress?, words: Boolean, name: Str
         // small phone; the App Store shows a bare ring in a list for the same reason.
         if (words) {
             progress?.words?.let {
-                Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp, maxLines = 1)
+                // It wraps rather than being cut short: at 200% text "About 20 seconds left" is wider than the
+                // column, and half a sentence about how long is left is worse than two lines of it.
+                Text(
+                    it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
                 Spacer(Modifier.width(8.dp))
             }
         }

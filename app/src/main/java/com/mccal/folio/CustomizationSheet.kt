@@ -629,12 +629,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     val marketPrefs = remember(sheetContext) { rememberedMarketPrefs(sheetContext) }
                     var featuredStyle by remember { mutableStateOf(marketPrefs.featuredStyle) }
                     IosSegmented(
-                        options = com.mccal.folio.market.FeaturedStyle.entries.map { it to it.label },
+                        options = com.mccal.folio.market.FeaturedStyle.entries.map { it to stringResource(it.label) },
                         selected = featuredStyle,
                         onSelect = { chosen -> featuredStyle = chosen; marketPrefs.featuredStyle = chosen },
                         tag = "market-featured-style",
                     )
-                    Text(featuredStyle.description,
+                    Text(stringResource(featuredStyle.description),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                     SheetGroup {
                         IosActionRow("Show the introduction again") { marketPrefs.introductionSeen = false }
@@ -2107,7 +2107,7 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
         })
         IosMenuRow(stringResource(R.string.beta_updates), listOf(false to "Off", true to stringResource(R.string.folio_beta)), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
         // What Beta Updates gets you right now, said plainly, so nobody has to guess what they're missing.
-        if (!MarketAccess.isOpen(context)) CardNote(com.mccal.folio.market.MarketFeature.NOT_YET)
+        if (!MarketAccess.isOpen(context)) CardNote(stringResource(MARKET_NOT_YET))
         CardNote(if (beta) "You'll get Folio betas as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
             else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.")
     }

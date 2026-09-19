@@ -113,13 +113,14 @@ private fun Body(text: String) {
 
 @Composable
 private fun StyleCard(option: FeaturedStyle, chosen: Boolean, onChoose: () -> Unit) {
+    val name = stringResource(option.label)
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF2C2C2E))
             .border(if (chosen) 2.dp else 0.dp, if (chosen) Color(0xFF0A84FF) else Color.Transparent, RoundedCornerShape(16.dp))
-            .clickable(role = Role.RadioButton, onClickLabel = option.label, onClick = onChoose)
+            .clickable(role = Role.RadioButton, onClickLabel = name, onClick = onChoose)
             .padding(14.dp),
     ) {
-        Text(option.label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-        Text(option.description, color = Color.White.copy(alpha = .7f), fontSize = 14.sp)
+        Text(name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(stringResource(option.description), color = Color.White.copy(alpha = .7f), fontSize = 14.sp)
     }
 }

@@ -150,9 +150,12 @@ internal class MarketSession(
      */
     fun noteCrash(): InstalledPackage? {
         val id = safeMode.noteCrash() ?: return null
-        store.disable(id, "Folio stopped twice just after this package changed, so it's off. Your settings are kept.")
+        installer.disable(id, "Folio stopped twice just after this package changed, so it's off. Your settings are kept.")
         return store.find(id)
     }
+
+    /** Try Again, after Safe Mode turned a package off: its changes go back on. */
+    fun enable(id: String): Boolean = installer.enable(id)
 }
 
 /** The Market's settings, for screens that only need those (Settings › Market) rather than the whole session. */

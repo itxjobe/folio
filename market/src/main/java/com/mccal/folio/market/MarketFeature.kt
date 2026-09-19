@@ -22,9 +22,4 @@ object MarketFeature {
      */
     fun isEnabled(packageName: String, onBeta: Boolean = false, hasEarlyCode: Boolean = false): Boolean =
         RELEASED || isDevBuild(packageName) || onBeta || hasEarlyCode
-
-    /** What to tell someone who doesn't have it yet, on the page where they can turn Beta Updates on. */
-    const val NOT_YET =
-        "The Market arrives in 0.7.0. Turn on Beta Updates to try it early, or use a supporter code. Every theme and " +
-            "tweak it hands out is already in Settings, so nothing is waiting behind it."
 }

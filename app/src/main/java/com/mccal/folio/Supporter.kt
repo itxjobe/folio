@@ -17,38 +17,65 @@ internal object Supporter {
     private const val BETA = "supporter_beta_on"
 
     /** Public keys a code may be signed with: McCal's, plus a test key the dev build (com.mccal.folio.dev) accepts. */
-    private fun keys(context: Context): List<String> = listOfNotNull(
+    internal fun keys(context: Context): List<String> = listOfNotNull(
         BetaKeys.SUPPORTER.takeIf { it.isNotBlank() },
         BetaKeys.TEST.takeIf { it.isNotBlank() && context.packageName.endsWith(".dev") })
 
     /** Whether this build can check codes at all: without a key, Settings doesn't offer the row. */
     fun available(context: Context): Boolean = keys(context).isNotEmpty()
 
-    fun code(context: Context): BetaCodes.Code? = stored(context)?.let {
-        (BetaCodes.verify(it, keys(context), withdrawn = BetaKeys.WITHDRAWN) as? BetaCodes.Result.Valid)?.code
+    /**
+     * The stored code, once it has been checked.
+     *
+     * Checking means an ECDSA verification, which is about a millisecond, and this is asked from inside
+     * composables: Settings asks on every redraw whether to show the Market row, twice over in the split view. A
+     * millisecond of signature maths per frame is a sixteenth of the frame, for an answer that only changes when
+     * somebody redeems or removes a code. So the answer is kept, keyed on the exact text it was worked out from,
+     * and a new or removed code recomputes it.
+     *
+     * The day is deliberately not part of the key: an expiry is checked in [expired] against the clock each time,
+     * so a code doesn't stay valid past midnight because the answer was cached before it.
+     */
+    fun code(context: Context, today: LocalDate = LocalDate.now(), keys: List<String> = keys(context)): BetaCodes.Code? {
+        val text = stored(context) ?: return null
+        val remembered = checked
+        val code = if (remembered != null && remembered.text == text && remembered.keys == keys) remembered.code else {
+            val verified = (BetaCodes.verify(text, keys, today, BetaKeys.WITHDRAWN) as? BetaCodes.Result.Valid)?.code
+            checked = Checked(text, keys, verified)
+            verified
+        }
+        return code?.takeIf { !it.expired(today) }
     }
+
+    /** The last code checked and what it came to, so the same text isn't verified twice. */
+    private data class Checked(val text: String, val keys: List<String>, val code: BetaCodes.Code?)
+
+    @Volatile private var checked: Checked? = null
 
     private fun stored(context: Context): String? =
         context.getSharedPreferences(PREFS, 0).getString(CODE, null)?.takeIf { it.isNotBlank() }
 
     /** Checks a code and keeps it when it's good. The result is what Settings shows the person. */
-    fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now()): BetaCodes.Result {
-        val result = BetaCodes.verify(text, keys(context), today, BetaKeys.WITHDRAWN)
+    fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now(),
+        keys: List<String> = keys(context)): BetaCodes.Result {
+        val result = BetaCodes.verify(text, keys, today, BetaKeys.WITHDRAWN)
         if (result is BetaCodes.Result.Valid) {
+            checked = null
             context.getSharedPreferences(PREFS, 0).edit().putString(CODE, BetaCodes.group(text)).apply()
         }
         return result
     }
 
     fun remove(context: Context) {
+        checked = null
         context.getSharedPreferences(PREFS, 0).edit().remove(CODE).remove(BETA).apply()
     }
 
     fun storedText(context: Context): String? = stored(context)
 
     /** A code unlocks a feature; beta features also need the switch, so early access can be left at any time. */
-    fun has(context: Context, scope: String): Boolean {
-        val code = code(context) ?: return false
+    fun has(context: Context, scope: String, keys: List<String> = keys(context)): Boolean {
+        val code = code(context, keys = keys) ?: return false
         if (scope !in code.scopes) return false
         return scope != BetaCodes.SCOPE_BETA || betaOn(context)
     }

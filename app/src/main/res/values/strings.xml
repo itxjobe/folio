@@ -857,4 +857,11 @@
     <string name="open_1_s">Open %1$s</string>
     <string name="early_access">Early access</string>
     <string name="the_market_is_here_early_for_supporters">The Market is here early for supporters. A code redeemed in Settings › Supporter opens it, along with the other features that arrive a release or two ahead.</string>
+    <string name="carousel">Carousel</string>
+    <string name="large_banners_you_can_swipe_through">Large banners you can swipe through</string>
+    <string name="calm">Calm</string>
+    <string name="a_simple_list_like_settings">A simple list, like Settings</string>
+    <string name="the_market_arrives_in_0_7_0_turn_on_beta">The Market arrives in 0.7.0. Turn on Beta Updates to try it early, or use a supporter code. Every theme and tweak it hands out is already in Settings, so nothing is waiting behind it.</string>
+    <string name="text_1_s_is_back_on">%1$s is back on</string>
+    <string name="folio_couldn_t_put_1_s_back_on">Folio couldn\'t put %1$s back on</string>
 </resources>
