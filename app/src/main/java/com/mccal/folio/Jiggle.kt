@@ -98,7 +98,7 @@ internal fun BoxScope.JiggleRemoveButton(label: String, inset: Dp = 0.dp, onRemo
             haptic.performHapticFeedback(HapticFeedbackType.ContextClick); onRemove()
         }.semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(22.dp).shadow(2.dp, CircleShape).background(Color(0xFFD1D1D6), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Remove, null, tint = Color(0xFF1C1C1E), modifier = Modifier.size(15.dp))
+            Icon(Icons.Rounded.Remove, null, tint = FolioColors.SecondaryBackground, modifier = Modifier.size(15.dp))
         }
     }
 }

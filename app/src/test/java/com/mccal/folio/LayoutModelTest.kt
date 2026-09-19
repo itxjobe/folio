@@ -27,7 +27,7 @@ class LayoutModelTest {
     }
     @Test fun `search keeps four complete dock targets between status and keyboard`() {
         for (width in listOf(475f, 933f)) for (height in listOf(310f, 330f, 375f, 420f)) {
-            for (position in listOf(.25f, .56f, .75f)) {
+            for (position in listOf(0f, .25f, .56f, .75f, 1f)) {
                 val g = homeGeometry(width, height, LayoutPreset(dockPosition = position), true,
                     statusHeight = 80f, inLibrary = true)
                 assertTrue(g.dockTop >= 80f)
@@ -49,8 +49,8 @@ class LayoutModelTest {
 
     @Test fun `every dock and status placement fits the page without cutting anything off`() {
         val sizes = listOf(360f to 780f, 780f to 360f, 412f to 900f, 700f to 900f, 900f to 640f, 1180f to 760f, 640f to 600f)
-        for ((w, h) in sizes) for (d in DockPlacement.entries) for (top in listOf(false, true)) for (labels in listOf(true, false)) {
-            val p = LayoutPreset(dockPlacement = d, statusTop = top)
+        for ((w, h) in sizes) for (d in DockPlacement.entries) for (top in listOf(null, 0f, .5f, 1f)) for (labels in listOf(true, false)) {
+            val p = LayoutPreset(dockPlacement = d, statusAlignToGrid = top == null, statusPosition = top ?: 0f, dockAlignToGrid = top != .5f, dockPosition = top ?: .56f)
             val g = homeGeometry(w, h, p, labels, statusHeight = 160f)
             val bottom = 44f + if (g.horizontalDock) g.dockBarHeight + 16f else 0f
             val page = if (g.splitColumns) maxOf(g.widgetHeight + 18f + 2f * g.rowHeight, 3f * g.rowHeight) else g.widgetHeight + 18f + 4f * g.rowHeight
@@ -59,19 +59,29 @@ class LayoutModelTest {
             assertTrue("page runs under the controls at $where", g.contentTop + page <= h - bottom + .5f)
             assertTrue("grid wider than the screen at $where", g.gridWidth + (if (g.horizontalDock && !g.dockBesideRail) 0f else p.dockWidth + 28f) <= (if (g.expanded) g.homeWidth + 16f else w))
             assertTrue("status starts off screen at $where", g.statusTop >= 16f)
-            if (!g.horizontalDock) {
+            if (g.horizontalDock) assertTrue("status runs into the dock bar at $where", g.statusTop + 138f <= h - bottom + .5f || h < 500f)
+            else {
                 assertTrue("dock overlaps the status at $where", g.dockTop >= g.statusTop + 160f - 22f - .5f || h < 500f)
                 assertTrue("dock runs off the bottom at $where", g.dockTop + g.dockHeight <= h - 12f + .5f)
             }
         }
     }
 
-    @Test fun `status can start at the top and the dock stays under it`() {
-        val level = homeGeometry(700f, 900f, LayoutPreset(dockPlacement = DockPlacement.SIDE), true, statusHeight = 160f)
-        val top = homeGeometry(700f, 900f, LayoutPreset(dockPlacement = DockPlacement.SIDE, statusTop = true), true, statusHeight = 160f)
-        assertEquals(level.contentTop, level.statusTop)
-        assertEquals(16f, top.statusTop)
-        assertTrue(top.dockTop >= top.statusTop + 138f)
+    @Test fun `status moves from the top to its lowest spot and the dock stays under it`() {
+        fun g(pos: Float?) = homeGeometry(700f, 900f, LayoutPreset(dockPlacement = DockPlacement.SIDE,
+            statusAlignToGrid = pos == null, statusPosition = pos ?: 0f), true, statusHeight = 160f)
+        assertEquals(g(null).contentTop, g(null).statusTop)
+        assertEquals(16f, g(0f).statusTop)
+        assertTrue(g(.5f).statusTop > g(0f).statusTop && g(1f).statusTop > g(.5f).statusTop)
+        for (pos in listOf(0f, .5f, 1f)) {
+            val it = g(pos)
+            assertTrue(it.dockTop >= it.statusTop + 138f)
+            assertTrue(it.dockHeight >= 4f * 48f + 16f)
+            assertTrue(it.dockTop + it.dockHeight <= 900f - 124f + .5f)
+        }
+        // Not measured yet: level with the apps.
+        assertEquals(homeGeometry(700f, 900f, LayoutPreset(statusAlignToGrid = false, statusPosition = 1f), true).let { it.contentTop }, 
+            homeGeometry(700f, 900f, LayoutPreset(statusAlignToGrid = false, statusPosition = 1f), true).statusTop)
     }
 
     @Test fun `hiding labels preserves row rhythm and large text gains room`() {
@@ -92,7 +102,7 @@ class LayoutModelTest {
     }
     @Test fun `dock fits above controls at Fold cover inner and short landscape sizes`() {
         val sizes = listOf(475f to 700f, 933f to 650f, 850f to 840f, 360f to 620f, 740f to 280f)
-        for ((width, height) in sizes) for (position in listOf(.25f, .56f, .75f)) {
+        for ((width, height) in sizes) for (position in listOf(0f, .25f, .56f, .75f, 1f)) {
             val p = LayoutPreset(dockPosition = position)
             val g = homeGeometry(width, height, p, true)
             assertTrue("$width x $height", g.dockTop >= 8f)
@@ -115,9 +125,9 @@ class LayoutModelTest {
             if (g.splitColumns) assertTrue("halves overflow the width", 8f * g.cellWidth + g.zoneGap <= width - 68f - 44f + .01f)
             assertTrue(g.rowHeight >= 48f)
         }
-        assertTrue(isRegularSize(704f, 930f))
-        assertTrue(isRegularSize(932f, 680f))
-        assertFalse(isRegularSize(751f, 475f))
+        assertTrue(fitsRegularHomeLayout(704f, 930f))
+        assertTrue(fitsRegularHomeLayout(932f, 680f))
+        assertFalse(fitsRegularHomeLayout(751f, 475f))
     }
     @Test fun `two-column pages keep widgets whole and rows aligned`() {
         val g = homeGeometry(751f, 459f, LayoutPreset(), true, labelHeight = 21f)
@@ -150,7 +160,7 @@ class LayoutModelTest {
     }
     @Test fun `raising dock cannot overlap measured status or lower controls`() {
         for ((height, status) in listOf(700f to 124f, 650f to 124f, 280f to 80f)) {
-            for (position in listOf(.25f, .56f, .75f)) {
+            for (position in listOf(0f, .25f, .56f, .75f, 1f)) {
                 val g = homeGeometry(475f, height, LayoutPreset(dockPosition = position), true, status)
                 assertTrue(g.dockTop >= status)
                 assertTrue(g.dockTop + g.dockHeight <= height - 124f + .01f)
@@ -174,7 +184,8 @@ class LayoutModelTest {
     @Test fun `out of range preferences are constrained before layout`() {
         val p = LayoutPreset(999f, -40f, 2f, 12f).sanitized()
         assertEquals(68f, p.iconSize); assertEquals(0f, p.rowGap)
-        assertEquals(56f, p.dockWidth); assertEquals(.75f, p.dockPosition)
+        assertEquals(56f, p.dockWidth); assertEquals(1f, p.dockPosition)
+        assertEquals(0f, LayoutPreset(statusPosition = -3f).sanitized().statusPosition)
     }
     @Test fun `new installs and refresh do not pin apps and empty home stays empty`() {
         assertEquals(listOf("c", "a"), reconcilePins(listOf("c", "gone", "a", "c"), listOf("a", "c", "new")))
@@ -187,7 +198,7 @@ class LayoutModelTest {
         assertEquals(custom.take(16), migrateHomePins(custom, installed, listOf("app20")))
     }
     @Test fun `home always has a page independently of the library`() {
-        assertEquals(1, homePageCount(0)); assertEquals(1, homePageCount(24)); assertEquals(2, homePageCount(25))
+        assertEquals(1, homePageCount(0)); assertEquals(1, homePageCount(HOME_CELLS)); assertEquals(2, homePageCount(HOME_CELLS + 1))
     }
     @Test fun `app library tiles stay phone-sized on big screens`() {
         // Issue #9: an unfolded Fold8 in landscape showed two giant columns; it now shows more, phone-sized tiles.
@@ -201,13 +212,18 @@ class LayoutModelTest {
     @Test fun `a phone-sized screen keeps the phone layout when Smallest width is raised`() {
         // Reported: a Galaxy Z Fold8 cover (1248px wide, 420dpi) set to 600dp got the unfolded layout.
         val scale = classScale(densityDpi = 1248 * 160 / 600, stableDpi = 420)
-        assertFalse(isRegularSize(600f, 948f, scale))
+        assertFalse(fitsRegularHomeLayout(600f, 948f, scale))
         val cover = homeGeometry(600f, 948f, LayoutPreset(), labels = true, classScale = scale)
         assertFalse(cover.horizontalDock)
         assertFalse(cover.expanded)
         assertEquals(1f, uiScale(600f, 948f, scale))
+        // Smallest width 600 on the cover (333 dpi instead of 420): the unfolded screen is 1176 × 888 dp but stays
+        // unscaled, so Home keeps the unfolded layout (Reddit report, 0.6.0).
+        val fold = classScale(333, 420)
+        assertEquals(1f, uiScale(1176f, 888f, fold))
+        assertTrue(homeGeometry(1176f, 827f, LayoutPreset(), true, statusHeight = 160f, classScale = fold).let { it.expanded && !it.splitColumns })
         // The inner screen at its own density is still regular.
-        assertTrue(isRegularSize(932f, 704f, classScale(420, 420)))
+        assertTrue(fitsRegularHomeLayout(932f, 704f, classScale(420, 420)))
         assertEquals(1f, classScale(0, 420))
     }
 

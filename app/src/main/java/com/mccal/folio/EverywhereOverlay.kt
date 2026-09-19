@@ -15,6 +15,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.Circle
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -25,6 +28,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -39,6 +43,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -86,9 +91,16 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
     private var handle: View? = null
     private var dock: ComposeView? = null
     private var island: ComposeView? = null
+    private var buttons: ComposeView? = null
+    private var buttonSettings: ButtonBarSettings? = null
+    private var buttonParams: WindowManager.LayoutParams? = null
     private val dockOpen = MutableStateFlow(false)
 
-    private data class Settings(val dockEverywhere: Boolean, val islandEverywhere: Boolean, val leftHanded: Boolean, val dock: List<String>, val eventsOff: Set<String> = emptySet())
+    private data class Settings(val dockEverywhere: Boolean, val islandEverywhere: Boolean, val leftHanded: Boolean, val dock: List<String>, val eventsOff: Set<String> = emptySet(),
+        val buttons: ButtonBarSettings = ButtonBarSettings(), val islandHideFullScreen: Boolean = true, val islandHideLandscape: Boolean = false)
+    /** Buttons in Every App (Settings › Dynamic Island › In Every App). */
+    internal data class ButtonBarSettings(val on: Boolean = false, val height: Float = 52f, val width: Float = .5f,
+        val androidOrder: Boolean = false, val light: Boolean = false, val fade: Boolean = true)
     private val settings = MutableStateFlow(readSettings())
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != SettingKeys.STATE) return@OnSharedPreferenceChangeListener
@@ -101,6 +113,10 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
     }
     private var foregroundJob: kotlinx.coroutines.Job? = null
     private val scopeJob = kotlinx.coroutines.SupervisorJob()
+    private val scope by lazy { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main.immediate + scopeJob) }
+    /** Whether the app in front has hidden the system bars, watched only while an overlay depends on it. */
+    private var fullScreen = false
+    private var fullScreenJob: kotlinx.coroutines.Job? = null
 
     /** What the island would show right now; the window only exists while this is non-null. */
     private val islandContent = MutableStateFlow<IslandContent?>(null)
@@ -109,7 +125,6 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
         owner.start()
         IslandEvents.acquire(service)
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main.immediate + scopeJob)
         foregroundJob = scope.launch { FolioForeground.visible.collect { sync() } }
         scope.launch {
             kotlinx.coroutines.flow.combine(IslandListenerService.activity, IslandEvents.latest) { a, e ->
@@ -133,26 +148,71 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
     fun stop() {
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         scopeJob.cancel()
-        removeHandle(); removeDock(); removeIsland()
+        fullScreenJob?.cancel(); fullScreenJob = null
+        removeHandle(); removeDock(); removeIsland(); removeButtons()
         IslandEvents.release()
         owner.stop()
     }
 
-    fun onConfigurationChanged() { removeHandle(); removeIsland(); sync() }
+    fun onConfigurationChanged() { removeHandle(); removeIsland(); removeButtons(); sync() }
+
+    /**
+     * The system bars tell us when an app has gone full screen: video players, games and readers hide them, and
+     * the display's own insets report that even from a service. Only sampled while an overlay cares.
+     */
+    private fun fullScreenNow(): Boolean = runCatching {
+        !wm.currentWindowMetrics.windowInsets.isVisible(android.view.WindowInsets.Type.statusBars())
+    }.getOrDefault(false)
+
+    /**
+     * How much room Android keeps at the bottom for itself: the three buttons, or the gesture strip, which apps
+     * are told not to cover because the swipe there always belongs to the system.
+     */
+    private fun navigationInset(): Int = runCatching {
+        val insets = wm.currentWindowMetrics.windowInsets
+        maxOf(insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom,
+            insets.getInsets(android.view.WindowInsets.Type.mandatorySystemGestures()).bottom)
+    }.getOrDefault((24 * density).toInt())
+
+    private fun landscapeNow(): Boolean =
+        service.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    private fun watchFullScreen(needed: Boolean) {
+        if (!needed) { fullScreenJob?.cancel(); fullScreenJob = null; fullScreen = false; return }
+        if (fullScreenJob != null) return
+        fullScreenJob = scope.launch {
+            while (true) {
+                val now = fullScreenNow()
+                if (now != fullScreen) { fullScreen = now; sync() }
+                kotlinx.coroutines.delay(600)
+            }
+        }
+    }
 
     private fun readSettings(): Settings = runCatching {
         val j = JSONObject(prefs.getString(SettingKeys.STATE, "{}") ?: "{}")
         val dockIds = j.optJSONArray(SettingKeys.DOCK)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf { s -> s.isNotBlank() && s != "null" } } }.orEmpty()
         val off = j.optJSONArray(SettingKeys.ISLAND_EVENTS_OFF)?.let { a -> (0 until a.length()).map(a::getString).toSet() }.orEmpty()
-        Settings(j.optBoolean(SettingKeys.DOCK_EVERYWHERE, false), j.optBoolean(SettingKeys.ISLAND_EVERYWHERE, false), j.optBoolean(SettingKeys.LEFT_HANDED, false), dockIds, off)
+        Settings(j.optBoolean(SettingKeys.DOCK_EVERYWHERE, false), j.optBoolean(SettingKeys.ISLAND_EVERYWHERE, false), j.optBoolean(SettingKeys.LEFT_HANDED, false), dockIds, off,
+            ButtonBarSettings(j.optBoolean(SettingKeys.BUTTON_BAR, false),
+                j.optDouble(SettingKeys.BUTTON_BAR_HEIGHT, 52.0).toFloat().coerceIn(44f, 60f),
+                j.optDouble(SettingKeys.BUTTON_BAR_WIDTH, .5).toFloat().coerceIn(.3f, .8f),
+                j.optBoolean(SettingKeys.BUTTON_BAR_ANDROID_ORDER, false), j.optBoolean(SettingKeys.BUTTON_BAR_LIGHT, false),
+                j.optBoolean(SettingKeys.BUTTON_BAR_FADE, true)),
+            j.optBoolean(SettingKeys.ISLAND_HIDE_FULL_SCREEN, true), j.optBoolean(SettingKeys.ISLAND_HIDE_LANDSCAPE, false))
     }.getOrDefault(Settings(false, false, false, emptyList()))
 
     private fun sync() {
-        val s = settings.value.let { if (SafeMode.active) it.copy(dockEverywhere = false, islandEverywhere = false) else it }
+        val s = settings.value.let { if (SafeMode.active) it.copy(dockEverywhere = false, islandEverywhere = false, buttons = ButtonBarSettings()) else it }
         val home = FolioForeground.visible.value
-        if (s.dockEverywhere && !home) addHandle(s.leftHanded) else { removeHandle(); removeDock() }
         val content = islandContent.value
-        if (s.islandEverywhere && !home && content != null) { addIsland(); resizeIsland(content) } else removeIsland()
+        val islandWanted = s.islandEverywhere && !home && content != null
+        watchFullScreen(!home && (s.buttons.on || (islandWanted && s.islandHideFullScreen)))
+        if (s.dockEverywhere && !home) addHandle(s.leftHanded) else { removeHandle(); removeDock() }
+        // The bar presses the same buttons the system's does, so it steps aside where the system's bar does.
+        if (s.buttons.on && !home && !fullScreen) addButtons(s.buttons) else removeButtons()
+        val stepAside = overlayStepsAside(s.islandHideFullScreen, s.islandHideLandscape, fullScreen, landscapeNow())
+        if (islandWanted && !stepAside) { addIsland(); resizeIsland(content!!) } else removeIsland()
     }
 
     // ---- Dock handle -------------------------------------------------------------------------
@@ -190,6 +250,54 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
 
     private fun removeHandle() { handle?.let { runCatching { wm.removeView(it) } }; handle = null }
 
+    // ---- Buttons in Every App ----------------------------------------------------------------
+
+    /**
+     * A large Back / Home / Recents bar for people who find the system's buttons too small, especially on the inner
+     * screen. It floats above the app, presses the same buttons Android's own bar does, and gets out of the way in
+     * full-screen apps.
+     */
+    private fun addButtons(s: ButtonBarSettings) {
+        if (buttons != null) { if (buttonSettings != s) { removeButtons(); addButtons(s) }; return }
+        buttonSettings = s
+        val view = ComposeView(service).apply {
+            setViewTreeLifecycleOwner(owner); setViewTreeSavedStateRegistryOwner(owner)
+            setContent { ButtonBar(s, onAction = { service.performGlobalAction(it) }, onLift = ::liftButtons) }
+        }
+        val params = WindowManager.LayoutParams(
+            (service.resources.displayMetrics.widthPixels * s.width).toInt(), (s.height * density).toInt() + (20 * density).toInt(),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            // Above Android's own navigation, whether that's the gesture strip or the three buttons, plus any
+            // lift the bar was dragged to on this screen.
+            y = navigationInset() + (10 * density).toInt() +
+                (ButtonBarPosition.load(service, wideScreen(), landscapeNow()) * density).toInt()
+        }
+        runCatching { wm.addView(view, params); buttons = view; buttonParams = params }
+    }
+
+    /**
+     * Long-press and drag moves the bar up the screen, the way the island moves: it gets it off the keyboard, off
+     * an app's own bottom bar, or wherever it's in the way. The spot is kept per screen and orientation.
+     */
+    private fun liftButtons(deltaPx: Float, done: Boolean) {
+        val view = buttons ?: return
+        val params = buttonParams ?: return
+        val floor = navigationInset() + (10 * density).toInt()
+        val ceiling = (service.resources.displayMetrics.heightPixels * .6f).toInt()
+        params.y = (params.y - deltaPx).toInt().coerceIn(floor, ceiling)
+        runCatching { wm.updateViewLayout(view, params) }
+        if (done) ButtonBarPosition.save(service, wideScreen(), landscapeNow(), (params.y - floor) / density)
+    }
+
+    private fun wideScreen(): Boolean = service.resources.configuration.smallestScreenWidthDp >= 600
+
+    private fun removeButtons() {
+        buttons?.let { runCatching { wm.removeView(it) } }; buttons = null; buttonSettings = null; buttonParams = null
+    }
+
     private fun openDock() {
         if (dock != null) return
         val s = settings.value
@@ -204,7 +312,7 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
                     AnimatedVisibility(open, enter = fadeIn() + slideInHorizontally(spring(dampingRatio = .8f, stiffness = Spring.StiffnessMediumLow)) { if (s.leftHanded) -it else it },
                         exit = fadeOut() + slideOutHorizontally { if (s.leftHanded) -it else it }) {
                         Column(Modifier.padding(horizontal = 12.dp).width(72.dp).clip(RoundedCornerShape(30.dp))
-                            .background(Color(0xFF1C1C1E).copy(alpha = .72f)).border(1.dp, Color.White.copy(alpha = .16f), RoundedCornerShape(30.dp))
+                            .background(FolioColors.SecondaryBackground.copy(alpha = .72f)).border(1.dp, Color.White.copy(alpha = .16f), RoundedCornerShape(30.dp))
                             .padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             apps.forEach { app ->
                                 val hostView = androidx.compose.ui.platform.LocalView.current
@@ -272,7 +380,7 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
         val metrics = wm.currentWindowMetrics
         val cutout: Rect? = metrics.windowInsets.displayCutout?.boundingRects?.filter { !it.isEmpty }?.minByOrNull { it.top }
             ?: CameraArea.hiddenCamera(wm.defaultDisplay)
-        val wide = isRegularSize(metrics.bounds.width() / density, metrics.bounds.height() / density, service.resources.configuration.classScale)
+        val wide = fitsRegularHomeLayout(metrics.bounds.width() / density, metrics.bounds.height() / density, service.resources.configuration.classScale)
         val g = (IslandPosition.load(service, wide, metrics.bounds.width() > metrics.bounds.height())?.let { islandGeometryAt(it.xFraction * metrics.bounds.width(), it.topDp, metrics.bounds.width(), density) }
             ?: islandGeometry(cutout, metrics.bounds.width(), density)).also { geometry = it }
         val view = ComposeView(service).apply {
@@ -328,4 +436,90 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
     }
 
     private fun removeIsland() { island?.let { runCatching { wm.removeView(it) } }; island = null; islandParams = null }
+}
+
+/**
+ * Whether Android is on gesture navigation rather than the three buttons. Big Buttons is meant to replace small
+ * system buttons, so the settings page says when both would be on screen at once.
+ */
+internal fun gestureNavigation(context: android.content.Context): Boolean =
+    runCatching { android.provider.Settings.Secure.getInt(context.contentResolver, "navigation_mode") == 2 }.getOrDefault(true)
+
+/**
+ * Where the buttons were dragged to, as a lift in dp above their resting place at the bottom. Saved beside the
+ * island's own dragged position, per screen and orientation: a spot picked in landscape means nothing once it turns.
+ */
+internal object ButtonBarPosition {
+    private fun key(wide: Boolean, landscape: Boolean) =
+        "button_bar_lift_" + (if (wide) "inner" else "cover") + (if (landscape) "_landscape" else "")
+
+    fun load(context: android.content.Context, wide: Boolean, landscape: Boolean): Float =
+        context.getSharedPreferences("folio", 0).getFloat(key(wide, landscape), 0f)
+
+    fun save(context: android.content.Context, wide: Boolean, landscape: Boolean, liftDp: Float) {
+        context.getSharedPreferences("folio", 0).edit().putFloat(key(wide, landscape), liftDp).apply()
+    }
+
+    fun reset(context: android.content.Context) {
+        context.getSharedPreferences("folio", 0).edit().apply {
+            for (wide in listOf(true, false)) for (landscape in listOf(true, false)) remove(key(wide, landscape))
+        }.apply()
+    }
+}
+
+/** Whether the island should step aside right now: shared by the service and its tests. */
+internal fun overlayStepsAside(hideFullScreen: Boolean, hideLandscape: Boolean, fullScreen: Boolean, landscape: Boolean): Boolean =
+    (hideFullScreen && fullScreen) || (hideLandscape && landscape)
+
+/**
+ * The Buttons in Every App bar: one glass pill with three large targets. It fades while you're not using it, and
+ * a long-press drag moves it up the screen. Full-screen apps are the service's business: it takes the bar away.
+ */
+@androidx.compose.runtime.Composable
+private fun ButtonBar(s: EverywhereOverlay.ButtonBarSettings, onAction: (Int) -> Unit, onLift: (Float, Boolean) -> Unit) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var touched by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
+    var faded by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(touched, s.fade) {
+        faded = false
+        if (s.fade) { kotlinx.coroutines.delay(2200); faded = true }
+    }
+    // Full-screen apps are handled by the service, which takes the whole window away.
+    val alpha by androidx.compose.animation.core.animateFloatAsState(
+        if (faded) .35f else 1f, androidx.compose.animation.core.tween(350), label = "button bar")
+    val ink = if (s.light) androidx.compose.ui.graphics.Color(0xFF1C1C1E) else androidx.compose.ui.graphics.Color.White
+    val actions = listOf(
+        Triple(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS, "Recent apps", Icons.Rounded.Menu),
+        Triple(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME, "Home", Icons.Rounded.Circle),
+        Triple(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK, "Back", Icons.Rounded.ChevronLeft),
+    ).let { if (s.androidOrder) it.reversed() else it }
+    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()
+        .padding(bottom = 10.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
+        androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.fillMaxWidth().height(s.height.dp)
+            .alpha(alpha)
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { touched = System.currentTimeMillis(); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
+                    onDragEnd = { onLift(0f, true) },
+                    onDragCancel = { onLift(0f, true) },
+                    onDrag = { change, drag -> change.consume(); onLift(drag.y, false) })
+            }
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(s.height.dp / 2))
+            .background(if (s.light) androidx.compose.ui.graphics.Color.White.copy(alpha = .72f) else androidx.compose.ui.graphics.Color(0xFF1C1C1E).copy(alpha = .62f))
+            .border(1.dp, (if (s.light) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White).copy(alpha = if (s.light) .08f else .28f),
+                androidx.compose.foundation.shape.RoundedCornerShape(s.height.dp / 2)),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            actions.forEach { (action, label, icon) ->
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f).fillMaxHeight()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(s.height.dp / 2))
+                    .clickable(onClickLabel = label) {
+                        touched = System.currentTimeMillis()
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.ContextClick)
+                        onAction(action)
+                    }, contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    androidx.compose.material3.Icon(icon, label, tint = ink, modifier = androidx.compose.ui.Modifier.size((s.height * .46f).dp))
+                }
+            }
+        }
+    }
 }

@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -131,7 +132,7 @@ internal fun IconStackFan(anchor: AppEntry, apps: List<AppEntry>, onDismiss: () 
                     val label: @Composable () -> Unit = {
                         Box(Modifier.width(168.dp).padding(horizontal = 10.dp), contentAlignment = if (labelsRight) Alignment.CenterStart else Alignment.CenterEnd) {
                             Text(app.label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF1C1C1E).copy(alpha = .9f)).padding(horizontal = 12.dp, vertical = 6.dp))
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(FolioColors.SecondaryBackground.copy(alpha = .9f)).padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                     }
                     if (!labelsRight) label()
@@ -153,10 +154,10 @@ internal fun IconStackEditor(anchor: AppEntry, apps: List<AppEntry>, chosen: Lis
             AppIcon(anchor, null, Modifier.size(36.dp), shape = RoundedCornerShape(9.dp), badge = false)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text("${anchor.label} Stack", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("Swipe down on ${anchor.label} to open these. ${chosen.size} of ${IconStacks.MAX}", color = Color.White.copy(alpha = .6f), fontSize = 13.sp)
+                Text(stringResource(R.string.stack_1, anchor.label), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.swipe_down_on_1_to_open_these_2_of_3, anchor.label, chosen.size, IconStacks.MAX), color = Color.White.copy(alpha = .6f), fontSize = 13.sp)
             }
-            Text("Done", color = Color(0xFF0A84FF), fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+            Text(stringResource(R.string.done), color = FolioColors.Blue, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onDone).padding(8.dp))
         }
         IosSearchField(query, { query = it }, "Search apps", Modifier.padding(vertical = 12.dp))
@@ -170,7 +171,7 @@ internal fun IconStackEditor(anchor: AppEntry, apps: List<AppEntry>, chosen: Lis
                     AppIcon(app, null, Modifier.size(40.dp), shape = RoundedCornerShape(10.dp), badge = false)
                     Text(app.label, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(start = 12.dp))
                     Icon(if (on) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked, if (on) "In stack" else "Not in stack",
-                        tint = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .35f), modifier = Modifier.size(24.dp))
+                        tint = if (on) FolioColors.Blue else Color.White.copy(alpha = .35f), modifier = Modifier.size(24.dp))
                 }
             }
         }

@@ -16,18 +16,18 @@ import androidx.compose.ui.unit.dp
 import java.lang.ref.WeakReference
 
 /** Activator-style triggers (idea from Activator by Ryan Petrich): gestures and events that run an action. */
-enum class FolioTrigger(val label: String, val gesture: Boolean) {
-    DOUBLE_TAP("Double-tap Home", true),
-    TWO_FINGER_DOWN("Two-finger swipe down on Home", true),
-    CHARGING("Charger connected", false),
-    BLUETOOTH("Bluetooth headphones or speaker connects", false),
-    HEADPHONES("Headphones plugged in", false),
+enum class FolioTrigger(@androidx.annotation.StringRes val label: Int, val gesture: Boolean) {
+    DOUBLE_TAP(R.string.double_tap_home, true),
+    TWO_FINGER_DOWN(R.string.two_finger_swipe_down_on_home, true),
+    CHARGING(R.string.charger_connected, false),
+    BLUETOOTH(R.string.bluetooth_headphones_or_speaker_connects, false),
+    HEADPHONES(R.string.headphones_plugged_in, false),
 }
 
-enum class FolioAction(val label: String) {
-    NONE("Nothing"), SPOTLIGHT("Spotlight"), NOTIFICATIONS("Notification Center"), CONTROL_CENTER("Control Center"),
-    LOCK("Lock Screen"), SCREENSHOT("Screenshot"), TORCH("Flashlight"), DND_ON("Do Not Disturb On"), DND_OFF("Do Not Disturb Off"),
-    FOCUS_SLEEP("Sleep Focus On/Off"), FOCUS_WORK("Work Focus On/Off"), FOCUS_PERSONAL("Personal Focus On/Off"), FOCUS_OFF("Turn Off Focus"),
+enum class FolioAction(@androidx.annotation.StringRes val label: Int) {
+    NONE(R.string.nothing), SPOTLIGHT(R.string.spotlight), NOTIFICATIONS(R.string.notification_center), CONTROL_CENTER(R.string.control_center),
+    LOCK(R.string.lock_screen), SCREENSHOT(R.string.screenshot), TORCH(R.string.flashlight), DND_ON(R.string.do_not_disturb_on), DND_OFF(R.string.do_not_disturb_off),
+    FOCUS_SLEEP(R.string.sleep_focus_on_off), FOCUS_WORK(R.string.work_focus_on_off), FOCUS_PERSONAL(R.string.personal_focus_on_off), FOCUS_OFF(R.string.turn_off_focus),
 }
 
 internal object FolioActions {

@@ -99,7 +99,7 @@ internal fun TopPanels(panel: ShadePanel?, progress: () -> Float, status: Device
             } else Modifier)
         .testTag("top-panel-scrim"))
 
-    val wide = LocalConfiguration.current.isRegular()
+    val wide = LocalConfiguration.current.fitsRegularHomeLayout()
     // Unfolded, Notification Center can be iPad-style: big clock on the left, notifications on the right.
     // A split arrangement: clock and list side by side only when the screen is wider than tall; otherwise the clock sits above the list.
     val split = wide && ncSplit && current == ShadePanel.NOTIFICATIONS && LocalConfiguration.current.let { it.screenWidthDp > it.screenHeightDp }
@@ -168,7 +168,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
     // Keyboard for quick reply pushes the list up instead of covering it.
     Column(modifier.windowInsetsPadding(WindowInsets.imeAnimationTarget).testTag("notification-center"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (showClock) Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), color = Color.White.copy(alpha = .9f), fontSize = 17.sp,
+            Text(now.format(DateTimeFormatter.ofPattern(stringResource(R.string.eeee_mmmm_d))), color = Color.White.copy(alpha = .9f), fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold)
             Text(now.format(DateTimeFormatter.ofPattern(clock)), color = Color.White, fontSize = 76.sp, fontWeight = FontWeight.Bold,
                 lineHeight = 80.sp)
@@ -188,7 +188,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
             }
         }
         when {
-            !hasAccess -> EmptyNote("Allow notification access to see notifications here.", "Allow") {
+            !hasAccess -> EmptyNote(stringResource(R.string.allow_notification_access_to_see_notific), stringResource(R.string.allow)) {
                 onClose(); runCatching { context.startActivity(IslandListenerService.accessSettingsIntent(context)) }
             }
             items.isEmpty() -> Text(stringResource(R.string.no_notifications), color = Color.White.copy(alpha = .6f), fontSize = 15.sp,
@@ -206,7 +206,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                         first.icon?.let { Image(it.asImageBitmap(), first.appLabel, Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp))
                             .graphicsLayer { alpha = if (filterApp == null || selected) 1f else .45f }) }
                         if (group.size > 1) Box(Modifier.align(Alignment.TopEnd).offset(4.dp, (-4).dp).heightIn(min = 16.dp).widthIn(min = 16.dp)
-                            .background(Color(0xFFFF3B30), CircleShape).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                            .background(FolioColors.RedLight, CircleShape).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                             Text("${group.size}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp)
                         }
                     }
@@ -269,8 +269,8 @@ private fun NotificationCard(item: NotificationItem, modifier: Modifier, extraCo
                 alpha = t; scaleX = .7f + .3f * t; scaleY = scaleX; transformOrigin = TransformOrigin(1f, .5f)
             }, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically) {
-            SwipeAction("Options") { settle(0f); options = true }
-            if (item.clearable) SwipeAction("Clear") { scope.launch { swipe.animateTo(-widthPx); IslandListenerService.dismiss(item.key) } }
+            SwipeAction(stringResource(R.string.options)) { settle(0f); options = true }
+            if (item.clearable) SwipeAction(stringResource(R.string.clear)) { scope.launch { swipe.animateTo(-widthPx); IslandListenerService.dismiss(item.key) } }
         }
         Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(swipe.value.roundToInt(), 0) }
             .pointerInput(item.key, widthPx) {
@@ -300,7 +300,7 @@ private fun NotificationCard(item: NotificationItem, modifier: Modifier, extraCo
             .border(FolioGlass.edge, RoundedCornerShape(22.dp))
             .combinedClickable(interactionSource = press, indication = null, onClick = { if (swipe.value < -1f) settle(0f) else onOpen() }, onLongClick = {
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); options = true
-            }, onLongClickLabel = "Notification options")
+            }, onLongClickLabel = stringResource(R.string.notification_options))
             .padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             item.icon?.let { Image(it.asImageBitmap(), null, Modifier.size(38.dp).clip(RoundedCornerShape(9.dp))) }
             Spacer(Modifier.width(12.dp))
@@ -313,7 +313,7 @@ private fun NotificationCard(item: NotificationItem, modifier: Modifier, extraCo
                 }
                 item.text?.let { Text(it.lines().filter(String::isNotBlank).joinToString(" "), color = Color.White.copy(alpha = .88f),
                     fontSize = 14.sp, maxLines = if (extraCount > 0) 2 else 4, overflow = TextOverflow.Ellipsis, lineHeight = 18.sp) }
-                if (extraCount > 0) Text("$extraCount more from ${item.appLabel}",
+                if (extraCount > 0) Text(stringResource(R.string.more_from_1_2, extraCount, item.appLabel),
                     color = FolioGlass.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
                 if (extraCount == 0 && (item.canReply || item.canMarkRead)) {
                     var replying by remember(item.key) { mutableStateOf(false) }
@@ -340,7 +340,7 @@ private fun SwipeAction(label: String, onClick: () -> Unit) {
 }
 
 /** Control Center size choice (the largest a small control can be). */
-enum class PanelSize(val label: String, val cell: Dp) { COMPACT("Compact", 58.dp), STANDARD("Standard", 66.dp), LARGE("Large", 76.dp) }
+enum class PanelSize(@androidx.annotation.StringRes val label: Int, val cell: Dp) { COMPACT(R.string.compact, 58.dp), STANDARD(R.string.standard, 66.dp), LARGE(R.string.large, 76.dp) }
 
 /** iPad-style clock and date for the split (unfolded) Notification Center. */
 @Composable
@@ -350,7 +350,7 @@ private fun SplitClock(modifier: Modifier) {
     val now = displayNow(tick)
     val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm"
     Column(modifier.padding(start = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), color = Color.White.copy(alpha = .9f), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text(now.format(DateTimeFormatter.ofPattern(stringResource(R.string.eeee_mmmm_d))), color = Color.White.copy(alpha = .9f), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
         Text(now.format(DateTimeFormatter.ofPattern(pattern)), color = Color.White, fontSize = 112.sp, fontWeight = FontWeight.Bold, lineHeight = 116.sp)
     }
 }
@@ -457,10 +457,10 @@ private fun relativeTime(time: Long): String {
 // Control Center: a strict 4-column grid; every module is a whole number of cells.
 
 /** Small (1×1) controls the user can add, remove and order. */
-internal enum class CcControl(val label: String) {
-    ROTATION("Rotation Lock"), DND("Do Not Disturb"), FLASHLIGHT("Flashlight"), CAMERA("Camera"), TIMER("Timer"),
-    ALARM("Alarm"), CALCULATOR("Calculator"), SCREENSHOT("Screenshot"), LOCK("Lock Screen"), WALLET("Wallet"),
-    NOTES("Notes"), HOTSPOT("Hotspot"), BATTERY_SAVER("Battery Saver"), SETTINGS("Settings"), SYSTEM("Android Quick Settings");
+internal enum class CcControl(@androidx.annotation.StringRes val label: Int) {
+    ROTATION(R.string.rotation_lock), DND(R.string.do_not_disturb), FLASHLIGHT(R.string.flashlight), CAMERA(R.string.camera), TIMER(R.string.timer),
+    ALARM(R.string.alarm), CALCULATOR(R.string.calculator), SCREENSHOT(R.string.screenshot), LOCK(R.string.lock_screen), WALLET(R.string.wallet),
+    NOTES(R.string.notes), HOTSPOT(R.string.hotspot), BATTERY_SAVER(R.string.battery_saver), SETTINGS(R.string.settings), SYSTEM(R.string.android_quick_settings);
 
     companion object {
         val DEFAULTS = listOf(ROTATION, DND, FLASHLIGHT, CAMERA, TIMER, CALCULATOR, SCREENSHOT, SYSTEM).map { it.name }
@@ -589,7 +589,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
             else Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 Module(Modifier.size(span(2)).combinedClickable(onClick = {}, onLongClick = {
                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); connectivityOpen = true
-                }, onLongClickLabel = "Show connectivity details")) {
+                }, onLongClickLabel = stringResource(R.string.show_connectivity_details))) {
                     Column(Modifier.fillMaxSize().padding(cell * .16f), verticalArrangement = Arrangement.SpaceBetween) {
                         connectivity.chunked(2).forEach { pair ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -613,7 +613,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                                 RoundToggle(mode.icon(), mode.name, on, Color(mode.color), 40.dp) { onFocus(if (on) null else mode.id); focusOpen = false }
                                 Spacer(Modifier.width(12.dp))
                                 Text(mode.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                                if (on) Text("On", color = FolioGlass.secondary, fontSize = 13.sp)
+                                if (on) Text(stringResource(R.string.on), color = FolioGlass.secondary, fontSize = 13.sp)
                             }
                         }
                     }
@@ -625,8 +625,8 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(current?.name ?: "Focus", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            if (current != null) Text("On", color = FolioGlass.secondary, fontSize = 13.sp)
+                            Text(current?.name ?: stringResource(R.string.focus), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            if (current != null) Text(stringResource(R.string.on), color = FolioGlass.secondary, fontSize = 13.sp)
                         }
                     }
                 }
@@ -647,7 +647,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                     controls.volume <= .01f -> Icons.AutoMirrored.Rounded.VolumeOff
                     controls.volume < .5f -> Icons.AutoMirrored.Rounded.VolumeDown
                     else -> Icons.AutoMirrored.Rounded.VolumeUp
-                }, "Volume", controls.volume, cell, span(2)) { controls.changeVolume(it) }
+                }, stringResource(R.string.volume), controls.volume, cell, span(2)) { controls.changeVolume(it) }
             }
             // The rest, four per row
             chosen.drop(4).chunked(4).forEach { row ->
@@ -658,18 +658,18 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
             // Edit mode: gallery of controls that aren't in Control Center yet
             if (edit.active) {
                 val unused = CcControl.entries.filter { it !in chosen && available(it) }
-                Text(if (unused.isEmpty()) "All controls added" else "Add a Control", color = FolioGlass.secondary, fontSize = 13.sp,
+                Text(if (unused.isEmpty()) stringResource(R.string.all_controls_added) else stringResource(R.string.add_a_control), color = FolioGlass.secondary, fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
                 unused.chunked(4).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                         row.forEach { c ->
                             Column(Modifier.width(cell), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box {
-                                    SquareToggle(c.icon(), "Add ${c.label}", false, Color.White, cell) { onControls(controlNames + c.name) }
+                                    SquareToggle(c.icon(), stringResource(R.string.add_control, stringResource(c.label)), false, Color.White, cell) { onControls(controlNames + c.name) }
                                     Box(Modifier.align(Alignment.TopEnd).offset(6.dp, (-6).dp).size(20.dp).clip(CircleShape).background(AccentGreen),
                                         contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
                                 }
-                                Text(c.label, color = Color.White, fontSize = 10.sp, maxLines = 2, lineHeight = 12.sp,
+                                Text(stringResource(c.label), color = Color.White, fontSize = 10.sp, maxLines = 2, lineHeight = 12.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
                             }
                         }
@@ -685,8 +685,8 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
 @Composable
 private fun EditableControl(control: CcControl, on: Boolean, accent: Color, cell: Dp, edit: HomeEditMode, onRemove: () -> Unit, onRun: () -> Unit) {
     Box(Modifier.jiggle(control.name, .6f)) {
-        SquareToggle(control.icon(), control.label, on, accent, cell) { if (!edit.active) onRun() }
-        if (edit.active) JiggleRemoveButton("Remove ${control.label}", onRemove = onRemove)
+        SquareToggle(control.icon(), stringResource(control.label), on, accent, cell) { if (!edit.active) onRun() }
+        if (edit.active) JiggleRemoveButton(stringResource(R.string.remove_control, stringResource(control.label)), onRemove = onRemove)
     }
 }
 
@@ -730,7 +730,7 @@ private fun MediaModule(media: IslandActivity.Media?, modifier: Modifier, cell: 
                 if (media?.art != null) media.icon?.let { Image(it.asImageBitmap(), null, Modifier.size(cell * .26f).clip(RoundedCornerShape(cell * .07f))) }
             }
             Column {
-                Text(media?.title ?: "Not Playing", color = if (media != null) Color.White else FolioGlass.secondary,
+                Text(media?.title ?: stringResource(R.string.not_playing), color = if (media != null) Color.White else FolioGlass.secondary,
                     fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 media?.subtitle?.let { Text(it, color = FolioGlass.secondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 media?.let { MediaProgress(it) }
@@ -826,11 +826,11 @@ private fun EmptyNote(text: String, action: String?, onAction: () -> Unit) {
 
 private val ModuleGlass = FolioGlass.module
 private val NotifGlass = FolioGlass.card
-private val AccentBlue = Color(0xFF0A84FF)
-private val AccentGreen = Color(0xFF30D158)
-private val AccentOrange = Color(0xFFFF9F0A)
-private val AccentPurple = Color(0xFF5E5CE6)
-private val AccentRed = Color(0xFFFF453A)
+private val AccentBlue = FolioColors.Blue
+private val AccentGreen = FolioColors.Green
+private val AccentOrange = FolioColors.Orange
+private val AccentPurple = FolioColors.Indigo
+private val AccentRed = FolioColors.Red
 
 private class DeviceControls(private val context: Context) {
     private val camera = context.getSystemService(CameraManager::class.java)

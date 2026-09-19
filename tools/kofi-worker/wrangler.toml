@@ -1,0 +1,18 @@
+name = "folio-supporter-codes"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# Made with: wrangler d1 create folio-codes   (paste the id it prints)
+[[d1_databases]]
+binding = "DB"
+database_name = "folio-codes"
+database_id = "paste-the-id-from-wrangler-d1-create"
+
+[vars]
+# Which payment earns which pool of codes. Anything not named here earns nothing.
+POOLS = '{"tiers":{"*":"beta"},"tipFrom":5,"tipPool":"beta"}'
+MAIL_FROM = "Folio <folio@example.com>"
+
+# Secrets, set with `wrangler secret put NAME` (never in this file):
+#   KOFI_TOKEN   the verification token from Ko-fi's Webhooks page
+#   RESEND_KEY   optional; without it codes are still claimed and recorded, just not emailed

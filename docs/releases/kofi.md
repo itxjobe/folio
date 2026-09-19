@@ -152,6 +152,87 @@ app does, or - the last line - his answer about where the money goes. Nothing he
 >
 > The $3 goes towards test devices and more time to build.
 
+## Memberships, and one-off support
+
+What Ko-fi's tier form asks for is on the page itself (tier name, 30 characters; minimum price per month; benefit
+lines; description; a 2:1 tier image; a welcome message that is sent on joining, which is where a code can go; Discord
+roles; address; a join limit). Check the live fees and limits on Ko-fi rather than trusting a number written here.
+
+**What Ko-fi can do:** recurring monthly tiers, posts restricted to a tier, a welcome message per tier, shop items
+with a digital file attached, and a webhook on every payment carrying the type (`Subscription`, `Shop Order`,
+`Donation`), the tier name and the amount.
+
+**What it can't do:** turn a one-off tip into membership time. There is no "$20 buys four months of this tier" in
+Ko-fi. So don't try to buy Ko-fi membership with one-off money — hand out **Folio** time instead, which is ours to
+give: a supporter code with an end date. The months are Folio's, not Ko-fi's.
+
+The rule from the top of this file still decides everything below: a tier buys a head start and extras on the side.
+Nothing already shipped moves behind one.
+
+### The tiers
+
+Drafts, not copy — **the words are McCal's.** Each is built from what a code actually opens today: the Market before
+it ships (`beta`), Folio Keys (`keys`), and the supporters-only posts.
+
+| | Tier name (≤30) | Price | What it is |
+|---|---|---|---|
+| 1 | `Coffee` | $3/mo | The posts: betas announced first, design previews, the vote |
+| 2 | `Early access` | $5/mo | A code for the Market and Folio Keys, renewed while you're a member |
+| 3 | `Fold tester` | $10/mo | The above, plus beta builds first and requests read first |
+
+**Tier 1 — Coffee, $3/mo**
+
+- Benefits: `Supporters-only posts, before the public ones` · `Design previews of what I'm building` ·
+  `A vote on what comes after each update`
+- Description: a coffee towards test devices and more time to build. You see what's coming first and say what you
+  want next.
+- Welcome message: thanks, what to expect (a post per update), and the link to the GitHub releases page.
+
+**Tier 2 — Early access, $5/mo**
+
+- Benefits: everything in Coffee, plus `A supporter code: the Market before it ships` ·
+  `Folio Keys, the keyboard extras` · `A new code whenever the old one runs out`
+- Description: the Market is how 0.7.0 hands out themes, tweaks and layouts. Everything in it is already in Folio's
+  Settings, so this is a head start, not a paywall.
+- Welcome message: the code, and that it goes in Settings › Market › Early access. The worker can send this instead —
+  see below.
+
+**Tier 3 — Fold tester, $10/mo**
+
+- Benefits: everything in Early access, plus `Beta builds as soon as they're built` ·
+  `Your tweak and theme requests read first` ·  `A thanks line in the app, if you want one`
+- Description: for people who want to break it before everyone else does, on folds, tall phones and small windows.
+- Welcome message: the code, how to get on the beta track, and how to send a bug report from the app.
+
+The thanks line is **not built** — there is no supporters list in the app today. Either build it before promising it,
+or leave that benefit out.
+
+### One-off support: a month per $5
+
+A one-off payment earns a dated code: $5 → one month, $10 → two, $20 → four. Three ways to do it, cheapest first.
+
+1. **Shop items, one per length.** "Early access · 1 month", "· 3 months", "· 6 months", each with a code file
+   attached from a pool minted for that horizon. No code to write, works while asleep, and it's the way the shop item
+   already works today.
+2. **Tips, through the worker.** `tools/kofi-worker/` already picks a pool by tier name, by shop item, and by a single
+   tip threshold (`tipFrom` / `tipPool`). Amount bands need a small change: a list of `{from, pool}` instead of one
+   threshold, so $5, $10 and $20 land in the one-month, two-month and four-month pools.
+3. **Ko-fi's own annual option**, if it suits — a membership paid yearly is still a membership, and the worker sees it
+   as `Subscription`.
+
+**The catch worth knowing before promising months.** A code is signed offline, so its end date is fixed when it is
+*minted*, not when it is *redeemed*: `scripts/beta-code.py --expires 2027-01-01` gives everyone in that pool the same
+last day. Someone who pays on the 28th gets a short month. Two ways out:
+
+- **Re-mint the pools on a schedule** (a batch a month, dated a month out). No app change; a chore forever.
+- **Let the phone start the clock.** The code payload already carries a free-form `tier` byte (`BetaCodes`, version 1,
+  scope bits + tier + expiry day + serial). Mint `tier` as the number of months, and have Folio count from the day the
+  code is redeemed. That gives a true "one month per $5" from an offline pool, with no format change and no key online.
+  It is an app change in `BetaCodes` / `Supporter`, plus a minting convention.
+
+The second one is the one to build if months are the offer. Until then, say "early access until <date>" rather than
+"one month", because that is what the code does.
+
 ## The page itself
 
 Things Ko-fi asks for, with what Folio needs each one to say. **The words are McCal's — these are placeholders, not

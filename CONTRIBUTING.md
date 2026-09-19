@@ -31,6 +31,28 @@ Preserve one-page-per-swipe behavior, native widget scrolling and long-press pic
 Home-page retention. Keep access optional and explain it where it's used. Layouts follow screen size, not device
 checks. Tests should reproduce failures or protect meaningful behavior.
 
+## Translating Folio
+
+Folio's text lives in `app/src/main/res/values/strings.xml`. Everything in that file can be translated; text still
+written into Kotlin can't, and moving more of it across is work in progress — see the update map.
+
+To add a language:
+
+1. Copy `app/src/main/res/values/strings.xml` to `app/src/main/res/values-<code>/strings.xml`, where `<code>` is the
+   BCP 47 tag Android uses: `values-fr`, `values-pt-rBR`, `values-ar`.
+2. Translate the text between the tags. Leave the `name` attributes alone — they're how the app finds each line.
+3. Keep `%1$s`, `%1$d` and `\n` exactly as they appear; they are values Folio fills in and line breaks.
+4. Keep apostrophes escaped as `\'`, or the build fails.
+5. Leave product names as they are: Folio, Ko-fi, Dynamic Island, Spotlight, Control Center, Notification Center.
+6. Don't translate a line you aren't sure about — leave it out and English is used for it.
+
+The build picks the language up on its own: AGP generates the locale list from the `values-*` folders, so a new
+folder is all it takes for Folio to appear in Android 13's per-app language picker (Settings › Apps › Folio ›
+Language).
+
+Right-to-left languages are welcome, but Folio hasn't been checked in RTL yet, so expect to find layout problems —
+please report them rather than working around them in the translation.
+
 ## What not to commit
 
 Signing keys, passwords, SDK paths, personal layouts, account information, or copied application code. No GPL code and

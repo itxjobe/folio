@@ -8,19 +8,18 @@ Folio shows the newest section on the phone after an update, and every version u
 ## [0.7.0] - Unreleased
 
 ### Added
-- The Folio Market: the app icon opens a store with Featured, Sources, Packages, Installed and Settings. In 0.7.0 it's for testers - Folio Dev, anyone on Beta Updates, and supporters with a code - and every theme and tweak it hands out is still in Settings for everyone else.
-- Folio's own themes and tweaks are packages now, with a page each: what they do, what you see, screenshots, what's changed, and a privacy label built from what the package actually asks for rather than from anything its author wrote.
-- Add a source by address (any HTTPS host) or a `folio://source/` link. Folio shows the source's key fingerprint before you trust it, remembers it, and says plainly what a changed key looks like.
-- Getting a package checks its size, its checksum and its signature before anything is applied, applies it in one go, and leaves Undo next to it. A package that fails halfway is put back the way it was.
-- Packages can be signed by their developer, not just by the source handing them out, so a mirror can carry a package but can't change it or publish under someone else's name. A `.foliopkg` sent to you carries its own signature too.
-- Progress where the Get button was, App Store style: a ring that fills, and roughly how much longer on the package's page.
-- Open a `.foliopkg` file to install it, and `folio://package/<id>` to open a package's page.
-- Updates in Installed, with a banner and an optional badge when one is ready. Background refresh is off by default and waits for Wi-Fi when it's on.
-- Per-package Safe Mode: if Folio stops twice just after a package changed something, only that package is turned off, and its settings are kept (Try Again, Remove, Details).
-- A source can pull a package it published; a pulled package can be removed but never installed again, including as an update.
-- A package's page has Share and Report a Package, which opens its source's issue form with the id, version and checksum filled in.
-- Supporter codes in Settings: a code from Ko-fi is checked on the phone against a key built into Folio - no account, no server, and nothing recorded about who redeemed it.
-- Settings uses three columns on a large screen: the list, the page, and whatever you opened from it. Opening a tweak no longer replaces the list you opened it from.
+- **The Folio Market:** the app icon opens a store with Featured, Sources, Packages, Installed and Settings. In 0.7.0 it's for testers — Folio Dev, anyone on Beta Updates, and supporters with a code — and every theme and tweak it hands out is still in Settings for everyone else.
+- **Themes and tweaks are packages:** Folio's own now have a page each, with what they do, what you see, screenshots, what's changed, and a privacy label built from what the package asks for rather than from anything its author wrote.
+- **Add a source:** any HTTPS address, or a `folio://source/` link. Folio shows the source's key fingerprint before you trust it, remembers it, and says plainly what a changed key looks like.
+- **Nothing is applied unchecked:** size, checksum and signature first, then the whole package in one go, with Undo beside it. A package that fails halfway is put back the way it was.
+- **Signed by its developer:** not just by the source handing it out, so a mirror can carry a package but can't change it or publish under someone else's name. A `.foliopkg` sent to you carries its own signature too.
+- **Progress in the Get button:** a ring that fills, App Store style, and roughly how much longer on the package's page.
+- **Open a `.foliopkg`:** a package file installs like a shared theme, and `folio://package/<id>` opens its page.
+- **Updates in Installed:** a banner and an optional badge when one is ready. Background refresh is off by default and waits for Wi-Fi when it's on.
+- **Safe Mode per package:** if Folio stops twice just after a package changed something, only that package is turned off, and its settings are kept.
+- **A source can pull a package:** a withdrawn one can be removed but never installed again, including as an update.
+- **Share and Report:** a package's page links to its source's issue form with the id, version and checksum filled in.
+- **Three columns in Settings:** the list, the page, and whatever you opened from it, so tapping a tweak no longer replaces the list you tapped it in.
 
 ### Changed
 - Settings shows two columns from 700 dp in either orientation, not only in landscape, and three from 920 dp. Half folded the divider stays on the crease.
@@ -28,25 +27,54 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Fixed
 - An install now outlives the screen that started it: pressing Back during a download used to leave the package applied with no message and no Undo.
-- A failed write to Folio's own store no longer destroys the value it was replacing - for a source, that value is its pinned key.
+- A failed write to Folio's own store no longer destroys the value it was replacing — for a source, that value is its pinned key.
 - A source that published a list Folio couldn't read used to stay stuck on a tamper warning; it recovers as soon as the source publishes a good one.
 - A shared `.foliopkg` opened while Settings was on a sub-page was dropped, and one opened while the Market was up was ignored until later.
 - Reading the installed list, the bundled index, cached source lists and a package's files no longer happens while a frame is being drawn.
 
-## [0.6.1] - Unreleased
+## [0.6.5] - Unreleased
 
 ### Added
-- Status options in Icons & Side Bar: Compact spacing brings the time and date closer together, and Background turns off the frosted capsule behind the status (the dock keeps its own).
-- Software Update works like iOS, but more open: Automatic Updates is Automatic (checks daily, downloads, and installs while the phone is idle, then tells you what's new), Notify Me or Manual. An update shows its release notes, size and download progress, with Update Now and Update Tonight (installs while idle and charging). If you'd changed the old switches, your choice carries over.
-- The Roadmap in Settings updates itself: it's read from Folio's GitHub repository when you open it (at most every six hours), with the version in the app as a fallback.
-- Big Clock widget (Widgets › Folio): a large Lock Screen-style clock on Home with the date and your next event or alarm, as wide as the page.
-- Clear icons (Icons & Side Bar › Style › Clear): frosted glass tiles with each app's white symbol, like iOS. Apps without a one-color symbol get a light, colorless icon, and the live Clock and Calendar match.
-- Try Folio before making it your Home app: until then, Folio's icon opens Home as a preview, with Use as Home and an exit button. Back on the first page or the Home gesture takes you back to your Home Screen, and setup reminders wait until you choose Folio.
-- Dock and status position, for each screen (Home Screen & Dock › Side Bar): the dock can be Automatic, always on the Side Bar, or along the bottom (short landscape screens keep the Side Bar so every row fits), and the status can start at the top of the screen instead of level with your apps, for larger folds.
-- Folders show the total of their apps' notification badges, like iOS.
-- Better bug reports: Folio now notes when it froze, was closed by Android, or the phone restarted while it was on screen, with the last few things that happened before (kept only on your phone). Report a Bug can copy these diagnostics for the GitHub form, and Advanced › Share Diagnostics shares them.
+- **Gauge status glyph:** a sixth Icon style for the Side Bar — the battery as an arc, your connection inside it, and the percentage above (Icons & Side Bar › Icon style).
+- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable.
+- **Layout sliders:** adjust row, column and dock spacing, widget size and status spacing, and watch Home change as you drag.
+- **Apps, dock and status position:** apps at the top, the dock on the side or bottom, and the status anywhere, for each screen.
+- **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight.
+- **Big Clock:** a large Lock Screen-style clock with the date and what's next.
+- **Try Folio first:** open Folio as a preview before making it your Home app.
+- **Clear icons:** frosted glass icons with white symbols, like iOS.
+- **Small cover screens:** a focused Home for tiny flip-phone covers, with the time, your dock apps and what's playing.
+- **App Library pull-down:** pull down from the top of the App Library for Notification Center and Control Center.
+- **Folder badges:** folders show the total of their apps' notification badges.
+- **Better bug reports:** Folio notes freezes and restarts, and Report a Bug can include them (kept on your phone).
+- **A live Roadmap:** see what's coming, updated from Folio's GitHub page.
+- **Folio Keys, for supporters:** a code that carries the keyboard scope shows where Folio's own keyboard has got to, in Settings › Supporter. It's in design — a separate app, because Android needs a keyboard to be its own input method — so there is nothing to install yet.
+
+- **Move apps without dragging:** TalkBack actions and Alt+arrow keys move apps and folders around Home and between pages.
+- **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
+- **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
+- **Big Buttons:** optional large Back, Home and Recents buttons over other apps, for when the system's are too small (Dynamic Island › In Every App). They sit above Android's own navigation, hide in full-screen apps and fade when idle.
+- **Swipe Down on Home:** pick what a swipe down the middle of Home does — Spotlight, Notification Center or nothing (Gestures & Actions). Set to Notification Center it works like Android's usual one-finger pull-down, and follows your choice of Folio's panels or Android's own shade.
+- **Move the buttons:** long-press and drag Big Buttons up the screen, away from the keyboard or an app's own bottom bar; Settings puts them back.
+- **The island steps aside in full screen:** the island in every app now leaves full-screen video and games alone, with switches for full screen and landscape (Dynamic Island › In Every App).
+- **Predictive back:** folders, the App Library and Settings follow your back swipe before closing.
+
+### Changed
+- Cleaner Settings, like iOS: every group is one card with thin dividers between rows, explanations sit under their card, and actions line up with the other rows. Island pop-ups have their own group.
 
 ### Fixed
+- **Google Discover works again:** Folio was asking the Google app for an old version of its feed connection, and newer Google app builds answered with nothing at all. It now asks for the same version Android's own launcher does.
+- **No button to a page that isn't there:** with Today View and Discover both off, Home stops offering the button that led nowhere.
+- **The island lets go of forgotten music:** a player that was paused and closed used to sit in the island for good, with buttons that did nothing.
+- With a keyboard, Tab and the arrow keys now move between apps on Home instead of stopping on empty spaces behind them.
+- If your saved Home layout can't be read, Folio now says so and offers to restore a backup or start fresh (keeping a copy), instead of quietly showing an empty Home.
+- Half folded, Home keeps off the hinge: unfolded pages stay on their side of a book fold, the bottom dock moves to one half, and on a table-style fold the status stays above the hinge and the dock goes below it.
+- On tall phones, Home sits centered in the screen instead of high up with empty space below.
+- On narrower phones, apps keep more space between them: icons never take more than 80% of their column.
+- Android's status bar no longer reappears over the Side Bar status after changing Display size, Smallest width or window size.
+- On folds with more than one hinge (tri-folds) and dual-screen phones, sheets, menus and alerts stay on one panel instead of crossing a hinge.
+- With a larger Smallest width (like 600 dp for the cover screen), the unfolded screen no longer gets bigger icons and the cover's two-column layout: Folio's tablet scaling now judges the screen at the phone's own density.
+- The Home Screen & Dock preview shows the unfolded layout on the Inner tab.
 - An app that re-posts the same notification (like a repeating warning) no longer pops up in the island each time; it stays in Notification Center.
 - In short landscape windows, the widget row on the left no longer runs under the page controls.
 - The Dynamic Island now always covers a punch-hole camera, instead of sitting below it on screens where the camera is close to the top (like the Galaxy Z Fold7's inner screen).
@@ -55,6 +83,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Google Discover beside Home is only used on Android 17 and newer; on Android 16 (reported on the Galaxy Z Fold7, issue #12) it could leave smeared copies of Home on screen, so Discover opens as its own page there.
 - Creating a folder no longer shows a second copy of it on the unfolded screen's extra left page.
 - Folders can be moved again: dragging one no longer drops it onto itself (which buzzed and put it back).
+- Folding or rotating no longer throws away a search: the pull-down panel closes, Spotlight keeps what you typed, and the panel now closes on the first fold after a restart too.
+- In the Gauge, the mark shown when there's nothing to connect to sits in the middle of the ring, level with the Wi-Fi one.
+- The last of Folio's own words follow your language: brief messages (a file that isn't a theme, an app that won't open, a redeemed code) and the text left in What's New, Choose Home Apps, widget editing, Up Next, restore and the alerts.
 
 ## [0.6.0] - 2026-09-16
 

@@ -51,7 +51,8 @@
     <application android:label="${appLabel}" android:icon="@mipmap/ic_launcher"
         android:name=".DuoApplication"
         android:theme="@style/Theme.Duo" android:allowBackup="false" android:supportsRtl="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="true">
         <property android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED" android:value="true" />
         <property android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_ALLOW_SYSTEM_OVERRIDE" android:value="false" />
         <activity android:name=".DiscoverActivity" android:exported="false"
@@ -187,6 +188,17 @@
         </activity>
         <service android:name=".MarketRefreshJob" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+        <!-- folio://redeem?c=… from a supporter email: the code is checked on the phone, so a bad link is simply refused. -->
+        <activity android:name=".RedeemActivity" android:exported="true" android:excludeFromRecents="true"
+            android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.redeem" android:noHistory="true"
+            android:label="Folio supporter code">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="folio" android:host="redeem" />
+            </intent-filter>
+        </activity>
         <!-- "Add to Home Screen" for widgets an app asks to pin (only delivered to the default Home app). -->
         <activity android:name=".PinWidgetActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.pin" android:noHistory="true">

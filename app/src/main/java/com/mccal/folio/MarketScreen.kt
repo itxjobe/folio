@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,19 +79,19 @@ import com.mccal.folio.market.Source
 import com.mccal.folio.market.Section
 
 /** The Market's tabs. Adding a source over the network comes in Phase 6; Sources shows what Folio has today. */
-internal enum class MarketTab(val label: String, val icon: ImageVector) {
-    FEATURED("Featured", Icons.Rounded.AutoAwesome),
-    SOURCES("Sources", Icons.Rounded.Public),
-    PACKAGES("Packages", Icons.Rounded.Storefront),
-    INSTALLED("Installed", Icons.Rounded.Download),
-    SETTINGS("Settings", Icons.Rounded.Settings),
+internal enum class MarketTab(@androidx.annotation.StringRes val label: Int, val icon: ImageVector) {
+    FEATURED(R.string.featured, Icons.Rounded.AutoAwesome),
+    SOURCES(R.string.sources, Icons.Rounded.Public),
+    PACKAGES(R.string.packages, Icons.Rounded.Storefront),
+    INSTALLED(R.string.installed, Icons.Rounded.Download),
+    SETTINGS(R.string.settings, Icons.Rounded.Settings),
 }
 
 /**
  * The Market: the packages Folio ships, what you have, and a page for each one.
  *
  * The layout follows the rest of Folio: one pane with a tab bar on a phone or a cover screen, and a list beside the
- * page when there's room ([isRegularSize]), so folding never loses your place.
+ * page when there's room ([fitsRegularHomeLayout]), so folding never loses your place.
  */
 @Composable
 internal fun MarketScreen(
@@ -128,6 +129,8 @@ internal fun MarketScreen(
     // Installing outlives this screen: the work can't be stopped halfway, so it's kept where Back can't reach it.
     val busyId = MarketWork.busyId
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     fun refresh() { revision++ }
 
     /**
@@ -139,8 +142,8 @@ internal fun MarketScreen(
     /** What the banner says about a finished install, and whether it can still be undone. */
     fun announce(name: String, result: InstallResult) {
         when (result) {
-            is InstallResult.Installed -> { message = "${result.installed.name} is on"; undo = result }
-            is InstallResult.NeedsNewerFolio -> say("$name needs a newer Folio")
+            is InstallResult.Installed -> { message = context.getString(R.string.text_1_s_is_on, result.installed.name); undo = result }
+            is InstallResult.NeedsNewerFolio -> say(context.getString(R.string.text_1_s_needs_a_newer_folio, name))
             is InstallResult.Failed -> say(result.message)
         }
         refresh()
@@ -163,12 +166,11 @@ internal fun MarketScreen(
         if (MarketWork.busy) return
         scope.launch {
             val removed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { session.remove(id) }
-            if (removed) say("$name removed")
+            if (removed) say(context.getString(R.string.text_1_s_removed, name))
             refresh()
         }
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = openId != null) { openId = null }
 
     // A .foliopkg someone opened: read it once, then the same confirm sheet as anything else. Keyed on the file
@@ -181,7 +183,7 @@ internal fun MarketScreen(
             when (val read = session.read(bytes)) {
                 is com.mccal.folio.market.PackageInstaller.ReadResult.Ok -> importing = bytes to read.pkg
                 is com.mccal.folio.market.PackageInstaller.ReadResult.NeedsNewerFolio ->
-                    say("That package needs a newer Folio")
+                    say(context.getString(R.string.that_package_needs_a_newer_folio))
                 is com.mccal.folio.market.PackageInstaller.ReadResult.Failed -> say(read.message)
             }
         }
@@ -215,7 +217,7 @@ internal fun MarketScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val regular = isRegularSize(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale)
+        val regular = fitsRegularHomeLayout(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale)
         val split = regular && maxWidth.value >= 700f
         // Where the tabs go, the same rule the Mockup Lab draws: a sidebar once the window is as wide as the Fold8
         // inner screen (iPad), a rail on the long edge when the window is too short for a bar under it (the cover
@@ -247,7 +249,7 @@ internal fun MarketScreen(
                                 scope.launch {
                                     val result = session.sources.addLocalDev(DEFAULT_LOCAL_SOURCE)
                                     statuses = withContext(session.io) { session.sources.cached() }
-                                    say(refreshMessage(Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result))
+                                    say(refreshMessage(context, Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result))
                                     refresh()
                                 }
                             },
@@ -256,7 +258,7 @@ internal fun MarketScreen(
                                     val result = session.sources.refresh(source.url, force = true)
                                     if (result is RefreshResult.NeedsTrust) trusting = result
                                     statuses = withContext(session.io) { session.sources.cached() }
-                                    say(refreshMessage(source, result))
+                                    say(refreshMessage(context, source, result))
                                     refresh()
                                 }
                             },
@@ -265,7 +267,7 @@ internal fun MarketScreen(
                                     // Deleting a source's cache and its pinned key is file work, not frame work.
                                     withContext(session.io) { session.sources.forget(source.url) }
                                     statuses = withContext(session.io) { session.sources.cached() }
-                                    say("${source.label} removed")
+                                    say(context.getString(R.string.text_1_s_removed, source.label))
                                     refresh()
                                 }
                             },
@@ -336,15 +338,15 @@ internal fun MarketScreen(
                             line = when (signing) {
                                 is com.mccal.folio.market.AuthorTrust.Result.Signed,
                                 is com.mccal.folio.market.AuthorTrust.Result.FirstTime,
-                                -> "From a file you opened, signed by its developer."
-                                else -> "From a file you opened."
+                                -> stringResource(R.string.from_a_file_you_opened_signed_by_its)
+                                else -> stringResource(R.string.from_a_file_you_opened)
                             },
                             checksum = null,
                             warning = when (signing) {
                                 is com.mccal.folio.market.AuthorTrust.Result.Signed -> null
                                 is com.mccal.folio.market.AuthorTrust.Result.FirstTime ->
-                                    "Folio will remember this developer's key for this package."
-                                else -> signing.message + ". Only open packages from someone you trust."
+                                    stringResource(R.string.folio_will_remember_this_developer_s_key)
+                                else -> stringResource(R.string.text_1_s_only_open_packages_from_someone_you, signing.message)
                             },
                         ),
                         onGet = {
@@ -375,7 +377,7 @@ internal fun MarketScreen(
                                     is RefreshResult.Failed -> say(result.message)
                                     else -> {
                                         statuses = withContext(session.io) { session.sources.cached() }
-                                        say("That source is already set up")
+                                        say(context.getString(R.string.that_source_is_already_set_up))
                                     }
                                 }
                             }
@@ -401,7 +403,7 @@ internal fun MarketScreen(
                                 val result = session.sources.trust(request.url, request.key)
                                 statuses = withContext(session.io) { session.sources.cached() }
                                 sourceUrl = ""
-                                say(refreshMessage(Source(request.url), result))
+                                say(refreshMessage(context, Source(request.url), result))
                                 refresh()
                             }
                         },
@@ -430,7 +432,7 @@ internal fun MarketScreen(
         }
         if (index == null) {
             Text(
-                "Folio couldn't read its own packages. Reinstalling the app puts them back.",
+                stringResource(R.string.folio_couldn_t_read_its_own_packages),
                 color = Color.White, modifier = Modifier.align(Alignment.Center).padding(32.dp),
             )
         }
@@ -484,7 +486,7 @@ private fun MarketSidebar(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            "Market", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            stringResource(R.string.market), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 10.dp),
         )
         for (tab in MarketTab.entries) {
@@ -501,7 +503,7 @@ private fun MarketSidebar(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    tab.label, color = if (on) Color.White else Color.White.copy(alpha = .85f), fontSize = 15.sp,
+                    stringResource(tab.label), color = if (on) Color.White else Color.White.copy(alpha = .85f), fontSize = 15.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
@@ -511,8 +513,9 @@ private fun MarketSidebar(selected: MarketTab, onSelect: (MarketTab) -> Unit) {
 }
 
 /** One tab is one control wherever it's drawn, so the tag and the spoken label don't depend on the layout. */
+@Composable
 private fun Modifier.marketTab(tab: MarketTab, onSelect: (MarketTab) -> Unit) =
-    clickable(onClickLabel = tab.label) { onSelect(tab) }.testTag("market-tab-${tab.name.lowercase()}")
+    clickable(onClickLabel = stringResource(tab.label)) { onSelect(tab) }.testTag("market-tab-${tab.name.lowercase()}")
 
 @Composable
 private fun MarketTabIcon(tab: MarketTab, on: Boolean) = Icon(
@@ -522,7 +525,7 @@ private fun MarketTabIcon(tab: MarketTab, on: Boolean) = Icon(
 
 @Composable
 private fun MarketTabLabel(tab: MarketTab, on: Boolean) = Text(
-    tab.label, color = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), fontSize = 11.sp,
+    stringResource(tab.label), color = if (on) Color(0xFF0A84FF) else Color.White.copy(alpha = .55f), fontSize = 11.sp,
     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
 )
 
@@ -560,8 +563,8 @@ private fun MarketList(
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         item {
             Column(Modifier.padding(top = 12.dp, bottom = 4.dp)) {
-                if (tab == MarketTab.FEATURED) Text("Welcome to Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
-                Text(tab.label, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                if (tab == MarketTab.FEATURED) Text(stringResource(R.string.welcome_to_folio), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                Text(stringResource(tab.label), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             }
         }
         if (tab == MarketTab.FEATURED && index != null) {
@@ -579,7 +582,7 @@ private fun MarketList(
         if (tab == MarketTab.SOURCES) {
             item(key = "sources") {
                 MarketSourcesTab(
-                    builtInName = index?.name?.english ?: "Folio",
+                    builtInName = index?.name?.english ?: stringResource(R.string.folio),
                     builtInCount = entries.count { it.source.kind == Source.Kind.BUILT_IN },
                     statuses = statuses,
                     localDevAllowed = localDevAllowed,
@@ -616,7 +619,7 @@ private fun MarketList(
         if (shown.isEmpty() && tab == MarketTab.INSTALLED && updates.isEmpty()) {
             item {
                 Text(
-                    "Nothing yet. Themes and tweaks you get show up here.",
+                    stringResource(R.string.nothing_yet_themes_and_tweaks_you_get),
                     color = Color.White.copy(alpha = .55f), modifier = Modifier.padding(vertical = 24.dp),
                 )
             }
@@ -659,10 +662,11 @@ private fun MarketRow(
 ) {
     val name = entry.name
     val author = entry.entry.manifest?.author?.name?.english.orEmpty()
+    val openLabel = stringResource(R.string.open_1_s, name)
     Row(
         Modifier.fillMaxWidth()
             .background(if (selected) Color.White.copy(alpha = .06f) else Color.Transparent)
-            .clickable(onClickLabel = "Open $name", onClick = onOpen)
+            .clickable(onClickLabel = openLabel, onClick = onOpen)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -672,7 +676,7 @@ private fun MarketRow(
             Text(name, color = Color.White, fontSize = 16.sp)
             Text(
                 when {
-                    installed?.enabled == false -> "Turned off after a crash"
+                    installed?.enabled == false -> stringResource(R.string.turned_off_after_a_crash)
                     entry.revokedReason != null -> entry.revokedReason
                     update -> "${installed?.version} → ${entry.entry.version}"
                     // A package from somewhere other than Folio says where it came from.
@@ -686,13 +690,13 @@ private fun MarketRow(
                 fontSize = 13.sp,
             )
             if (entry.unsigned) {
-                Text("Unsigned", color = Color(0xFFFFB340), fontSize = 12.sp)
+                Text(stringResource(R.string.unsigned), color = Color(0xFFFFB340), fontSize = 12.sp)
             }
             when (entry.clash) {
                 MarketEntry.Impostor.BUILT_IN ->
-                    Text("Claims a Folio package's name", color = Color(0xFFFF453A), fontSize = 12.sp)
+                    Text(stringResource(R.string.claims_a_folio_package_s_name), color = Color(0xFFFF453A), fontSize = 12.sp)
                 MarketEntry.Impostor.ANOTHER_SOURCE ->
-                    Text("Another source offers this name too", color = Color(0xFFFFB340), fontSize = 12.sp)
+                    Text(stringResource(R.string.another_source_offers_this_name_too), color = Color(0xFFFFB340), fontSize = 12.sp)
                 null -> Unit
             }
         }
@@ -700,15 +704,15 @@ private fun MarketRow(
             busy -> InstallProgress(MarketWork.progress, words = false, name = name)
             // A revoked package can be removed but never installed again - including as an update, which is how a
             // pulled package used to slip back in.
-            entry.revokedReason != null && installed != null -> MarketActionButton("Remove", name, onRemove)
-            entry.revokedReason != null -> Text("Unavailable", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            entry.revokedReason != null && installed != null -> MarketActionButton(R.string.remove, name, onRemove)
+            entry.revokedReason != null -> Text(stringResource(R.string.unavailable), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
             // Nothing can be installed under a name that belongs to a package inside Folio.
             entry.clash == MarketEntry.Impostor.BUILT_IN ->
-                Text("Refused", color = Color(0xFFFF453A), fontSize = 13.sp)
-            entry.entry.needs.isNotEmpty() -> Text("Needs a newer Folio", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
-            update -> MarketActionButton("Update", name, onGet)
-            installed != null -> MarketActionButton("Remove", name, onRemove)
-            else -> MarketActionButton("Get", name, onGet)
+                Text(stringResource(R.string.refused), color = Color(0xFFFF453A), fontSize = 13.sp)
+            entry.entry.needs.isNotEmpty() -> Text(stringResource(R.string.needs_a_newer_folio), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+            update -> MarketActionButton(R.string.update, name, onGet)
+            installed != null -> MarketActionButton(R.string.remove, name, onRemove)
+            else -> MarketActionButton(R.string.get, name, onGet)
         }
     }
 }
@@ -720,7 +724,7 @@ private fun MarketRow(
 @Composable
 private fun MarketOwnSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> Unit, onIntroduce: () -> Unit) {
     Column {
-        SheetGroupLabel("Featured style")
+        SheetGroupLabel(stringResource(R.string.featured_style))
         IosSegmented(
             options = FeaturedStyle.entries.map { it to it.label },
             selected = style,
@@ -733,11 +737,11 @@ private fun MarketOwnSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> 
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp),
         )
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
-            IosActionRow("Show the introduction again", onClick = onIntroduce)
+            IosActionRow(stringResource(R.string.show_the_introduction_again), onClick = onIntroduce)
         }
         val context = androidx.compose.ui.platform.LocalContext.current
         SheetGroup(Modifier.padding(bottom = 16.dp)) {
-            IosActionRow("Open Folio Settings") {
+            IosActionRow(stringResource(R.string.open_folio_settings)) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_APPLICATION_PREFERENCES)
@@ -752,9 +756,11 @@ private fun MarketOwnSettings(style: FeaturedStyle, onStyle: (FeaturedStyle) -> 
 
 /** The Get / Remove pill. Its name says which package it belongs to, so a screen reader hears more than "Get". */
 @Composable
-private fun MarketActionButton(label: String, name: String, onClick: () -> Unit) {
+private fun MarketActionButton(@androidx.annotation.StringRes label: Int, name: String, onClick: () -> Unit) {
+    // A semantics block isn't a composable scope, so the spoken name is read before the modifier chain.
+    val described = stringResource(R.string.text_1_s_2_s, stringResource(label), name)
     Text(
-        label,
+        stringResource(label),
         color = Color(0xFF0A84FF),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
@@ -764,7 +770,7 @@ private fun MarketActionButton(label: String, name: String, onClick: () -> Unit)
             // 44 dp tall, so it's a comfortable target rather than just big enough to see.
             .heightIn(min = 44.dp)
             .padding(horizontal = 14.dp, vertical = 12.dp)
-            .semantics { contentDescription = "$label $name" },
+            .semantics { contentDescription = described },
     )
 }
 
@@ -788,11 +794,12 @@ private fun MarketPackagePage(
         value = withContext(session.io) { session.read(entry.id) }
     }
     val name = entry.manifest?.name?.english ?: entry.id
+    val backLabel = stringResource(R.string.back)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         if (showBack) {
-            Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Back", onClick = onBack).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clickable(onClickLabel = backLabel, onClick = onBack).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(18.dp))
-                Text("Back", color = Color(0xFF0A84FF), fontSize = 16.sp)
+                Text(backLabel, color = Color(0xFF0A84FF), fontSize = 16.sp)
             }
         }
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -809,9 +816,9 @@ private fun MarketPackagePage(
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
                     Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = Color(0xFFFFB340), modifier = Modifier.size(20.dp))
                     Column(Modifier.padding(start = 10.dp)) {
-                        Text("Turned off after a crash", color = Color.White, fontSize = 15.sp)
+                        Text(stringResource(R.string.turned_off_after_a_crash), color = Color.White, fontSize = 15.sp)
                         Text(
-                            installed.disabledReason ?: "Your settings are kept.",
+                            installed.disabledReason ?: stringResource(R.string.your_settings_are_kept),
                             color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
                         )
                     }
@@ -823,16 +830,16 @@ private fun MarketPackagePage(
             when {
                 // Pulled by its source. Removing what's already on is still allowed; getting it is not.
                 revoked != null && installed == null -> Column(Modifier.testTag("package-unavailable")) {
-                    Text("Unavailable", color = Color(0xFFFFB340), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Its source pulled it: $revoked", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                    Text(stringResource(R.string.unavailable), color = Color(0xFFFFB340), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.its_source_pulled_it_1_s, revoked), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
                 MarketWork.busyId == entry.id -> InstallProgress(MarketWork.progress, words = true, name = name)
-                installed != null -> MarketActionButton("Remove", name, onRemove)
-                else -> MarketActionButton("Get", name, onGet)
+                installed != null -> MarketActionButton(R.string.remove, name, onRemove)
+                else -> MarketActionButton(R.string.get, name, onGet)
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                if (installed != null) "Version ${installed.version}" else "Built in",
+                if (installed != null) stringResource(R.string.version_1, installed.version) else stringResource(R.string.built_in),
                 color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
             )
         }
@@ -867,7 +874,7 @@ private fun MarketPackagePage(
                     block.items.forEach { Text("· ${it.english}", color = Color.White.copy(alpha = .85f), fontSize = 15.sp) }
                 }
                 is DepictionBlock.Changelog -> Column(Modifier.padding(bottom = 10.dp)) {
-                    SheetGroupLabel("What's new")
+                    SheetGroupLabel(stringResource(R.string.what_s_new))
                     block.entries.forEach { Text("${it.version} — ${it.notes.english}", color = Color.White.copy(alpha = .7f), fontSize = 14.sp) }
                 }
                 else -> Unit
@@ -876,7 +883,7 @@ private fun MarketPackagePage(
 
         val safety = entry.manifest?.let { PackageSafety.of(it) }
         safety?.let {
-            SheetGroupLabel("What it can't reach")
+            SheetGroupLabel(stringResource(R.string.what_it_can_t_reach))
             SheetGroup(Modifier.padding(bottom = 12.dp)) {
                 Column(Modifier.padding(14.dp)) {
                     it.cannotAccess.forEach { line -> Text(line, color = Color.White.copy(alpha = .7f), fontSize = 14.sp) }
@@ -884,29 +891,29 @@ private fun MarketPackagePage(
             }
         }
 
-        SheetGroupLabel("Information")
+        SheetGroupLabel(stringResource(R.string.information))
         SheetGroup(Modifier.padding(bottom = 12.dp)) {
             Column(Modifier.padding(14.dp)) {
-                Text("Source: ${source.label}", color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Text(stringResource(R.string.source_1_s, source.label), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
                 Text(
-                    entry.provenance?.let { "Built from ${it.repo} @ ${it.commit}" } ?: "Built into Folio",
+                    entry.provenance?.let { stringResource(R.string.built_from_1_s_2_s, it.repo, it.commit) } ?: stringResource(R.string.built_into_folio),
                     color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
                 )
-                installed?.let { Text("Installed ${it.version}", color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
+                installed?.let { Text(stringResource(R.string.installed_1_s, it.version), color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
             }
         }
         SheetGroup(Modifier.padding(bottom = 24.dp)) {
-            IosActionRow("Share") { onShare(entry) }
+            IosActionRow(stringResource(R.string.share)) { onShare(entry) }
             MenuDivider()
-            IosActionRow("Report a package", destructive = true) { onReport(entry) }
+            IosActionRow(stringResource(R.string.report_a_package), destructive = true) { onReport(entry) }
         }
 
         // The privacy label comes from the manifest's permissions, never from anything the author wrote.
-        SheetGroupLabel(if (entry.manifest?.permissions.isNullOrEmpty()) "No data collected" else "What this package changes")
+        SheetGroupLabel(stringResource(if (entry.manifest?.permissions.isNullOrEmpty()) R.string.no_data_collected else R.string.what_this_package_changes))
         SheetGroup(Modifier.padding(bottom = 24.dp)) {
             val lines = entry.manifest?.permissions.orEmpty().mapNotNull(PackagePermission::label)
             if (lines.isEmpty()) {
-                Text("Changes appearance only.", color = Color.White.copy(alpha = .7f), fontSize = 14.sp, modifier = Modifier.padding(14.dp))
+                Text(stringResource(R.string.changes_appearance_only), color = Color.White.copy(alpha = .7f), fontSize = 14.sp, modifier = Modifier.padding(14.dp))
             } else {
                 Column(Modifier.padding(14.dp)) {
                     lines.forEach { Text(it, color = Color.White.copy(alpha = .85f), fontSize = 14.sp) }
@@ -922,13 +929,13 @@ private fun MarketMessage(text: String, undo: (() -> Unit)?, onDismiss: () -> Un
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(14.dp)).background(Color(0xFF2C2C2E))
-            .clickable(onClickLabel = "Dismiss", onClick = onDismiss)
+            .clickable(onClickLabel = stringResource(R.string.dismiss), onClick = onDismiss)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
         if (undo != null) {
-            Text("Undo", color = Color(0xFF0A84FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = undo))
+            Text(stringResource(R.string.undo), color = Color(0xFF0A84FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = undo))
         }
     }
 }
@@ -1092,9 +1099,9 @@ private fun NoScreenshots() {
         SadFolio(46.dp)
         Spacer(Modifier.width(14.dp))
         Column {
-            Text("No screenshots", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.no_screenshots), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Its publisher hasn't shown what it looks like yet.",
+                stringResource(R.string.its_publisher_hasn_t_shown_what_it_looks),
                 color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
             )
         }
@@ -1134,8 +1141,8 @@ private fun share(context: android.content.Context, entry: IndexPackage) {
         context.startActivity(
             android.content.Intent.createChooser(
                 android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
-                    .putExtra(android.content.Intent.EXTRA_TEXT, "$name for Folio: folio://package/${entry.id}"),
-                "Share $name",
+                    .putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.text_1_s_for_folio_folio_package_2_s, name, entry.id)),
+                context.getString(R.string.share_1_s, name),
             ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }

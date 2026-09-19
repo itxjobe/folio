@@ -70,26 +70,26 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
     // listed in Settings › Privacy & Permissions.
     val all = remember {
         listOf(
-            OnboardingPage("welcome", Icons.Rounded.WavingHand, 0xFF2E5E66, "Welcome to Folio",
-                "An iPhone-style Home Screen for Android, made for foldables. Setup takes about a minute, and you can skip any step.",
-                action = "Continue", optional = false, appIcon = true),
-            OnboardingPage("home", Icons.Rounded.Home, 0xFF0A84FF, "Make Folio Your Home",
-                "So the Home gesture and folding always come back to Folio. You can switch back anytime, or try Folio first: open it from your Home Screen, and press Back to leave.",
-                action = "Choose Home App", done = { isDefaultHome }, onAction = onMakeDefault),
-            OnboardingPage("notifications", Icons.Rounded.Notifications, 0xFFFF3B30, "Notifications",
-                "Folio reads notifications only to show them on your phone. Nothing is sent anywhere.",
-                uses = listOf("Dynamic Island: music, calls, timers", "Notification Center and quick reply", "App icon badges"),
-                action = "Allow Access", done = { IslandListenerService.hasAccess(context) },
+            OnboardingPage("welcome", Icons.Rounded.WavingHand, 0xFF2E5E66, context.getString(R.string.welcome_to_folio),
+                context.getString(R.string.onboarding_welcome_detail),
+                action = context.getString(R.string.continue_button), optional = false, appIcon = true),
+            OnboardingPage("home", Icons.Rounded.Home, 0xFF0A84FF, context.getString(R.string.make_folio_your_home),
+                context.getString(R.string.onboarding_home_detail),
+                action = context.getString(R.string.choose_home_app), done = { isDefaultHome }, onAction = onMakeDefault),
+            OnboardingPage("notifications", Icons.Rounded.Notifications, 0xFFFF3B30, context.getString(R.string.notifications_title),
+                context.getString(R.string.onboarding_notifications_detail),
+                uses = listOf(context.getString(R.string.onboarding_use_island), context.getString(R.string.onboarding_use_quick_reply), context.getString(R.string.onboarding_use_badges)),
+                action = context.getString(R.string.allow_access), done = { IslandListenerService.hasAccess(context) },
                 onAction = { open(IslandListenerService.accessSettingsIntent(context)) }),
-            OnboardingPage("gestures", Icons.Rounded.SwipeDown, 0xFF30D158, "Pull Down for More",
-                "Folio's gestures service opens Notification Center and Control Center from the top corners. It can't read your screen.",
-                uses = listOf("Notification Center and Control Center", "Dynamic Island and dock in other apps"),
-                action = "Turn On", done = { SystemShadeAccessibilityService.isConnected() }, onAction = onShadeSetup),
-            OnboardingPage("look", Icons.Rounded.Wallpaper, 0xFF32ADE6, "Choose a Look",
-                "Keep the wallpaper you already use, or try Folio's dunes. Text on Home adjusts to light and dark wallpapers.",
+            OnboardingPage("gestures", Icons.Rounded.SwipeDown, 0xFF30D158, context.getString(R.string.pull_down_for_more),
+                context.getString(R.string.onboarding_gestures_detail),
+                uses = listOf(context.getString(R.string.onboarding_use_panels), context.getString(R.string.onboarding_use_everywhere)),
+                action = context.getString(R.string.turn_on_button), done = { SystemShadeAccessibilityService.isConnected() }, onAction = onShadeSetup),
+            OnboardingPage("look", Icons.Rounded.Wallpaper, 0xFF32ADE6, context.getString(R.string.choose_a_look),
+                context.getString(R.string.onboarding_look_detail),
                 optional = false),
-            OnboardingPage("done", Icons.Rounded.CheckCircle, 0xFF30D158, "You're All Set",
-                "A few things to try:", action = "Get Started", optional = false),
+            OnboardingPage("done", Icons.Rounded.CheckCircle, 0xFF30D158, context.getString(R.string.youre_all_set),
+                context.getString(R.string.a_few_things_to_try), action = context.getString(R.string.get_started), optional = false),
         ).filter { page -> page.key in setOf("welcome", "look", "done") || !page.done() }
     }
     // Resume by page key: the page list changes between versions (and skips what's already allowed), so an index
@@ -119,7 +119,7 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                 }
                 Spacer(Modifier.weight(1f))
                 // Setup is optional: Home works without it, and everything is in Settings.
-                if (page.key != "done") Text("Skip", color = IosBlue, fontSize = 17.sp,
+                if (page.key != "done") Text(stringResource(R.string.skip), color = IosBlue, fontSize = 17.sp,
                     modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { finish() }.padding(10.dp).testTag("onboarding-skip"))
             }
             AnimatedContent(index, Modifier.weight(1f), label = "onboarding page",
@@ -154,11 +154,11 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                     if (p.key == "done") {
                         val gestures = remember(tick) { SystemShadeAccessibilityService.isConnected() }
                         val tips = listOf(
-                            Icons.Rounded.TouchApp to "Hold an app for its menu",
-                            Icons.Rounded.Search to "Swipe down on Home for Spotlight",
-                            Icons.Rounded.SwipeDown to if (gestures) "Pull down from the top corners for Notification Center and Control Center"
-                                else "Turn on gestures in Settings to pull down Notification Center and Control Center",
-                            Icons.Rounded.Settings to "Everything else, including optional permissions, is in Folio Settings",
+                            Icons.Rounded.TouchApp to context.getString(R.string.onboarding_tip_hold_app),
+                            Icons.Rounded.Search to context.getString(R.string.swipe_down_on_home_for_spotlight),
+                            Icons.Rounded.SwipeDown to if (gestures) context.getString(R.string.onboarding_tip_pull_down)
+                                else context.getString(R.string.onboarding_tip_turn_on_gestures),
+                            Icons.Rounded.Settings to context.getString(R.string.onboarding_tip_settings),
                         )
                         SheetGroup(Modifier.padding(top = 20.dp)) {
                             tips.forEachIndexed { n, (icon, tip) ->
@@ -176,17 +176,17 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                         IosChip(selected = !systemWallpaper, onClick = { onWallpaper(false) }, label = { Text(stringResource(R.string.folio_dunes)) }, modifier = Modifier.weight(1f))
                     }
                     if (done && p.onAction != null) Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF30D158))
+                        Icon(Icons.Rounded.CheckCircle, null, tint = FolioColors.Green)
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.all_set), color = Color(0xFF30D158), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.all_set), color = FolioColors.Green, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
             // Bottom: primary action (or Continue once done), Not Now, and progress dots.
             val primary = when {
-                page.onAction != null && !done -> page.action ?: "Continue"
-                page.key == "done" -> page.action ?: "Get Started"
-                else -> "Continue"
+                page.onAction != null && !done -> page.action ?: context.getString(R.string.continue_button)
+                page.key == "done" -> page.action ?: context.getString(R.string.get_started)
+                else -> context.getString(R.string.continue_button)
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(14.dp)).background(IosBlue)
                 .clickable {
@@ -199,7 +199,7 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
                 Text(primary, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
-                if (page.optional && !done) Text(if (page.key == "home") "Try Folio First" else "Set Up Later in Settings", color = IosBlue, fontSize = 17.sp,
+                if (page.optional && !done) Text(if (page.key == "home") context.getString(R.string.try_folio_first) else context.getString(R.string.set_up_later_in_settings), color = IosBlue, fontSize = 17.sp,
                     modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { go(index + 1) }.padding(10.dp).testTag("onboarding-not-now"))
             }
             Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.Center,
@@ -213,6 +213,6 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
     }
 }
 
-private val IosBlue = Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 private const val STEP = "onboardingStep"
 private const val STEP_KEY = "onboardingPage"

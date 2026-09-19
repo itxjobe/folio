@@ -79,6 +79,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -126,6 +132,9 @@ internal fun ExpandedWorkspace(
     onWidget: (Int) -> Unit,
     onFolder: (String) -> Unit,
     onEmptyWidget: (Int) -> Unit,
+    onMove: (String, Int) -> Unit = { _, _ -> },
+    /** Back swipe progress over the App Library (predictive back), 0–1. */
+    libraryBack: () -> Float = { 0f },
     onRefresh: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -193,7 +202,7 @@ internal fun ExpandedWorkspace(
                         -1, state, previewSlots, previewLeadingSlots, previewWidgetPlacements, appsById, geometry, contentHeight, bottomSpace,
                         widgets, drag, target, insertionTarget, showLargeWidget = true,
                         onLaunch = onLaunchFrom, onActions = onActions, onWidget = onWidget,
-                        onFolder = onFolder, onEmptyWidget = onEmptyWidget, onRefresh = onRefresh,
+                        onFolder = onFolder, onEmptyWidget = onEmptyWidget, onMove = onMove, onRefresh = onRefresh,
                         modifier = Modifier,
                     )
                 }
@@ -211,6 +220,7 @@ internal fun ExpandedWorkspace(
                             onLaunch = onLaunchFrom, onActions = onActions, onWidget = onWidget,
                             onFolder = onFolder,
                             onEmptyWidget = onEmptyWidget,
+                            onMove = onMove,
                             onRefresh = onRefresh,
                         )
                     }
@@ -223,7 +233,9 @@ internal fun ExpandedWorkspace(
                 Box(Modifier.place((visibleHomePages - 1) * stride + viewportWidth).fillMaxSize()) {
                     AppLibrary(state, libraryQuery, onLibraryQuery, onLaunch, onPinned,
                         onActions = onActions,
-                        modifier = Modifier.fillMaxSize().padding(start = 16.dp, top = 16.dp, bottom = bottomSpace)
+                        modifier = Modifier.fillMaxSize()
+                            .graphicsLayer { val b = libraryBack(); scaleX = 1f - .14f * b; scaleY = scaleX; alpha = 1f - .35f * b; translationX = size.width * .08f * b }
+                            .padding(start = 16.dp, top = 16.dp, bottom = bottomSpace)
                             .testTag("library-page"),
                         drag = drag, page = visibleHomePages, onLaunchFrom = onLaunchFrom, onTurnOnWork = onTurnOnWork)
                 }
@@ -253,6 +265,8 @@ internal fun HomePagePane(
     onWidget: (Int) -> Unit,
     onFolder: (String) -> Unit,
     onEmptyWidget: (Int) -> Unit = {},
+    /** Moves an app or folder by a number of cells (TalkBack actions and Alt+arrow keys; no dragging needed). */
+    onMove: (String, Int) -> Unit = { _, _ -> },
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -260,7 +274,7 @@ internal fun HomePagePane(
     var paneBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     val pageStart = homeCellIndex(page, 0)
     val backgroundTarget = (pageStart until pageStart + HOME_CELLS).firstOrNull { index ->
-        state.layout.slotAt(index) == null && state.widgetPlacements.none { index in it.coveredIndices() }
+        homeCellShown(index, geometry.appRows) && state.layout.slotAt(index) == null && state.widgetPlacements.none { index in it.coveredIndices() }
     } ?: pageStart
     val verticalEdge = with(LocalDensity.current) { 42.dp.toPx() }
     LaunchedEffect(drag.active, page, paneBounds) {
@@ -321,7 +335,7 @@ internal fun HomePagePane(
             SharedHomeGrid(page, state.homeSlots, state.leadingSlots, previewSlots, previewLeadingSlots, previewWidgetPlacements,
                 appsById, geometry.copy(iconSize = pageIcon), pageLabels, widgets, drag, target,
                 folders = state.folders, onLaunch = onLaunch, onActions = onActions, onWidget = onWidget,
-                onFolder = onFolder, onEmptyWidget = onEmptyWidget)
+                onFolder = onFolder, onEmptyWidget = onEmptyWidget, onMove = onMove)
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp))
             if (state.error != null) Text(state.error, color = Color.White,
                 modifier = Modifier.clickable(onClick = onRefresh).padding(12.dp))
@@ -359,6 +373,7 @@ internal fun SharedHomeGrid(
     onWidget: (Int) -> Unit,
     onFolder: (String) -> Unit,
     onEmptyWidget: (Int) -> Unit,
+    onMove: (String, Int) -> Unit = { _, _ -> },
 ) {
     val rowHeight = geometry.rowHeight
     val iconSize = geometry.iconSize
@@ -386,15 +401,20 @@ internal fun SharedHomeGrid(
     val pending = widgets.pendingPlacement?.takeIf { it.page == page }
     val pendingIsReplacement = pending != null && widgetPlacements.any { it.slot == pending.slot }
     val pageWidgets = widgetPlacements.filter { it.page == page } + listOfNotNull(pending?.takeUnless { pendingIsReplacement })
-    val renderedRows = maxOf(GRID_ROWS, pageWidgets.maxOfOrNull { it.row + it.spanY } ?: GRID_ROWS)
+    // More rows: the rows Home shows, or more where apps or widgets already sit lower; cells past them aren't drawn.
+    val shownRows = shownHomeRows(geometry.appRows, pageRange.map { previewAt(it) ?: savedAt(it) }, pageWidgets)
+    // The retained overflow widget (stored under the grid) draws right after the shown rows.
+    fun displayRow(row: Int) = if (row >= GRID_ROWS) shownRows + row - GRID_ROWS else row
+    val widgetRows = pageWidgets.map { displayRow(it.row) to it.spanY }
+    val renderedRows = maxOf(shownRows, widgetRows.maxOfOrNull { it.first + it.second } ?: 0)
     // Stacked, or two columns side by side in a short, wide window (see HomeCellLayout).
-    val cells = remember(geometry, pageWidgets.map { it.row to it.spanY }) { HomeCellLayout.forPage(geometry, pageWidgets.map { it.row to it.spanY }) }
+    val cells = remember(geometry, widgetRows) { HomeCellLayout.forPage(geometry, widgetRows) }
     // Half folded like a laptop (phone upright): rows that would sit in the fold spring down past it, like iPhone Duo.
     val hinge = LocalHinge.current?.takeIf { it.active && !it.vertical }
     val density = LocalDensity.current
     var gridTopDp by remember { mutableFloatStateOf(0f) }
     val fold = hinge?.let { h -> with(density) {
-        foldDisplacement(cells, renderedRows, gridTopDp, h.startPx.toDp().value, h.endPx.toDp().value, pageWidgets.map { it.row to it.spanY })
+        foldDisplacement(cells, renderedRows, gridTopDp, h.startPx.toDp().value, h.endPx.toDp().value, widgetRows)
     } }
     val foldShift by animateFloatAsState(fold?.second ?: 0f, androidx.compose.animation.core.spring(dampingRatio = .85f, stiffness = 380f), label = "fold shift")
     val foldRow = fold?.first ?: Int.MAX_VALUE
@@ -404,7 +424,7 @@ internal fun SharedHomeGrid(
         val cellWidth = cells.cellWidth.dp
         fun cellX(column: Int, row: Int) = cells.x(column, row).dp
 
-        repeat(HOME_CELLS) { localIndex ->
+        repeat(shownRows * GRID_COLUMNS) { localIndex ->
             val globalIndex = pageStart + localIndex
             val cell = DropTarget.Home(globalIndex)
             val savedId = savedAt(globalIndex)
@@ -418,6 +438,8 @@ internal fun SharedHomeGrid(
             Box(Modifier.offset(x = cellX(localIndex % GRID_COLUMNS, row), y = rowTop(row).dp)
                 .width(cellWidth).height(cellHeight.dp).testTag("home-cell-$globalIndex")
                 .dropRegion(drag, cell, savedApp?.id ?: savedFolder?.id, page)
+                // Keyboard and switch focus goes to the app or folder itself, not the empty cell behind it.
+                .focusProperties { canFocus = false }
                 .combinedClickable(onClick = { if (savedFolder != null) onFolder(savedFolder.id) else if (edit.active) edit.stop() },
                     onLongClick = { if (savedId == null && !drag.active) onEmptyWidget(globalIndex) })
                 .background(if (highlighted) Glass.copy(alpha = .25f) else Color.Transparent, RoundedCornerShape(16.dp))
@@ -454,7 +476,7 @@ internal fun SharedHomeGrid(
                     label = "home insertion visibility $id",
                 )
                 Box(Modifier.offset { animatedOffset }.width(cellWidth).height(rowHeight.dp)
-                    .alpha(opacity).testTag("home-app-$id"), contentAlignment = Alignment.TopCenter) {
+                    .alpha(opacity).moveActions(id, page, onMove).testTag("home-app-$id"), contentAlignment = Alignment.TopCenter) {
                     if (visible) AppTile(app, iconSize, labels,
                         onClick = { if (!edit.active) onLaunch(app, it) }, onLongClick = { onActions(app) },
                         onRemove = if (edit.active && savedIndex != null) {{ edit.onRemove(DropTarget.Home(savedIndex)) }} else null)
@@ -471,14 +493,15 @@ internal fun SharedHomeGrid(
             val y = rowTop(row).dp
             FolderTile(folder, appsById, iconSize, labels, drag, page,
                 Modifier.offset(x = x, y = y).width(cellWidth).height(rowHeight.dp)
-                    .testTag("home-folder-${folder.id}"), onClick = { onFolder(folder.id) })
+                    .moveActions(folder.id, page, onMove).testTag("home-folder-${folder.id}"), onClick = { onFolder(folder.id) })
         }
         pageWidgets.forEach { placement ->
             key("widget-${placement.slot}") {
-                val x = cellX(placement.column, placement.row) + 5.dp
                 val width = (cellWidth * placement.spanX - 10.dp).coerceAtLeast(1.dp)
-                val y = rowTop(placement.row)
-                val height = (cells.spanHeight(placement.row, placement.spanY) - 18f).coerceAtLeast(48f)
+                val row = displayRow(placement.row)
+                val x = cellX(placement.column, row) + 5.dp
+                val y = rowTop(row)
+                val height = (cells.spanHeight(row, placement.spanY) - 18f).coerceAtLeast(48f)
                 if (placement == pending) Surface(Modifier.offset(x = x, y = y.dp).width(width).height(height.dp)
                     .testTag("widget-pending-${placement.slot}").semantics(mergeDescendants = true) {
                         contentDescription = "Pending ${widgets.pendingProvider?.shortClassName ?: "widget"}"
@@ -493,5 +516,38 @@ internal fun SharedHomeGrid(
                     Modifier.offset(x = x, y = y.dp).width(width).height(height.dp), page = page) { onWidget(placement.slot) }
             }
         }
+    }
+}
+
+/** Cell offsets for moving without dragging: left, right, up, down, and the same cell on the next or previous page. */
+internal fun homeMoveOffsets(page: Int): List<Pair<String, Int>> = buildList {
+    add("Move Left" to -1); add("Move Right" to 1); add("Move Up" to -GRID_COLUMNS); add("Move Down" to GRID_COLUMNS)
+    // The unfolded-only page has no neighbors to move to.
+    if (page >= 0) { add("Move to Next Page" to HOME_CELLS); if (page > 0) add("Move to Previous Page" to -HOME_CELLS) }
+}
+
+/**
+ * Lets TalkBack and keyboard users rearrange Home: custom accessibility actions, and Alt+arrow keys (Alt+Page Up/Down
+ * for pages) on the focused icon. Folio says where the item went.
+ */
+@Composable
+private fun Modifier.moveActions(id: String, page: Int, onMove: (String, Int) -> Unit): Modifier {
+    val view = androidx.compose.ui.platform.LocalView.current
+    fun perform(label: String, offset: Int) { onMove(id, offset); view.announceForAccessibility(label.removePrefix("Move ").replaceFirstChar { it.lowercase() }.let { "Moved $it" }) }
+    val offsets = homeMoveOffsets(page)
+    return semantics {
+        customActions = offsets.map { (label, offset) -> androidx.compose.ui.semantics.CustomAccessibilityAction(label) { perform(label, offset); true } }
+    }.onPreviewKeyEvent { event ->
+        if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isAltPressed) return@onPreviewKeyEvent false
+        val action = when (event.key) {
+            androidx.compose.ui.input.key.Key.DirectionLeft -> offsets.firstOrNull { it.second == -1 }
+            androidx.compose.ui.input.key.Key.DirectionRight -> offsets.firstOrNull { it.second == 1 }
+            androidx.compose.ui.input.key.Key.DirectionUp -> offsets.firstOrNull { it.second == -GRID_COLUMNS }
+            androidx.compose.ui.input.key.Key.DirectionDown -> offsets.firstOrNull { it.second == GRID_COLUMNS }
+            androidx.compose.ui.input.key.Key.PageDown -> offsets.firstOrNull { it.second == HOME_CELLS }
+            androidx.compose.ui.input.key.Key.PageUp -> offsets.firstOrNull { it.second == -HOME_CELLS }
+            else -> null
+        } ?: return@onPreviewKeyEvent false
+        perform(action.first, action.second); true
     }
 }

@@ -79,7 +79,7 @@ class AssistPickerActivity : ComponentActivity() {
                 .clickable(remember { MutableInteractionSource() }, null) { finish() }, contentAlignment = Alignment.BottomCenter) {
                 AnimatedVisibility(shown, enter = fadeIn() + slideInVertically(spring(dampingRatio = .82f, stiffness = Spring.StiffnessMediumLow)) { it / 3 }) {
                     Column(Modifier.navigationBarsPadding().windowInsetsPadding(WindowInsets.imeAnimationTarget).padding(16.dp).widthIn(max = 520.dp).fillMaxWidth()
-                        .clip(RoundedCornerShape(30.dp)).background(Color(0xFF1C1C1E).copy(alpha = .94f))
+                        .clip(RoundedCornerShape(30.dp)).background(FolioColors.SecondaryBackground.copy(alpha = .94f))
                         .clickable(remember { MutableInteractionSource() }, null) {}.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         if (!searchOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {

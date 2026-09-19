@@ -148,7 +148,7 @@ internal fun ExpandedCard(onClick: () -> Unit) {
     GlassCard(onClick = onClick) {
         Column {
             Text(date.format(DateTimeFormatter.ofPattern("EEEE")), color = LocalHomeInk.current.primary, fontSize = 22.sp)
-            Text(date.format(DateTimeFormatter.ofPattern("MMMM d")), color = LocalHomeInk.current.secondary, fontSize = 16.sp)
+            Text(date.format(DateTimeFormatter.ofPattern(stringResource(R.string.mmmm_d))), color = LocalHomeInk.current.secondary, fontSize = 16.sp)
         }
         Column {
             Icon(Icons.Rounded.Widgets, null, tint = LocalHomeInk.current.primary, modifier = Modifier.size(32.dp))
@@ -164,6 +164,7 @@ internal fun ExpandedCard(onClick: () -> Unit) {
 
 @Composable
 internal fun WidgetSlot(id: Int, slot: Int, controller: WidgetController, modifier: Modifier, onAdd: () -> Unit, fallback: @Composable () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var restoreMessage by remember(slot) { mutableStateOf<String?>(null) }
     BoxWithConstraints(modifier.clip(RoundedCornerShape(24.dp)).testTag("widget-slot-$slot")) {
         val displayedContentSize = WidgetContentSize(maxWidth.value, maxHeight.value)
@@ -173,15 +174,15 @@ internal fun WidgetSlot(id: Int, slot: Int, controller: WidgetController, modifi
                 shape = RoundedCornerShape(24.dp), border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = .7f))) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(restore?.title ?: "Saved widget", color = Ink, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                    Text(restore?.profileLabel ?: "Unavailable profile", color = Ink.copy(alpha = .72f),
+                    Text(restore?.title ?: stringResource(R.string.saved_widget), color = Ink, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Text(restore?.profileLabel ?: stringResource(R.string.unavailable_profile), color = Ink.copy(alpha = .72f),
                         style = MaterialTheme.typography.bodySmall)
                     restoreMessage?.let { Text(it, color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center) }
                     Row {
                         TextButton(onClick = {
                             if (!controller.rebindRestoredWidget(slot, contentSize = displayedContentSize))
-                                restoreMessage = "That provider or profile isn’t available. Choose a replacement."
+                                restoreMessage = context.getString(R.string.that_provider_or_profile_isn_t_available)
                         },
                             modifier = Modifier.testTag("widget-restore-reconnect-$slot")) { Text(stringResource(R.string.reconnect)) }
                         TextButton(onClick = onAdd, modifier = Modifier.testTag("widget-restore-replace-$slot")) { Text(stringResource(R.string.replace)) }
@@ -201,20 +202,21 @@ internal fun WidgetSlot(id: Int, slot: Int, controller: WidgetController, modifi
     }
 }
 
-internal fun widgetLabel(id: Int, controller: WidgetController) = when (id) {
-    CLOCK_WIDGET -> "Clock"
-    DATE_WIDGET -> "Date"
-    UP_NEXT_WIDGET -> "Up Next"
-    SUGGESTIONS_WIDGET -> "Suggestions"
-    BIG_CLOCK_WIDGET -> "Big Clock"
-    INFO_WIDGET -> "Widget panel"
-    EMPTY_WIDGET -> "Add widget"
+internal fun widgetLabel(context: android.content.Context, id: Int, controller: WidgetController) = when (id) {
+    CLOCK_WIDGET -> context.getString(R.string.clock)
+    DATE_WIDGET -> context.getString(R.string.date)
+    UP_NEXT_WIDGET -> context.getString(R.string.up_next)
+    SUGGESTIONS_WIDGET -> context.getString(R.string.suggestions)
+    BIG_CLOCK_WIDGET -> context.getString(R.string.big_clock)
+    INFO_WIDGET -> context.getString(R.string.widget_panel)
+    EMPTY_WIDGET -> context.getString(R.string.add_widget)
     else -> controller.label(id)
 }
 
 @Composable
 internal fun MovableWidget(id: Int, slot: Int, controller: WidgetController, drag: HomeDragState,
     target: DropTarget?, modifier: Modifier, page: Int, onAdd: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val cell = DropTarget.Widget(slot)
     val edit = LocalHomeEdit.current
     // Built-in cards wiggle; provider widgets (Android views) only get the remove button, since moving
@@ -225,10 +227,10 @@ internal fun MovableWidget(id: Int, slot: Int, controller: WidgetController, dra
             .alpha(if (drag.source?.target == cell) .3f else 1f)
             .border(if (drag.active && target == cell) 2.dp else 0.dp,
                 if (drag.active && target == cell) Color.White else Color.Transparent, RoundedCornerShape(24.dp))
-            .semantics { onLongClick("Move or replace widget") { onAdd(); true } }
+            .semantics { onLongClick(context.getString(R.string.move_or_replace_widget)) { onAdd(); true } }
         if (cards.size > 1) SmartStack(cards, slot, controller, chrome, onAdd)
         else WidgetSlot(id, slot, controller, chrome, onAdd) { BuiltinWidgetCard(id, slot, onAdd) }
-    if (edit.active && id != EMPTY_WIDGET && id != INFO_WIDGET) JiggleRemoveButton("Remove widget") { edit.onRemove(cell) }
+    if (edit.active && id != EMPTY_WIDGET && id != INFO_WIDGET) JiggleRemoveButton(stringResource(R.string.remove_widget)) { edit.onRemove(cell) }
     }
 }
 
@@ -249,7 +251,7 @@ internal fun BuiltinWidgetCard(id: Int, slot: Int, onAdd: () -> Unit) {
             shape = RoundedCornerShape(24.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .25f))) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.Add, null, tint = Color.White)
-                Text(if (id >= 0) "Widget unavailable" else "Add widget", color = Color.White, fontSize = 12.sp)
+                Text(if (id >= 0) stringResource(R.string.widget_unavailable) else stringResource(R.string.add_widget), color = Color.White, fontSize = 12.sp)
             }
         }
     }
@@ -324,12 +326,14 @@ internal fun WidgetActions(
     onRemove: () -> Unit,
     onClose: () -> Unit,
     stackCards: List<Int> = emptyList(),
-    stackLabel: (Int) -> String = { "Widget" },
+    stackLabel: (Int) -> String? = { null },
     stackRotate: Boolean = true,
     onStackRotate: (Boolean) -> Unit = {},
     onAddToStack: () -> Unit = {},
     onRemoveFromStack: (Int) -> Unit = {},
     onShowFirstInStack: (Int) -> Unit = {},
+    /** Rows the widget's page shows (More rows); sizes never reach past them. */
+    rows: Int = GRID_ROWS,
 ) {
     val sheetMaxHeight = with(LocalDensity.current) {
         (LocalWindowInfo.current.containerSize.height * .88f).toDp()
@@ -340,7 +344,7 @@ internal fun WidgetActions(
     val minWidth = constraints?.minimum?.width ?: 2
     val minHeight = constraints?.minimum?.height ?: 2
     val maxWidth = minOf(GRID_COLUMNS - placement.column, constraints?.maximum?.width ?: GRID_COLUMNS)
-    val maxHeight = minOf(GRID_ROWS - placement.row, constraints?.maximum?.height ?: GRID_ROWS)
+    val maxHeight = minOf(rows.coerceAtMost(GRID_ROWS) - placement.row, constraints?.maximum?.height ?: GRID_ROWS)
     val feasible = placement.page >= -1 && placement.row in 0 until GRID_ROWS &&
         !(placement.id >= 0 && constraints == null) && minWidth <= maxWidth && minHeight <= maxHeight
     val valid = feasible && isValid(width, height)
@@ -352,9 +356,9 @@ internal fun WidgetActions(
         .padding(horizontal = 20.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (stackCards.size > 1) "Smart Stack" else "Widget", Modifier.weight(1f), color = Color.White,
+            Text(if (stackCards.size > 1) stringResource(R.string.smart_stack) else stringResource(R.string.widget), Modifier.weight(1f), color = Color.White,
                 fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Box(Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)).clickable(onClickLabel = "Close widget options", onClick = onClose),
+            Box(Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)).clickable(onClickLabel = stringResource(R.string.close_widget_options), onClick = onClose),
                 contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, "Close widget options", tint = Color.White, modifier = Modifier.size(18.dp)) }
         }
 
@@ -374,12 +378,12 @@ internal fun WidgetActions(
             MenuDivider()
             MenuRow(if (customSize) "Hide Custom Size" else "Custom Size", Icons.Rounded.Tune) { customSize = !customSize }
             if (customSize) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (!feasible) Text(stringResource(R.string.move_this_widget_into_the_six_row_grid_b), color = Color(0xFFFF453A), fontSize = 13.sp)
+                if (!feasible) Text(stringResource(R.string.move_this_widget_into_the_six_row_grid_b), color = FolioColors.Red, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.width), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
                         onClick = { if (feasible) width = (width - 1).coerceAtLeast(minWidth) }) { Icon(Icons.Rounded.Remove, "Decrease widget width", tint = Color.White) }
-                    Text("$width columns", Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
+                    Text(stringResource(R.string.columns_1, width), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
                         onClick = { if (feasible) width = (width + 1).coerceAtMost(maxWidth) }) { Icon(Icons.Rounded.Add, "Increase widget width", tint = Color.White) }
                 }
@@ -387,7 +391,7 @@ internal fun WidgetActions(
                     Text(stringResource(R.string.height), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
                         onClick = { if (feasible) height = (height - 1).coerceAtLeast(minHeight) }) { Icon(Icons.Rounded.Remove, "Decrease widget height", tint = Color.White) }
-                    Text("$height rows", Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
+                    Text(stringResource(R.string.rows_1, height), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
                         onClick = { if (feasible) height = (height + 1).coerceAtMost(maxHeight) }) { Icon(Icons.Rounded.Add, "Increase widget height", tint = Color.White) }
                 }
@@ -406,7 +410,7 @@ internal fun WidgetActions(
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     repeat(homePages) { page ->
                         IosChip(selected = placement.page == page, onClick = { onMoveToPage(page) },
-                            label = { Text("Page ${page + 1}") }, modifier = Modifier.testTag("widget-move-${placement.slot}-page-$page"))
+                            label = { Text(stringResource(R.string.page_1, page + 1)) }, modifier = Modifier.testTag("widget-move-${placement.slot}-page-$page"))
                     }
                 }
             }
@@ -419,10 +423,11 @@ internal fun WidgetActions(
                 stackCards.forEachIndexed { index, card ->
                     MenuDivider()
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("${index + 1}. ${stackLabel(card)}", Modifier.weight(1f), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val cardName = stackLabel(card) ?: stringResource(R.string.widget)
+                        Text("${index + 1}. $cardName", Modifier.weight(1f), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (index > 0) TextButton(onClick = { onShowFirstInStack(card) }) { Text(stringResource(R.string.show_first)) }
                         IconButton(onClick = { onRemoveFromStack(card) }) {
-                            Icon(Icons.Rounded.RemoveCircleOutline, "Remove ${stackLabel(card)} from stack", tint = Color(0xFFFF453A))
+                            Icon(Icons.Rounded.RemoveCircleOutline, stringResource(R.string.remove_from_stack, cardName), tint = FolioColors.Red)
                         }
                     }
                 }

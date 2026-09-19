@@ -12,7 +12,7 @@ internal val Configuration.classScale: Float
     get() = classScale(densityDpi, DisplayMetrics.DENSITY_DEVICE_STABLE)
 
 /** Regular size (the unfolded screen, tablets), judged at the phone's own density. */
-internal fun Configuration.isRegular(): Boolean = isRegularSize(screenWidthDp.toFloat(), screenHeightDp.toFloat(), classScale)
+internal fun Configuration.fitsRegularHomeLayout(): Boolean = fitsRegularHomeLayout(screenWidthDp.toFloat(), screenHeightDp.toFloat(), classScale)
 
 /**
  * How many columns Settings shows at once.
@@ -33,7 +33,7 @@ internal fun settingsColumns(
     nested: Boolean = false,
     onFold: Boolean = false,
 ): Int = when {
-    !isRegularSize(widthDp, heightDp, classScale) || widthDp < 700f -> 1
+    !fitsRegularHomeLayout(widthDp, heightDp, classScale) || widthDp < 700f -> 1
     nested && !onFold && widthDp >= 920f -> 3
     else -> 2
 }

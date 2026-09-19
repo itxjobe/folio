@@ -6,9 +6,11 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The release number in one file has to agree with two others, and for a while it didn't: the app said 0.6.1 while
- * the packages it ships said they need 0.7.0. Nothing broke, because a built-in package is exempt from `minFolio`,
- * which is exactly why nobody noticed. These are the checks that would have.
+ * The release number has to agree with the packages Folio ships, and for a while it didn't: the app said 0.6.1
+ * while every package it ships said it needs 0.7.0. Nothing broke, because a built-in package is exempt from
+ * `minFolio`, which is exactly why nobody noticed.
+ *
+ * `WhatsNewTest` already checks the changelog's newest section against this number; this is the other half.
  */
 class FolioVersionTest {
     private val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "CHANGELOG.md").exists() }
@@ -18,15 +20,6 @@ class FolioVersionTest {
 
     @Test fun `the build declares a version`() {
         assertNotNull("app/build.gradle.kts should set folioVersion", version)
-    }
-
-    @Test fun `the changelog has a section for this version`() {
-        // What's New matches the version name exactly, so a build with no section of its own shows nothing.
-        val notes = WhatsNew.parse(File(root, "CHANGELOG.md").readText())
-        assertTrue(
-            "CHANGELOG.md has no section for $version - What's New would have nothing to show after the update",
-            notes.any { it.version == version },
-        )
     }
 
     @Test fun `nothing Folio ships needs a newer Folio than this`() {

@@ -102,7 +102,7 @@ internal fun AppLibrary(
     }
     // Like iOS, a category opens as an expanded folder over the library instead of replacing it.
     openCategory?.takeIf { browsing }?.let { category ->
-        CategoryFolder(category.title, categorized[category].orEmpty(), onDismiss = { openCategory = null },
+        CategoryFolder(stringResource(category.title), categorized[category].orEmpty(), onDismiss = { openCategory = null },
             onLaunch = { openCategory = null; onLaunchFrom(it, null) }, onActions = { openCategory = null; onActions(it) })
     }
     Surface(modifier, shape = RoundedCornerShape(24.dp),
@@ -114,8 +114,8 @@ internal fun AppLibrary(
             .padding(horizontal = 16.dp).padding(top = 18.dp)) {
             // iOS App Library has no title bar, just its search field; choosing Home apps keeps a title and count.
             if (editing) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Choose Home Apps", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("${pinned.size} pinned", color = ink, fontSize = 12.sp)
+                Text(stringResource(R.string.choose_home_apps_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.pinned_1, pinned.size), color = ink, fontSize = 12.sp)
             }
             if (workSwitch) Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IosChip(selected = !showWork, onClick = { showWork = false }, label = { Text(stringResource(R.string.personal)) })
@@ -148,7 +148,7 @@ internal fun AppLibrary(
                     items(categorized.entries.toList().chunked(columns), key = { row -> "cat-" + row.first().key.name }) { row ->
                         Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             row.forEach { (cat, apps) ->
-                                CategoryCard(cat.title, apps, Modifier.weight(1f), labelColor = ink, onLaunch = { onLaunchFrom(it, null) }) { openCategory = cat }
+                                CategoryCard(stringResource(cat.title), apps, Modifier.weight(1f), labelColor = ink, onLaunch = { onLaunchFrom(it, null) }) { openCategory = cat }
                             }
                             repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                         }
@@ -186,7 +186,7 @@ internal fun AppLibrary(
                                 // iOS selection: filled blue check when on Home, empty ring when not.
                                 Icon(if (isPinned) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                     if (isPinned) "Remove ${app.label} from home" else "Pin ${app.label} to home",
-                                    tint = if (isPinned) Color(0xFF0A84FF) else ink.copy(alpha = .35f),
+                                    tint = if (isPinned) FolioColors.Blue else ink.copy(alpha = .35f),
                                     modifier = Modifier.size(24.dp))
                             }
                         }
@@ -200,7 +200,7 @@ internal fun AppLibrary(
 @Composable
 private fun WebSearchRow(query: String, onSearch: (WebSearchTarget) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        Text("Search \u201c${query.trim()}\u201d with", fontSize = 12.sp, color = Ink.copy(alpha = .75f),
+        Text(stringResource(R.string.search_1_with, query.trim()), fontSize = 12.sp, color = Ink.copy(alpha = .75f),
             modifier = Modifier.padding(bottom = 6.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {

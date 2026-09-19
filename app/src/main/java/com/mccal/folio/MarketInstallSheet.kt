@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mccal.folio.market.IndexPackage
@@ -44,8 +45,8 @@ internal fun MarketInstallSheet(entry: IndexPackage, builtIn: Boolean, onGet: ()
     MarketInstallSheet(
         manifest = manifest,
         origin = InstallOrigin(
-            line = if (builtIn) "Built into Folio, so there's nothing to download." else "Downloaded from a source you added.",
-            provenance = entry.provenance?.let { "Built from ${it.repo} @ ${it.commit}" },
+            line = stringResource(if (builtIn) R.string.built_into_folio_so_there_s_nothing_to else R.string.downloaded_from_a_source_you_added),
+            provenance = entry.provenance?.let { stringResource(R.string.built_from_1_s_2_s, it.repo, it.commit) },
             checksum = entry.sha256,
         ),
         onGet = onGet,
@@ -72,7 +73,7 @@ internal fun MarketInstallSheet(
     val safety = PackageSafety.of(manifest)
     val name = manifest.name.english
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).testTag("market-install-sheet")) {
-        Text("Get $name", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+        Text(stringResource(R.string.get_1_s, name), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
         Text(
             "${manifest.author.name.english} · version ${manifest.version}",
             color = Color.White.copy(alpha = .55f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp),
@@ -83,25 +84,25 @@ internal fun MarketInstallSheet(
             Text(safety.summary, color = Color.White.copy(alpha = .85f), fontSize = 13.sp, modifier = Modifier.padding(start = 10.dp))
         }
 
-        SheetGroupLabel(if (safety.changes.isEmpty()) "Changes" else "What it changes")
+        SheetGroupLabel(stringResource(if (safety.changes.isEmpty()) R.string.changes else R.string.what_it_changes))
         SheetGroup {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (safety.changes.isEmpty()) {
-                    Line(Icons.Rounded.Check, Color(0xFF30D158), "How Folio looks, and nothing else")
+                    Line(Icons.Rounded.Check, Color(0xFF30D158), stringResource(R.string.how_folio_looks_and_nothing_else))
                 } else {
                     safety.changes.forEach { Line(Icons.Rounded.Check, Color(0xFFFFB340), it) }
                 }
             }
         }
 
-        SheetGroupLabel("What it can't reach")
+        SheetGroupLabel(stringResource(R.string.what_it_can_t_reach))
         SheetGroup {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 safety.cannotAccess.forEach { Line(Icons.Rounded.Close, Color.White.copy(alpha = .45f), it) }
             }
         }
 
-        SheetGroupLabel("Where it came from")
+        SheetGroupLabel(stringResource(R.string.where_it_came_from))
         SheetGroup {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 origin.warning?.let {
@@ -110,24 +111,25 @@ internal fun MarketInstallSheet(
                 Text(origin.line, color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
                 origin.provenance?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
                 origin.checksum?.let {
-                    Text("Checksum ${it.take(16)}…", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                    Text(stringResource(R.string.checksum_1_s, it.take(16)), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
             }
         }
 
         Spacer(Modifier.height(16.dp))
+        val getName = stringResource(R.string.get_1_s, name)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Cancel",
+                stringResource(R.string.cancel),
                 color = Color(0xFF0A84FF), fontSize = 16.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onCancel)
                     .heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 12.dp),
             )
             Text(
-                "Get",
+                stringResource(R.string.get),
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
-                    .clickable(onClickLabel = "Get $name", onClick = onGet)
+                    .clickable(onClickLabel = getName, onClick = onGet)
                     .heightIn(min = 44.dp).padding(horizontal = 22.dp, vertical = 12.dp)
                     .testTag("market-install-confirm"),
             )

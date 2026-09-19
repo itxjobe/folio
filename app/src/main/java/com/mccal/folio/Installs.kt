@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,7 +108,7 @@ internal object NewApps {
 internal fun NewAppDot(packageName: String, size: androidx.compose.ui.unit.Dp = 6.dp) {
     if (packageName !in LocalNewApps.current) return
     androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(end = 3.dp).size(size)
-        .background(androidx.compose.ui.graphics.Color(0xFF0A84FF), androidx.compose.foundation.shape.CircleShape)
+        .background(FolioColors.Blue, androidx.compose.foundation.shape.CircleShape)
         .semantics { contentDescription = "New" })
 }
 
@@ -117,7 +118,7 @@ internal fun DownloadingApps(labelColor: androidx.compose.ui.graphics.Color) {
     val downloads = Installs.active.collectAsState().value.values.filter { it.newApp }.distinctBy { it.packageName }
     if (downloads.isEmpty()) return
     androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxWidth().padding(bottom = 14.dp).testTag("library-downloading")) {
-        androidx.compose.material3.Text("Downloading", color = labelColor.copy(alpha = .7f), fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+        androidx.compose.material3.Text(stringResource(R.string.downloading), color = labelColor.copy(alpha = .7f), fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
             modifier = androidx.compose.ui.Modifier.padding(start = 4.dp, bottom = 8.dp))
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
             items(downloads, key = { it.packageName }) { d ->

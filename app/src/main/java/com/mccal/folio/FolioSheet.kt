@@ -102,14 +102,14 @@ internal fun ModalBottomSheet(
     if (fullScreen) { FullScreenPage(onDismissRequest, content); return }
     // Regular size (inner screen, either orientation): an iPad-style form sheet centered over Home instead of a stretched bottom sheet.
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    if (configuration.isRegular()) {
+    if (configuration.fitsRegularHomeLayout()) {
         FormSheet(onDismissRequest, properties.shouldDismissOnBackPress, formWidth, modifier, content); return
     }
     MaterialTheme(colorScheme = FolioSheetColors, typography = MaterialTheme.typography) {
         androidx.compose.material3.ModalBottomSheet(
             onDismissRequest = onDismissRequest, modifier = modifier, sheetState = sheetState,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = Color(0xFF1C1C1E).copy(alpha = .97f), contentColor = Color.White,
+            containerColor = FolioColors.SecondaryBackground.copy(alpha = .97f), contentColor = Color.White,
             scrimColor = Color.Black.copy(alpha = .35f),
             dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(width = 36.dp, height = 5.dp)
                 .background(Color.White.copy(alpha = .3f), RoundedCornerShape(3.dp))) },
@@ -154,15 +154,61 @@ private fun FullScreenPage(onDismissRequest: () -> Unit, content: @Composable Co
             if (covering) LauncherPagesOpen.intValue++
             onDispose { if (covering) LauncherPagesOpen.intValue-- }
         }
+        // Dragging a Home layout slider: the page fades to a trace so the real Home behind shows the change, and only
+        // the slider stays readable (a capsule drawn where it is).
+        val peek = SettingsPeek.value
+        val fade = androidx.compose.animation.core.animateFloatAsState(if (peek != null) .14f else 1f,
+            if (LocalReduceMotion.current) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(250), label = "settings peek")
+        DisposableEffect(Unit) { onDispose { SettingsPeek.value = null } }
         MaterialTheme(colorScheme = FolioSheetColors, typography = MaterialTheme.typography) {
-            androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
-                translationX = size.width * slide.value
-            }, color = Color.Black, contentColor = Color.White) {
-                androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.folioSafeTop).navigationBarsPadding()
-                    .windowInsetsPadding(WindowInsets.ime), content = content)
+            Box(Modifier.fillMaxSize()) {
+                // The page background stays as a faint trace; its text and controls fade out completely, so nothing
+                // half-readable competes with Home (only the dragged slider's capsule shows).
+                // Predictive back: the page eases right and shrinks a little with the swipe, like Android's own screens.
+                val back = androidx.compose.animation.core.animateFloatAsState(SheetBackProgress.floatValue,
+                    androidx.compose.animation.core.spring(stiffness = 1400f), label = "sheet back").value
+                androidx.compose.material3.Surface(Modifier.fillMaxSize().graphicsLayer {
+                    translationX = size.width * slide.value + size.width * .08f * back
+                    scaleX = 1f - .1f * back; scaleY = scaleX
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape((28 * back).dp); clip = back > 0f
+                }, color = Color.Black.copy(alpha = fade.value), contentColor = Color.White) {
+                    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()
+                        .graphicsLayer { alpha = ((fade.value - .14f) / .86f).coerceIn(0f, 1f) }
+                        .windowInsetsPadding(WindowInsets.folioSafeTop).navigationBarsPadding()
+                        .windowInsetsPadding(WindowInsets.ime), content = content)
+                }
+                peek?.let { PeekCapsule(it) }
             }
         }
+    }
+}
+
+/** The dragged slider over the faded Settings page: its name, live value and track, where the slider is. */
+@Composable
+private fun PeekCapsule(peek: PeekSlider) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val height = with(density) { peek.bounds.height.toDp() }
+    // Along the bottom of the Home area, clear of the Side Bar and dock, so the whole page stays in view.
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().navigationBarsPadding()
+        .padding(horizontal = 96.dp).padding(bottom = 64.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
+    androidx.compose.foundation.layout.Column(Modifier
+        .size(minOf(maxWidth, 440.dp), height).clip(RoundedCornerShape(16.dp)).background(FolioColors.SecondaryBackground.copy(alpha = .94f))
+        .padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
+        androidx.compose.foundation.layout.Row {
+            androidx.compose.material3.Text(peek.label, Modifier.weight(1f), color = Color.White, fontSize = 17.sp, maxLines = 1)
+            androidx.compose.material3.Text(peek.valueLabel, color = Color.White.copy(alpha = .6f), fontSize = 17.sp, maxLines = 1)
+        }
+        Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = .22f))) {
+                Box(Modifier.fillMaxWidth(peek.fraction).height(4.dp).background(FolioColors.Blue))
+            }
+            // The thumb, where the finger is.
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                Box(Modifier.padding(start = (maxWidth - 28.dp) * peek.fraction.coerceIn(0f, 1f)).size(28.dp)
+                    .background(Color.White, androidx.compose.foundation.shape.CircleShape))
+            }
+        }
+    }
     }
 }
 
@@ -186,7 +232,7 @@ private fun FormSheet(onDismissRequest: () -> Unit, dismissOnBack: Boolean, widt
                             alpha = appear.value
                             translationY = (1f - appear.value) * size.height * .12f
                         },
-                        shape = RoundedCornerShape(14.dp), color = Color(0xFF1C1C1E), contentColor = Color.White) {
+                        shape = RoundedCornerShape(14.dp), color = FolioColors.SecondaryBackground, contentColor = Color.White) {
                         androidx.compose.foundation.layout.Column(Modifier.padding(top = 14.dp), content = content)
                     }
                 }
@@ -207,7 +253,7 @@ internal fun AlertDialog(onDismissRequest: () -> Unit, confirmButton: @Composabl
         FolioDialogWindow(dim = .3f)
         val appear = rememberEntrance(stiffness = 900f, dampingRatio = .85f)
         val base = MaterialTheme.typography
-        val blue = Color(0xFF0A84FF)
+        val blue = FolioColors.Blue
         fun buttons(weight: androidx.compose.ui.text.font.FontWeight) = base.copy(labelLarge = androidx.compose.ui.text.TextStyle(fontSize = 17.sp, fontWeight = weight))
         FoldAvoidingBox(Modifier.windowInsetsPadding(WindowInsets.safeDrawing), role = FoldRole.INFO) {
             MaterialTheme(colorScheme = FolioSheetColors.copy(primary = blue), typography = base) {

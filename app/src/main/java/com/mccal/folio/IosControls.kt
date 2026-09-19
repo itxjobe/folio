@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 
 /** iOS-style controls for Folio's settings (the sheet is always dark glass). */
 private val IosGreen = Color(0xFF34C759)
-private val IosBlue = Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 private val IosTrackOff = Color(0xFF39393D)
 
 /** iOS switch: 51×31 green track with a white thumb that springs across. */
@@ -73,8 +73,9 @@ internal fun IosChip(selected: Boolean, onClick: () -> Unit, label: @Composable 
 /** iOS slider: thin track filled in system blue with a round white thumb. */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-internal fun IosSlider(value: Float, onValueChange: (Float) -> Unit, valueRange: ClosedFloatingPointRange<Float>, modifier: Modifier = Modifier) {
-    val interaction = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+internal fun IosSlider(value: Float, onValueChange: (Float) -> Unit, valueRange: ClosedFloatingPointRange<Float>, modifier: Modifier = Modifier,
+    interactionSource: androidx.compose.foundation.interaction.MutableInteractionSource? = null) {
+    val interaction = interactionSource ?: androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Slider(value, onValueChange, modifier, valueRange = valueRange, interactionSource = interaction,
         thumb = { Box(Modifier.size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape)) },
         track = { state ->
@@ -112,7 +113,7 @@ internal fun IosSearchField(query: String, onQuery: (String) -> Unit, placeholde
 /** iOS blue (or red) text action row inside a grouped list. */
 @Composable
 internal fun IosActionRow(text: String, tag: String? = null, destructive: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
-    val color = if (destructive) Color(0xFFFF453A) else Color(0xFF0A84FF)
+    val color = if (destructive) FolioColors.Red else FolioColors.Blue
     androidx.compose.material3.Text(text, color = if (enabled) color else Color.White.copy(alpha = .3f), fontSize = 17.sp,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier))

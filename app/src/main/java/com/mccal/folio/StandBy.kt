@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -118,20 +119,20 @@ private fun StandByInfo(status: DeviceStatus, ink: Color, soft: Color, night: Bo
         // Up Next while nothing is playing: the next event, in the calendar's color (not tinted red at night).
         val next by produceState<UpNextEvent?>(null, tick) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { UpNext.events(context, limit = 1).firstOrNull() } }
         if (media == null) next?.let { e ->
-            Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(if (night) Color(0xFF1A0605) else Color(0xFF1C1C1E))
+            Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(if (night) Color(0xFF1A0605) else FolioColors.SecondaryBackground)
                 .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(if (night) soft else e.color?.let { Color(it) } ?: Color(0xFF0A84FF)))
+                Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(if (night) soft else e.color?.let { Color(it) } ?: FolioColors.Blue))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(e.title, color = ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val begin = LocalDateTime.ofInstant(Instant.ofEpochMilli(e.begin), ZoneId.systemDefault())
                     val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "EEE HH:mm" else "EEE h:mm a"
-                    Text(if (e.allDay) "All Day" else begin.format(DateTimeFormatter.ofPattern(pattern)), color = soft, fontSize = 14.sp)
+                    Text(if (e.allDay) stringResource(R.string.all_day) else begin.format(DateTimeFormatter.ofPattern(pattern)), color = soft, fontSize = 14.sp)
                 }
             }
         }
         if (media != null) Row(Modifier.widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(if (night) Color(0xFF1A0605) else Color(0xFF1C1C1E)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            .background(if (night) Color(0xFF1A0605) else FolioColors.SecondaryBackground).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             media.icon?.let { Image(it.asImageBitmap(), null, Modifier.size(52.dp).clip(RoundedCornerShape(12.dp))) }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {

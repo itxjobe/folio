@@ -129,7 +129,7 @@ internal object Diagnostics {
         }.getOrNull()
         val scale = runCatching { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f)
         return listOf(
-            "${if (config.isRegular()) "unfolded" else "folded"} ${config.screenWidthDp}×${config.screenHeightDp} dp",
+            "${if (config.fitsRegularHomeLayout()) "unfolded" else "folded"} ${config.screenWidthDp}×${config.screenHeightDp} dp",
             "smallest width ${config.smallestScreenWidthDp} dp",
             "density ${metrics.densityDpi} (default ${android.util.DisplayMetrics.DENSITY_DEVICE_STABLE})",
             "font ${config.fontScale}×",

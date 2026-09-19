@@ -59,7 +59,7 @@ internal object LayoutHistory {
     private fun ids(list: List<String?>) = JSONArray().also { a -> list.forEach { a.put(it ?: JSONObject.NULL) } }
     private fun idList(a: JSONArray?) = if (a == null) emptyList() else List(a.length()) { a.optString(it).takeIf { s -> !a.isNull(it) && s.isNotBlank() } }
 
-    fun encodeLayout(l: HomeLayout): JSONObject = JSONObject()
+    fun encodeLayout(l: HomeLayout): JSONObject = JSONObject().put("pageCells", HOME_CELLS)
         .put("slots", ids(l.slots)).put("leadingSlots", ids(l.leadingSlots)).put("dock", ids(l.dock)).put("minPages", l.minPages)
         .put("widgets", JSONArray().also { a -> l.widgetPlacements.forEach { w ->
             a.put(JSONObject().put("slot", w.slot).put("id", w.id).put("page", w.page).put("column", w.column).put("row", w.row)
@@ -72,11 +72,13 @@ internal object LayoutHistory {
 
     fun decodeLayout(o: JSONObject): HomeLayout {
         fun <T> objects(key: String, read: (JSONObject) -> T): List<T> = o.optJSONArray(key)?.let { a -> List(a.length()) { read(a.getJSONObject(it)) } }.orEmpty()
+        // Snapshots from before More rows have no page size: their pages had 24 cells.
+        val legacy = o.optInt("pageCells", LEGACY_HOME_CELLS) == LEGACY_HOME_CELLS
         return HomeLayout(
-            slots = idList(o.optJSONArray("slots")),
+            slots = idList(o.optJSONArray("slots")).let { if (legacy) migrateLegacyHomeSlots(it) else it },
             dock = idList(o.optJSONArray("dock")).let { d -> List(4) { d.getOrNull(it) } },
             widgetPlacements = objects("widgets") { w -> WidgetPlacement(w.getInt("slot"), w.getInt("id"), w.getInt("page"), w.getInt("column"),
-                w.getInt("row"), w.getInt("spanX"), w.getInt("spanY")) },
+                w.getInt("row"), w.getInt("spanX"), w.getInt("spanY")).let { if (legacy) migrateLegacyWidgetPlacement(it) else it } },
             folders = objects("folders") { f -> FolderEntry(f.getString("id"), f.optString("title"),
                 f.optJSONArray("apps")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty()) },
             widgetRestores = objects("restores") { r -> WidgetRestore(r.getInt("slot"), r.getString("provider"), r.getLong("userSerial"),

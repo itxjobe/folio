@@ -567,11 +567,11 @@ internal fun Ring(fraction: Float?, size: Dp) {
     }
 }
 
-internal val IslandGreen = Color(0xFF30D158)
-internal val IslandOrange = Color(0xFFFF9F0A)
-private val Red = Color(0xFFFF453A)
-private val Purple = Color(0xFF5E5CE6)
-internal val IslandBlue = Color(0xFF0A84FF)
+internal val IslandGreen = FolioColors.Green
+internal val IslandOrange = FolioColors.Orange
+private val Red = FolioColors.Red
+private val Purple = FolioColors.Indigo
+internal val IslandBlue = FolioColors.Blue
 
 private const val ISLAND_EDGE_GAP = 8f
 /** Smallest gap between the island and the left or right screen edge. */

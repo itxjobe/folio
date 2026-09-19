@@ -54,7 +54,7 @@ internal fun AppearanceSettings(state: AppearanceState, onMode: (AppearanceMode)
             }
         }
         if (state.mode == AppearanceMode.SUNRISE_SUNSET) {
-            state.fallback?.let { Text(it, color = Color(0xFFFF453A), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp)) }
+            state.fallback?.let { Text(it, color = FolioColors.Red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp)) }
             SheetGroupLabel("Location")
             SheetGroup {
                 InlineField(stringResource(R.string.place_name), place, { place = it }, "appearance-place")
@@ -71,7 +71,7 @@ internal fun AppearanceSettings(state: AppearanceState, onMode: (AppearanceMode)
                     } else inputError = "Enter a latitude from −90 to 90 and longitude from −180 to 180."
                 }
             }
-            AppearanceFeedback(inputError, Color(0xFFFF453A), "appearance-manual-status")
+            AppearanceFeedback(inputError, FolioColors.Red, "appearance-manual-status")
             SheetGroup {
                 IosActionRow(stringResource(R.string.use_device_location), "appearance-device-location") {
                     focusManager.clearFocus(); keyboard?.hide(); onDeviceLocation()
@@ -86,7 +86,7 @@ internal fun AppearanceSettings(state: AppearanceState, onMode: (AppearanceMode)
     }
 }
 
-private val IosBlue = Color(0xFF0A84FF)
+private val IosBlue = FolioColors.Blue
 
 /** iOS Settings text row: label on the left, editable value on the right. */
 @Composable

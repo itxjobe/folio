@@ -27,7 +27,9 @@ import androidx.window.layout.WindowInfoTracker
  * [vertical] is a book-style fold; otherwise a laptop/tabletop fold.
  */
 @Immutable
-internal data class Hinge(val active: Boolean, val vertical: Boolean, val startPx: Int, val endPx: Int)
+internal data class Hinge(val active: Boolean, val vertical: Boolean, val startPx: Int, val endPx: Int,
+    /** Every hinge along the same axis, in order (a tri-fold has two); the first is [startPx]..[endPx]. */
+    val spans: List<IntRange> = listOf(startPx..endPx))
 
 internal val LocalHinge = staticCompositionLocalOf<Hinge?> { null }
 
@@ -35,10 +37,14 @@ internal val LocalHinge = staticCompositionLocalOf<Hinge?> { null }
 internal fun rememberHinge(activity: Activity): Hinge? {
     val info by remember(activity) { WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity) }
         .collectAsStateWithLifecycle(initialValue = null)
-    val fold = info?.displayFeatures?.filterIsInstance<FoldingFeature>()?.firstOrNull() ?: return null
-    val vertical = fold.orientation == FoldingFeature.Orientation.VERTICAL
-    return Hinge(fold.state == FoldingFeature.State.HALF_OPENED, vertical,
-        if (vertical) fold.bounds.left else fold.bounds.top, if (vertical) fold.bounds.right else fold.bounds.bottom)
+    val folds = info?.displayFeatures?.filterIsInstance<FoldingFeature>().orEmpty()
+    val first = folds.firstOrNull() ?: return null
+    val vertical = first.orientation == FoldingFeature.Orientation.VERTICAL
+    val spans = folds.filter { it.orientation == first.orientation }
+        .map { if (vertical) it.bounds.left..it.bounds.right else it.bounds.top..it.bounds.bottom }.sortedBy { it.first }
+    // Avoid a hinge while it's bent, or when it splits the screen in two even flat (Android's isSeparating).
+    val active = folds.any { it.state == FoldingFeature.State.HALF_OPENED || it.isSeparating }
+    return Hinge(active, vertical, spans.first().first, spans.first().last, spans)
 }
 
 /** Grids on a screen with a hinge prefer an even number of columns, so no column sits on the fold. */
@@ -47,6 +53,24 @@ internal fun evenColumnsOnHinge(columns: Int, min: Int): Int = evenColumns(colum
 
 internal fun evenColumns(columns: Int, min: Int, hinge: Boolean): Int =
     if (hinge && columns % 2 == 1 && columns - 1 >= min) columns - 1 else columns
+
+/**
+ * The part of a window (along the hinge axis, in px) an overlay should use so it never sits on a hinge: the panels
+ * between [hinges] ([extent] long in total). [trailing] picks the last panel (a book's trailing side, or a table's
+ * bottom), otherwise the first. A panel narrower than a quarter of the window is skipped for the next best one.
+ */
+internal fun foldSafeSpan(hinges: List<IntRange>, extent: Int, trailing: Boolean): IntRange {
+    val panels = mutableListOf<IntRange>()
+    var start = 0
+    for (h in hinges.sortedBy { it.first }) {
+        if (h.first > start) panels += start..h.first
+        start = maxOf(start, h.last)
+    }
+    if (extent > start) panels += start..extent
+    if (panels.isEmpty()) return 0..extent
+    val usable = panels.filter { it.last - it.first >= extent / 4 }.ifEmpty { listOf(panels.maxBy { it.last - it.first }) }
+    return if (trailing) usable.last() else usable.first()
+}
 
 /** What an overlay is for, which decides where it goes when the device is partially folded. */
 internal enum class FoldRole {
@@ -68,13 +92,18 @@ internal fun FoldAvoidingBox(modifier: Modifier = Modifier, contentAlignment: Al
     val density = LocalDensity.current
     BoxWithConstraints(modifier.fillMaxSize()) {
         val gap = 12.dp
-        val past = with(density) { (hinge?.endPx ?: 0).toDp() } + gap
-        val before = with(density) { (hinge?.startPx ?: 0).toDp() } - gap
         val motion = spring<androidx.compose.ui.unit.Dp>(dampingRatio = .9f, stiffness = 380f)
-        // Window coordinates: close enough for these full-window overlays.
-        val start by animateDpAsState(if (hinge?.vertical == true) past.coerceAtMost(maxWidth / 2) else 0.dp, motion, label = "fold start")
-        val top by animateDpAsState(if (hinge != null && !hinge.vertical && role == FoldRole.CONTROLS) past.coerceAtMost(maxHeight / 2) else 0.dp, motion, label = "fold top")
-        val bottom by animateDpAsState(if (hinge != null && !hinge.vertical && role == FoldRole.INFO) (maxHeight - before).coerceIn(0.dp, maxHeight / 2) else 0.dp, motion, label = "fold bottom")
-        Box(Modifier.fillMaxSize().padding(start = start, top = top, bottom = bottom), contentAlignment = contentAlignment, content = content)
+        // Window coordinates: close enough for these full-window overlays. Book folds use the trailing panel; on a
+        // table, controls take the bottom panel and information the top one. Any number of hinges (tri-folds).
+        val extentPx = with(density) { (if (hinge?.vertical == true) maxWidth else maxHeight).roundToPx() }
+        val span = hinge?.let { foldSafeSpan(it.spans, extentPx, trailing = it.vertical || role == FoldRole.CONTROLS) }
+        fun edge(px: Int, atWindowEdge: Boolean) = if (atWindowEdge) 0.dp else with(density) { px.toDp() } + gap
+        val lead = span?.let { edge(it.first, it.first <= 0) } ?: 0.dp
+        val trail = span?.let { edge(extentPx - it.last, it.last >= extentPx) } ?: 0.dp
+        val start by animateDpAsState(if (hinge?.vertical == true) lead else 0.dp, motion, label = "fold start")
+        val end by animateDpAsState(if (hinge?.vertical == true) trail else 0.dp, motion, label = "fold end")
+        val top by animateDpAsState(if (hinge != null && !hinge.vertical) lead else 0.dp, motion, label = "fold top")
+        val bottom by animateDpAsState(if (hinge != null && !hinge.vertical) trail else 0.dp, motion, label = "fold bottom")
+        Box(Modifier.fillMaxSize().padding(start = start, end = end, top = top, bottom = bottom), contentAlignment = contentAlignment, content = content)
     }
 }

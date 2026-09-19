@@ -36,7 +36,7 @@
       ]
     },
     {
-      "release": "0.6.1",
+      "release": "0.6.5",
       "items": [
         {
           "icon": "bug",
@@ -100,6 +100,34 @@
           "title": "Try Folio first",
           "detail": "Open Folio from your current Home Screen to try it before making it your Home app.",
           "status": "done"
+        },
+        {
+          "icon": "grid",
+          "color": "#0A84FF",
+          "title": "More rows",
+          "detail": "Home adds rows where your screen has room, the same on both screens of a foldable.",
+          "status": "done"
+        },
+        {
+          "icon": "tune",
+          "color": "#5E5CE6",
+          "title": "Layout sliders",
+          "detail": "Space between rows, columns and dock apps, widget size and status spacing, and Home shows each change as you drag.",
+          "status": "done"
+        },
+        {
+          "icon": "apps",
+          "color": "#30D158",
+          "title": "Small cover screens",
+          "detail": "A focused Home for tiny flip-phone cover screens.",
+          "status": "done"
+        },
+        {
+          "icon": "pages",
+          "color": "#FF9F0A",
+          "title": "Fold-aware Home",
+          "detail": "Pages, the dock and the status stay off the hinge when you half fold.",
+          "status": "done"
         }
       ]
     },
@@ -160,6 +188,41 @@
     {
       "title": "Next",
       "items": [
+        {
+          "icon": "redeem",
+          "color": "#BF5AF2",
+          "title": "Supporter codes",
+          "detail": "Redeem a Ko-fi code in Settings to try new features early. Folio's core stays free, and a code is checked on your phone — offline, with no account.",
+          "status": "building"
+        },
+        {
+          "icon": "grid",
+          "color": "#0A84FF",
+          "title": "Edit Layout on Home",
+          "detail": "Adjust icons, rows, spacing, the dock and the status right on your Home Screen.",
+          "status": "planned"
+        },
+        {
+          "icon": "dock",
+          "color": "#30D158",
+          "title": "More dock apps",
+          "detail": "Up to six apps in the dock.",
+          "status": "planned"
+        },
+        {
+          "icon": "brush",
+          "color": "#FF375F",
+          "title": "Custom app icons",
+          "detail": "Pick any app's icon from an icon pack or a photo.",
+          "status": "planned"
+        },
+        {
+          "icon": "badge",
+          "color": "#FF3B30",
+          "title": "Clear badges when opened",
+          "detail": "Optionally hide an app's badge once you open it.",
+          "status": "planned"
+        },
         {
           "icon": "weather",
           "color": "#32ADE6",
@@ -271,8 +334,8 @@
         {
           "icon": "keyboard",
           "color": "#8E8E93",
-          "title": "Folio Keyboard",
-          "detail": "An iOS-style keyboard with ideas from jailbreak keyboard tweaks.",
+          "title": "Folio Keys",
+          "detail": "A keyboard that reads the window: it splits around the crease of a fold, every key can answer a swipe, and it asks for no internet permission. Supporters with a keyboard code see it first.",
           "status": "exploring"
         }
       ]

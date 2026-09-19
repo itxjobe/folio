@@ -49,7 +49,10 @@ internal fun ModalDialogBackHandler(onBack: () -> Unit) {
     }
     DisposableEffect(dispatcherOwner, lifecycleOwner) {
         val callback = object : OnBackPressedCallback(dispatcherOwner != null) {
-            override fun handleOnBackPressed() = currentOnBack()
+            // Predictive back: full-screen sheets follow the swipe (SheetBackProgress) before it commits or cancels.
+            override fun handleOnBackProgressed(backEvent: androidx.activity.BackEventCompat) { SheetBackProgress.floatValue = backEvent.progress }
+            override fun handleOnBackCancelled() { SheetBackProgress.floatValue = 0f }
+            override fun handleOnBackPressed() { SheetBackProgress.floatValue = 0f; currentOnBack() }
         }
         dispatcherOwner?.onBackPressedDispatcher?.addCallback(lifecycleOwner, callback)
         onDispose { callback.remove() }

@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -82,16 +83,17 @@ class PinWidgetActivity : ComponentActivity() {
         val model = FolioSettingsBridge.liveModel?.get() ?: return "Open Folio once, then try again."
         FocusPages.lockingFocus(model.state.value)?.let { return "Turn off ${it.name} to add to Home Screen." }
         val layout = model.state.value.layout
+        val appRows = model.state.value.homeAppRows
         val density = resources.displayMetrics.density
         // Folio's usual Home pitch: about 90dp columns, widget-height top rows, app rows below.
-        val grid = WidgetGridSizing(GRID_COLUMNS, GRID_ROWS, 90f, 88f, 97f, 10f, 18f, topRowHeightDp = 97f, appRowHeightDp = 88f)
+        val grid = WidgetGridSizing(GRID_COLUMNS, visibleHomeRows(appRows), 90f, 88f, 97f, 10f, 18f, topRowHeightDp = 97f, appRowHeightDp = 88f)
         val span = widgetSpanConstraints(WidgetProviderSizing(
             minWidthDp = provider.minWidth / density, minHeightDp = provider.minHeight / density,
             minResizeWidthDp = provider.minResizeWidth / density, minResizeHeightDp = provider.minResizeHeight / density,
             maxResizeWidthDp = provider.maxResizeWidth / density, maxResizeHeightDp = provider.maxResizeHeight / density,
             targetCellWidth = provider.targetCellWidth, targetCellHeight = provider.targetCellHeight,
             horizontalPaddingDp = 0f, verticalPaddingDp = 0f, resizeMode = provider.resizeMode), grid)?.preferred ?: WidgetSpan(2, 2)
-        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height) ?: return "There's no room on Home for this widget."
+        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height, appRows = appRows) ?: return "There's no room on Home for this widget."
         val host = AppWidgetHost(this, 1024)
         val id = host.allocateAppWidgetId()
         val accepted = runCatching { request.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }) }.getOrDefault(false)
@@ -106,16 +108,16 @@ class PinWidgetActivity : ComponentActivity() {
 @Composable
 private fun PinCard(onCancel: () -> Unit, error: String?, addLabel: String, tag: String, onAdd: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)).clickable(onClick = onCancel), contentAlignment = Alignment.BottomCenter) {
-        Column(Modifier.padding(16.dp).widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xFF1C1C1E))
+        Column(Modifier.padding(16.dp).widthIn(max = 420.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(FolioColors.SecondaryBackground)
             .pointerInput(Unit) { detectTapGestures() }.padding(20.dp).testTag("$tag-card"),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             content()
-            error?.let { Text(it, color = Color(0xFFFF453A), fontSize = 14.sp, textAlign = TextAlign.Center) }
-            Box(Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
+            error?.let { Text(it, color = FolioColors.Red, fontSize = 14.sp, textAlign = TextAlign.Center) }
+            Box(Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(14.dp)).background(FolioColors.Blue)
                 .clickable(onClick = onAdd).testTag("$tag-add"), contentAlignment = Alignment.Center) {
                 Text(addLabel, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             }
-            Text("Cancel", color = Color(0xFF0A84FF), fontSize = 17.sp, modifier = Modifier.clickable(onClick = onCancel).padding(8.dp))
+            Text(stringResource(R.string.cancel), color = FolioColors.Blue, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onCancel).padding(8.dp))
         }
     }
 }

@@ -109,6 +109,36 @@
       }
     },
     {
+      "name": "Galaxy Z TriFold main (estimated)",
+      "width": 823,
+      "height": 603,
+      "group": "foldable",
+      "fold": "vertical",
+      "note": "Pixels from Samsung's specs (via GSMArena) at an assumed 420 dpi like the Fold8; no measured density is published yet, so this is an estimate, the main screen most of all."
+    },
+    {
+      "name": "Galaxy Z TriFold cover (estimated)",
+      "width": 411,
+      "height": 960,
+      "group": "foldable",
+      "note": "Estimated at 420 dpi; see the TriFold main screen."
+    },
+    {
+      "name": "Galaxy Z Fold8 Ultra inner (estimated)",
+      "width": 859,
+      "height": 954,
+      "group": "foldable",
+      "fold": "vertical",
+      "note": "Estimated at 420 dpi; see the TriFold main screen."
+    },
+    {
+      "name": "Galaxy Z Fold8 Ultra cover (estimated)",
+      "width": 411,
+      "height": 960,
+      "group": "foldable",
+      "note": "Estimated at 420 dpi; see the TriFold main screen."
+    },
+    {
       "name": "Pixel Fold inner",
       "width": 841,
       "height": 701,

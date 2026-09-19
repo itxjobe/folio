@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
  */
 @Immutable
 internal data class HomeInk(val dark: Boolean, /** Chosen from the wallpaper ("Automatic") rather than set by hand. */ val automatic: Boolean = false) {
-    val primary get() = if (dark) Color(0xFF1C1C1E) else Color.White
+    val primary get() = if (dark) FolioColors.SecondaryBackground else Color.White
     val secondary get() = primary.copy(alpha = if (dark) .65f else .75f)
     val faint get() = primary.copy(alpha = if (dark) .3f else .4f)
     /** Soft shadow for labels: dark under white text, light under dark text. */

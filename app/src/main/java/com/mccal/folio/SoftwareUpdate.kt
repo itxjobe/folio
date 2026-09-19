@@ -47,7 +47,7 @@ internal object SoftwareUpdate {
      * Like iOS Automatic Updates. Automatic (the default) checks daily, downloads, and installs when the phone is idle,
      * since installing restarts Home. Notify only tells you. Manual only checks when you ask.
      */
-    enum class Mode(val label: String) { AUTOMATIC("Automatic"), NOTIFY("Notify Me"), MANUAL("Manual") }
+    enum class Mode(@androidx.annotation.StringRes val label: Int) { AUTOMATIC(R.string.automatic), NOTIFY(R.string.notify_me), MANUAL(R.string.manual) }
 
     sealed interface Status {
         data object Idle : Status
@@ -111,14 +111,14 @@ internal object SoftwareUpdate {
         val prefs = context.getSharedPreferences(PREFS, 0)
         if (mode(context) == Mode.MANUAL || !canPostNotifications(context) || prefs.getString(NOTIFIED_VERSION, null) == release.version) return
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
-        createChannel(manager)
+        createChannel(context, manager)
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java)
             .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = android.app.Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle("Folio ${release.version} is available")
-            .setContentText("Tap to see what's new and install it.")
+            .setContentText(context.getString(R.string.tap_to_see_what_s_new_and_install_it))
             .setContentIntent(open).setAutoCancel(true).build()
         runCatching { manager.notify(NOTIFICATION_ID, notification) }
         prefs.edit().putString(NOTIFIED_VERSION, release.version).apply()
@@ -128,10 +128,10 @@ internal object SoftwareUpdate {
     fun postConfirm(context: Context, confirm: Intent): Boolean {
         if (!canPostNotifications(context)) return false
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
-        createChannel(manager)
+        createChannel(context, manager)
         val tap = PendingIntent.getActivity(context, 1, confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("Finish updating Folio").setContentText("Tap to install the update.").setContentIntent(tap).setAutoCancel(true).build()) }
+            .setContentTitle(context.getString(R.string.finish_updating_folio)).setContentText(context.getString(R.string.tap_to_install_the_update)).setContentIntent(tap).setAutoCancel(true).build()) }
         return true
     }
 
@@ -150,18 +150,18 @@ internal object SoftwareUpdate {
         File(context.cacheDir, "updates").deleteRecursively()
         if (!canPostNotifications(context)) return
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
-        createChannel(manager)
+        createChannel(context, manager)
         val open = PendingIntent.getActivity(context, 2, Intent(context, MainActivity::class.java)
             .setAction(android.content.Intent.ACTION_APPLICATION_PREFERENCES).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         runCatching { manager.notify(NOTIFICATION_ID, android.app.Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("Folio was updated to $now").setContentText("Tap to see what's new.")
+            .setContentTitle("Folio was updated to $now").setContentText(context.getString(R.string.tap_to_see_what_s_new))
             .setContentIntent(open).setAutoCancel(true).build()) }
     }
 
-    private fun createChannel(manager: android.app.NotificationManager) =
+    private fun createChannel(context: Context, manager: android.app.NotificationManager) =
         manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT)
-            .apply { description = "New versions of Folio" })
+            .apply { description = context.getString(R.string.new_versions_of_folio) })
 
     fun installedVersion(context: Context): String =
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "0"
@@ -241,11 +241,11 @@ internal object SoftwareUpdate {
                 val candidates = if (beta(context)) org.json.JSONArray(get(RECENT)).let { list -> (0 until list.length()).map(list::getJSONObject) }
                     else listOf(JSONObject(get(LATEST)))
                 val newest = candidates.filter { !it.optBoolean("draft") }.mapNotNull(::releaseOf)
-                    .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error("No release has an APK.")
+                    .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error(context.getString(R.string.no_release_has_an_apk))
                 if (!isNewer(newest.version, installedVersion(context))) Status.UpToDate
                 else readyApk(context)?.takeIf { it.first.version == newest.version }?.let { Status.Ready(newest, tonight = false) }
                     ?: Status.Available(newest)
-            }.getOrElse { Status.Failed("Couldn't check for updates. Check your connection and try again.") }
+            }.getOrElse { Status.Failed(context.getString(R.string.couldn_t_check_for_updates_check_your_co)) }
         }
     }
 
@@ -268,16 +268,16 @@ internal object SoftwareUpdate {
                 download(release.apkUrl, apk, release.size) { status.value = Status.Downloading(release, it) }
                 release.sumsUrl?.let { url ->
                     val expected = get(url).lines().firstOrNull { it.trim().endsWith(".apk") }?.substringBefore(' ')?.trim()
-                    require(expected != null && expected.equals(sha256(apk), ignoreCase = true)) { "The download didn't match its checksum." }
+                    require(expected != null && expected.equals(sha256(apk), ignoreCase = true)) { context.getString(R.string.the_download_didn_t_match_its_checksum) }
                 }
-                require(sameSigner(context, apk)) { "The update isn't signed with Folio's key, so it wasn't installed." }
+                require(sameSigner(context, apk)) { context.getString(R.string.the_update_isn_t_signed_with_folio_s_key) }
                 apk.renameTo(File(dir, "Folio-${release.version}.apk"))
                 File(dir, "release.json").writeText(JSONObject().put("version", release.version).put("notes", release.notes.take(4000))
                     .put("notesUrl", release.notesUrl).toString())
             }
         }
         return result.fold({ status.value = Status.Ready(release, tonight = false); true },
-            { updatesDir(context).deleteRecursively(); status.value = Status.Failed(it.message ?: "The update couldn't be downloaded."); false })
+            { updatesDir(context).deleteRecursively(); status.value = Status.Failed(it.message ?: context.getString(R.string.the_update_couldn_t_be_downloaded)); false })
     }
 
     /** A verified download that's newer than what's installed, with its release info. */
@@ -298,12 +298,12 @@ internal object SoftwareUpdate {
     private suspend fun installReady(context: Context, release: Release, apk: File) {
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                require(sameSigner(context, apk)) { "The update isn't signed with Folio's key, so it wasn't installed." }
+                require(sameSigner(context, apk)) { context.getString(R.string.the_update_isn_t_signed_with_folio_s_key) }
                 context.getSharedPreferences(PREFS, 0).edit().putString(AUTO_UPDATED_FROM, installedVersion(context)).apply()
                 install(context, apk)
             }
         }
-        status.value = result.fold({ Status.Installing }, { Status.Failed(it.message ?: "The update couldn't be installed.") })
+        status.value = result.fold({ Status.Installing }, { Status.Failed(it.message ?: context.getString(R.string.the_update_couldn_t_be_installed)) })
         SoftwareUpdateJob.cancelInstall(context)
     }
 
@@ -383,7 +383,7 @@ class SoftwareUpdateReceiver : BroadcastReceiver() {
                 // Android may block starting a screen while Folio isn't in front, so then ask with a notification.
                 if (FolioForeground.visible.value) runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 else if (!SoftwareUpdate.postConfirm(context, confirm))
-                    SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed("The update is downloaded. Open Software Update and tap Install to finish.")
+                    SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed(context.getString(R.string.the_update_is_downloaded_open_software_u))
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> SoftwareUpdate.status.value = SoftwareUpdate.Status.Failed(

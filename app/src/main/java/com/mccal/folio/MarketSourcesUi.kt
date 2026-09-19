@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mccal.folio.market.RefreshResult
@@ -44,13 +45,13 @@ internal fun MarketSourcesTab(
     onForget: (Source) -> Unit,
 ) {
     Column {
-        SheetGroupLabel("Sources")
+        SheetGroupLabel(stringResource(R.string.sources))
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Home, contentDescription = null, tint = Color(0xFF30D158), modifier = Modifier.size(20.dp))
                 Column(Modifier.padding(start = 10.dp)) {
                     Text(builtInName, color = Color.White, fontSize = 16.sp)
-                    Text("Built into the app · $builtInCount packages · no network", color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                    Text(stringResource(R.string.built_into_the_app_1_d_packages_no, builtInCount), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
             }
             statuses.forEach { status ->
@@ -59,16 +60,14 @@ internal fun MarketSourcesTab(
             }
         }
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
-            IosActionRow("Add a source") { onAdd() }
+            IosActionRow(stringResource(R.string.add_a_source)) { onAdd() }
             if (localDevAllowed) {
                 MenuDivider()
-                IosActionRow("Add a local source (Folio Dev)") { onAddLocalDev() }
+                IosActionRow(stringResource(R.string.add_a_local_source_folio_dev)) { onAddLocalDev() }
             }
         }
         Text(
-            "Folio shows a source's key fingerprint before you trust it, and stops using a source that changes its " +
-                "key until you confirm the new one. It only ever reads static files, and only when you ask or when a " +
-                "background refresh is due.",
+            stringResource(R.string.folio_shows_a_source_s_key_fingerprint),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 16.dp),
         )
     }
@@ -89,11 +88,11 @@ private fun SourceRow(status: SourceStatus, onRefresh: () -> Unit, onForget: () 
                 Text(source.label, color = Color.White, fontSize = 16.sp)
                 Text(
                     when {
-                        status.refreshing -> "Refreshing…"
+                        status.refreshing -> stringResource(R.string.refreshing)
                         status.failure != null -> status.failure.message
-                        source.kind == Source.Kind.LOCAL_DEV -> "Unsigned · served from this phone"
-                        status.snapshot != null -> "${status.packages.size} packages"
-                        else -> "Not read yet"
+                        source.kind == Source.Kind.LOCAL_DEV -> stringResource(R.string.unsigned_served_from_this_phone)
+                        status.snapshot != null -> stringResource(R.string.n_packages, status.packages.size)
+                        else -> stringResource(R.string.not_read_yet)
                     },
                     color = if (status.failure != null) Color(0xFFFF6961) else Color.White.copy(alpha = .55f),
                     fontSize = 13.sp,
@@ -101,8 +100,8 @@ private fun SourceRow(status: SourceStatus, onRefresh: () -> Unit, onForget: () 
             }
         }
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill("Refresh", onRefresh)
-            Pill("Remove", onForget, destructive = true)
+            Pill(stringResource(R.string.refresh), onRefresh)
+            Pill(stringResource(R.string.remove), onForget, destructive = true)
         }
     }
 }
@@ -132,7 +131,7 @@ internal fun MarketTrustSheet(
 ) {
     Column(Modifier.fillMaxWidth().padding(20.dp).testTag("market-trust-sheet")) {
         Text(
-            if (previous == null) "Add this source?" else "This source changed its key",
+            stringResource(if (previous == null) R.string.add_this_source else R.string.this_source_changed_its_key),
             color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
         )
         Text(url, color = Color.White.copy(alpha = .55f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
@@ -140,29 +139,28 @@ internal fun MarketTrustSheet(
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF3A2A16)).padding(14.dp)) {
                 Icon(Icons.Rounded.Warning, contentDescription = null, tint = Color(0xFFFFB340), modifier = Modifier.size(20.dp))
                 Text(
-                    "A source's key normally never changes. If the publisher didn't say they were changing it, this is " +
-                        "how a stolen key looks: don't trust it.",
+                    stringResource(R.string.a_source_s_key_normally_never_changes_if),
                     color = Color.White.copy(alpha = .9f), fontSize = 13.sp, modifier = Modifier.padding(start = 10.dp),
                 )
             }
-            SheetGroupLabel("Key Folio has")
+            SheetGroupLabel(stringResource(R.string.key_folio_has))
             Fingerprint(previous)
         }
-        SheetGroupLabel(if (previous == null) "Its key fingerprint" else "New key")
+        SheetGroupLabel(stringResource(if (previous == null) R.string.its_key_fingerprint else R.string.new_key))
         Fingerprint(key)
         Text(
-            "Compare this with the fingerprint the publisher shows. Folio remembers it from now on.",
+            stringResource(R.string.compare_this_with_the_fingerprint_the),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp),
         )
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Cancel", color = Color(0xFF0A84FF), fontSize = 16.sp,
+                stringResource(R.string.cancel), color = Color(0xFF0A84FF), fontSize = 16.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onCancel)
                     .heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 12.dp),
             )
             Text(
-                if (previous == null) "Trust and add" else "Trust the new key",
+                stringResource(if (previous == null) R.string.trust_and_add else R.string.trust_the_new_key),
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
                     .clickable(onClick = onTrust).heightIn(min = 44.dp).padding(horizontal = 20.dp, vertical = 12.dp)
@@ -182,10 +180,10 @@ private fun Fingerprint(key: SourceKey) {
 }
 
 /** What a refresh said, in a line the store can show. */
-internal fun refreshMessage(source: Source, result: RefreshResult): String = when (result) {
-    is RefreshResult.Updated -> "${result.snapshot.index.name.english} updated"
-    is RefreshResult.Unchanged -> "${source.label} is up to date"
-    is RefreshResult.NeedsTrust -> "${source.label} needs its key checked"
+internal fun refreshMessage(context: android.content.Context, source: Source, result: RefreshResult): String = when (result) {
+    is RefreshResult.Updated -> context.getString(R.string.source_updated, result.snapshot.index.name.english)
+    is RefreshResult.Unchanged -> context.getString(R.string.source_is_up_to_date, source.label)
+    is RefreshResult.NeedsTrust -> context.getString(R.string.source_needs_its_key_checked, source.label)
     is RefreshResult.Failed -> result.message
 }
 
@@ -193,10 +191,9 @@ internal fun refreshMessage(source: Source, result: RefreshResult): String = whe
 @Composable
 internal fun MarketAddSourceSheet(url: String, onUrl: (String) -> Unit, onNext: () -> Unit, onCancel: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(20.dp).testTag("market-add-source")) {
-        Text("Add a source", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.add_a_source), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "Paste the address the publisher gave you. It has to be https, and Folio will show you its key " +
-                "fingerprint before it trusts anything.",
+            stringResource(R.string.paste_the_address_the_publisher_gave_you),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp),
         )
         IosSearchField(
@@ -209,12 +206,12 @@ internal fun MarketAddSourceSheet(url: String, onUrl: (String) -> Unit, onNext: 
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Cancel", color = Color(0xFF0A84FF), fontSize = 16.sp,
+                stringResource(R.string.cancel), color = Color(0xFF0A84FF), fontSize = 16.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onCancel)
                     .heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 12.dp),
             )
             Text(
-                "Next", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                stringResource(R.string.next), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
                     .background(if (url.isBlank()) Color(0xFF0A84FF).copy(alpha = .4f) else Color(0xFF0A84FF))
                     .clickable(enabled = url.isNotBlank(), onClick = onNext)

@@ -32,7 +32,7 @@ class PackageImportActivity : ComponentActivity() {
         lifecycleScope.launch {
             val bytes = withTimeoutOrNull(4_000) { withContext(Dispatchers.IO) { readPackage(intent) } }
             if (bytes == null) {
-                Toast.makeText(this@PackageImportActivity, "That file isn't a Folio package.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PackageImportActivity, getString(R.string.that_file_isn_t_a_folio_package), Toast.LENGTH_SHORT).show()
             } else {
                 MarketImport.pending = bytes
                 startActivity(

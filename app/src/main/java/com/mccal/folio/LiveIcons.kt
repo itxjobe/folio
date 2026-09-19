@@ -75,17 +75,17 @@ internal object LiveIcons {
     }
 }
 
-enum class IconStyle(val label: String) { DEFAULT("Default"), DARK("Dark"), TINTED("Tinted"), CLEAR("Clear") }
+enum class IconStyle(@androidx.annotation.StringRes val label: Int) { DEFAULT(R.string.default_choice), DARK(R.string.dark), TINTED(R.string.tinted), CLEAR(R.string.clear) }
 
-enum class IconShape(val label: String) { DEFAULT("Default"), SQUIRCLE("Squircle"), CIRCLE("Circle"), ROUNDED("Rounded square") }
-enum class BadgeStyle(val label: String) { OFF("Off"), DOT("Dot"), COUNT("Count") }
-enum class BadgeColor(val label: String, val fixed: Long? = null) {
-    RED("Red"), APP("Match icon"), SOFT("Soft"),
-    BLUE("Blue", 0xFF0A84FF), GREEN("Green", 0xFF30D158), ORANGE("Orange", 0xFFFF9F0A), PURPLE("Purple", 0xFFBF5AF2)
+enum class IconShape(@androidx.annotation.StringRes val label: Int) { DEFAULT(R.string.default_choice), SQUIRCLE(R.string.squircle), CIRCLE(R.string.circle), ROUNDED(R.string.rounded_square) }
+enum class BadgeStyle(@androidx.annotation.StringRes val label: Int) { OFF(R.string.off), DOT(R.string.dot), COUNT(R.string.count) }
+enum class BadgeColor(@androidx.annotation.StringRes val label: Int, val fixed: Long? = null) {
+    RED(R.string.red), APP(R.string.match_icon), SOFT(R.string.soft),
+    BLUE(R.string.blue, 0xFF0A84FF), GREEN(R.string.green, 0xFF30D158), ORANGE(R.string.orange, 0xFFFF9F0A), PURPLE(R.string.purple, 0xFFBF5AF2)
 }
 /** iOS: today's flat pill. Classic: the older white-outlined, glossy badge. Glass: frosted dark with a light count. */
-enum class BadgeLook(val label: String) { IOS("iOS"), CLASSIC("Classic"), GLASS("Glass") }
-enum class BadgeSize(val label: String, val scale: Float) { SMALL("Small", .82f), STANDARD("Standard", 1f), LARGE("Large", 1.2f) }
+enum class BadgeLook(@androidx.annotation.StringRes val label: Int) { IOS(R.string.ios), CLASSIC(R.string.classic), GLASS(R.string.glass) }
+enum class BadgeSize(@androidx.annotation.StringRes val label: Int, val scale: Float) { SMALL(R.string.small, .82f), STANDARD(R.string.standard, 1f), LARGE(R.string.large, 1.2f) }
 
 /** Icon look for the whole launcher, provided from the saved settings. */
 internal data class IconLook(val style: IconStyle = IconStyle.DEFAULT, val tint: Color = Color(0xFFFFB340),
@@ -362,15 +362,15 @@ internal data class LivePalette(val calendarBackground: Color, val calendarNumbe
     }
 }
 
-private val IconRedLight = Color(0xFFFF3B30)
+private val IconRedLight = FolioColors.RedLight
 /** The frosted tile behind Clear icons. */
 internal val ClearTile = Color.White.copy(alpha = .2f)
-private val IconDark = Color(0xFF1C1C1E)
+private val IconDark = FolioColors.SecondaryBackground
 private val IconFace = Color(0xFF2C2C2E)
-private val IconRed = Color(0xFFFF453A)
-private val IconOrange = Color(0xFFFF9F0A)
+private val IconRed = FolioColors.Red
+private val IconOrange = FolioColors.Orange
 
-internal val BadgeRed = Color(0xFFFF3B30)
+internal val BadgeRed = FolioColors.RedLight
 private val SoftNeutral = Color(0xFFE5E5EA)
 
 /** iOS-style badge: sits over the icon's top-right corner, a dot or a pill that widens for 2+ digits. */
@@ -382,7 +382,7 @@ internal fun androidx.compose.foundation.layout.BoxScope.IconBadge(count: Int, s
         val h = (if (style == BadgeStyle.COUNT) maxWidth * .34f else maxWidth * .22f) * scale
         val pill = androidx.compose.foundation.shape.CircleShape
         val fill = when (badgeLook) {
-            BadgeLook.GLASS -> Color(0xFF1C1C1E).copy(alpha = .78f)
+            BadgeLook.GLASS -> FolioColors.SecondaryBackground.copy(alpha = .78f)
             else -> color
         }
         val readable = when {

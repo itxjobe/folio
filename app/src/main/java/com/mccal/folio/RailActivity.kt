@@ -254,8 +254,8 @@ internal fun VerticalIsland(content: IslandContent, camera: android.graphics.Rec
                     content is IslandContent.Event && content.event !is IslandEvent.Message -> when (val e = content.event) {
                         is IslandEvent.Charging -> CircleGlyph(Icons.Rounded.Bolt, IslandGreen, glyph)
                         is IslandEvent.Silent -> CircleGlyph(if (e.on) Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsActive,
-                            if (e.on) Color(0xFFFF453A) else Color.White, glyph)
-                        is IslandEvent.Focus -> CircleGlyph(Icons.Rounded.DarkMode, Color(0xFF5E5CE6), glyph)
+                            if (e.on) FolioColors.Red else Color.White, glyph)
+                        is IslandEvent.Focus -> CircleGlyph(Icons.Rounded.DarkMode, FolioColors.Indigo, glyph)
                         is IslandEvent.Notice -> CircleGlyph(Icons.Rounded.Info, Color.White, glyph)
                         else -> CircleGlyph(Icons.Rounded.Headphones, IslandBlue, glyph)
                     }
@@ -349,7 +349,7 @@ private fun RailCallButtons(call: IslandActivity.Call) {
     val context = LocalContext.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     fun act(kind: CallControls.Kind) { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm); IslandListenerService.callAction(context, call.key, kind) }
-    val red = Color(0xFFFF453A)
+    val red = FolioColors.Red
     val grey = Color.White.copy(alpha = .22f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (call.incoming) {

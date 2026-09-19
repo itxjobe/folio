@@ -129,6 +129,8 @@ android {
     buildFeatures { compose = true }
     // Robolectric needs the app's resources and manifest in unit tests.
     testOptions.unitTests.isIncludeAndroidResources = true
+    // Android 13's per-app language picker: AGP builds locales_config.xml from the values-* folders a translation adds.
+    androidResources { generateLocaleConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

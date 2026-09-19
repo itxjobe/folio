@@ -26,6 +26,14 @@ class LabSettingsParityTest {
         return JSONObject(data.readText())
     }
 
+    /** What a string resource says, so this can compare the lab with words that have moved into strings.xml. */
+    private fun resource(name: String): String {
+        val xml = File(root, "app/src/main/res/values/strings.xml").readText()
+        val value = Regex("""<string name="${Regex.escape(name)}">(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
+            .find(xml)?.groupValues?.get(1) ?: error("no string named $name")
+        return value.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("\\'", "'").replace("\\\"", "\"")
+    }
+
     /** The Settings rows the app draws, in order, as (title, tag). */
     private fun appRows(): List<Pair<String, String>> {
         val body = sheet.readText().let { it.substring(it.indexOf("fun CustomizationSheet("), it.indexOf("@Composable private fun SwitchRow(")) }
@@ -102,7 +110,10 @@ class LabSettingsParityTest {
         assertEquals(appSteps, steps)
 
         val perms = data.getJSONArray("permissions").titles()
-        val appPerms = Regex("""Perm\("([^"]+)"""").findAll(sheet.readText()).map { it.groupValues[1] }.toList()
+        // A permission's name is a literal or a string resource, depending on whether it has been translated yet.
+        val appPerms = Regex("""Perm\((?:"([^"]+)"|context\.getString\(R\.string\.(\w+)\))""")
+            .findAll(sheet.readText())
+            .map { it.groupValues[1].ifEmpty { resource(it.groupValues[2]) } }.toList()
         assertEquals(appPerms, perms)
     }
 

@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mccal.folio.market.FeaturedStyle
@@ -45,23 +46,22 @@ internal fun MarketIntroduction(style: FeaturedStyle, onStyle: (FeaturedStyle) -
     var step by rememberSaveable { mutableIntStateOf(0) }
     Box(Modifier.fillMaxSize().background(Color.Black).windowInsetsPadding(WindowInsets.safeDrawing).padding(24.dp)) {
         Text(
-            "Skip",
+            stringResource(R.string.skip),
             color = Color(0xFF0A84FF), fontSize = 16.sp,
             modifier = Modifier.align(Alignment.TopEnd).clip(RoundedCornerShape(12.dp))
-                .clickable(onClickLabel = "Skip the introduction", onClick = onDone).padding(horizontal = 12.dp, vertical = 8.dp),
+                .clickable(onClickLabel = stringResource(R.string.skip_the_introduction), onClick = onDone).padding(horizontal = 12.dp, vertical = 8.dp),
         )
         Column(Modifier.align(Alignment.Center).fillMaxWidth()) {
             when (step) {
                 0 -> {
-                    Title("Welcome to the Folio Market")
+                    Title(stringResource(R.string.welcome_to_the_folio_market))
                     Body(
-                        "Folio's own themes and tweaks live here, as packages you can get and remove. Later you'll be " +
-                            "able to add sources other people publish.",
+                        stringResource(R.string.folio_s_own_themes_and_tweaks_live_here),
                     )
                 }
                 1 -> {
-                    Title("Choose how Featured looks")
-                    Body("You can change this any time in the Market's settings.")
+                    Title(stringResource(R.string.choose_how_featured_looks))
+                    Body(stringResource(R.string.you_can_change_this_any_time_in_the))
                     Spacer(Modifier.height(16.dp))
                     for (option in FeaturedStyle.entries) {
                         StyleCard(option, chosen = option == style) { onStyle(option) }
@@ -69,11 +69,9 @@ internal fun MarketIntroduction(style: FeaturedStyle, onStyle: (FeaturedStyle) -
                     }
                 }
                 else -> {
-                    Title("Where packages come from")
+                    Title(stringResource(R.string.where_packages_come_from))
                     Body(
-                        "Folio's own packages come with the app. A source you add is signed by whoever publishes it, " +
-                            "and Folio shows its fingerprint before you trust it. Every package's page lists exactly " +
-                            "what it may change.",
+                        stringResource(R.string.folio_s_own_packages_come_with_the_app_a),
                     )
                 }
             }
@@ -87,11 +85,14 @@ internal fun MarketIntroduction(style: FeaturedStyle, onStyle: (FeaturedStyle) -
                     )
                 }
             }
+            // A Modifier's click label isn't a composable scope, so both labels are read before the chain.
+            val nextStep = stringResource(R.string.next_step)
+            val openMarket = stringResource(R.string.open_the_market)
             Text(
-                if (step < 2) "Next" else "Start",
+                stringResource(if (step < 2) R.string.next else R.string.start),
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF0A84FF))
-                    .clickable(onClickLabel = if (step < 2) "Next step" else "Open the Market") {
+                    .clickable(onClickLabel = if (step < 2) nextStep else openMarket) {
                         if (step < 2) step++ else onDone()
                     }
                     .padding(horizontal = 20.dp, vertical = 11.dp),
