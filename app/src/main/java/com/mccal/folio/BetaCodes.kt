@@ -1,8 +1,6 @@
 package com.mccal.folio
 
-import java.security.KeyFactory
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
+import com.mccal.folio.market.SourceKey
 import java.time.LocalDate
 
 /**
@@ -68,11 +66,13 @@ internal object BetaCodes {
         }
     }
 
-    private fun verifyWith(key: String, payload: ByteArray, signature: ByteArray): Boolean {
-        val spec = X509EncodedKeySpec(java.util.Base64.getMimeDecoder().decode(key))
-        val publicKey = KeyFactory.getInstance("EC").generatePublic(spec)
-        return Signature.getInstance("SHA256withECDSA").run { initVerify(publicKey); update(payload); verify(signature) }
-    }
+    /**
+     * The same reader the Market uses for a source's key, rather than a second one: ECDSA P-256 with SHA-256,
+     * an SPKI key in base64, and a signature in base64. That one is fuzzed and checked against openssl, and a
+     * supporter code is not the place to keep a private copy of the same few lines.
+     */
+    private fun verifyWith(key: String, payload: ByteArray, signature: ByteArray): Boolean =
+        SourceKey.parse(key)?.verifies(payload, java.util.Base64.getEncoder().encodeToString(signature)) == true
 
     /** Groups, spaces and lower case are all fine: people copy codes out of email. */
     internal fun decode(text: String): ByteArray? {

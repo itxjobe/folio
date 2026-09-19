@@ -35,10 +35,10 @@ class MarketLinkTest {
         }
     }
 
-    @Test fun `a supporter code link carries the code`() {
-        val code = "folio-early:market:0.MEUCIQ" + "x".repeat(40)
-        assertEquals(MarketLink.Early(code), MarketLink.parse("folio://early/" + android.net.Uri.encode(code)))
-        // Too short to be a signed code, so it isn't treated as one.
-        assertNull(MarketLink.parse("folio://early/short"))
+    @Test fun `a supporter code isn't a store link`() {
+        // Redeeming belongs to Settings, not the store: folio://redeem is RedeemActivity's, and the store
+        // shouldn't quietly accept a second spelling of it. RedeemLinkTest covers the link that does work.
+        assertNull(MarketLink.parse("folio://early/" + "X".repeat(40)))
+        assertNull(MarketLink.parse("folio://redeem?c=" + "X".repeat(40)))
     }
 }

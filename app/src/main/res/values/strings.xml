@@ -855,4 +855,6 @@
     <string name="text_1_s_2_s">%1$s %2$s</string>
     <string name="update">Update</string>
     <string name="open_1_s">Open %1$s</string>
+    <string name="early_access">Early access</string>
+    <string name="the_market_is_here_early_for_supporters">The Market is here early for supporters. A code redeemed in Settings › Supporter opens it, along with the other features that arrive a release or two ahead.</string>
 </resources>

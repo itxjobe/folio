@@ -4,16 +4,25 @@
 The private key stays on this machine; Folio only ever carries the public half.
 
     ./scripts/beta-code.py newkey                      # writes supporter-key.pem, prints the public key
+    ./scripts/beta-code.py newkey --passphrase         # the same, with the key encrypted on disk
+    ./scripts/beta-code.py protect                     # encrypt a key you already have
     ./scripts/beta-code.py mint --scopes beta,look     # one code, no expiry
     ./scripts/beta-code.py mint --scopes beta --expires 2027-01-01 --count 25
     ./scripts/beta-code.py pool --scopes beta --count 200 > pool.sql   # load into the Ko-fi worker
 
 Paste the printed public key into BetaKeys.SUPPORTER (app/src/main/java/com/mccal/folio/Supporter.kt).
 Codes are checked on the phone against that key, so nothing here needs a server.
+
+**Keep the key encrypted.** A file at 0600 protects it from other accounts on this Mac and from nothing else: a
+backup, a synced folder or a stolen laptop all carry it away in the clear, and whoever has it can mint codes that
+every copy of Folio accepts. With a passphrase the key is AES-256 on disk and every mint asks for it; set
+FOLIO_KEY_PASSPHRASE to avoid typing it, or leave it unset and be prompted. Keeping the passphrase in a password
+manager and the encrypted key in a backup is the arrangement this is built for.
 """
 import argparse
 import base64
 import datetime
+import getpass
 import os
 import secrets
 import subprocess
@@ -32,12 +41,56 @@ def run(args, stdin=None):
     return done.stdout
 
 
-def newkey(path):
+def encrypted(path):
+    """Whether the key on disk is passphrase-protected, so openssl is told to ask for one."""
+    head = open(path, errors="ignore").read(200)
+    return "ENCRYPTED" in head or "Proc-Type" in head
+
+
+def passin(path):
+    """How openssl should read the passphrase, or nothing when the key isn't encrypted."""
+    if not encrypted(path):
+        return []
+    phrase = os.environ.get("FOLIO_KEY_PASSPHRASE") or getpass.getpass(f"Passphrase for {path}: ")
+    return ["-passin", "pass:" + phrase]
+
+
+def ask_new_passphrase(path):
+    phrase = os.environ.get("FOLIO_KEY_PASSPHRASE")
+    if not phrase:
+        phrase = getpass.getpass("Passphrase for the new key: ")
+        if phrase != getpass.getpass("Again: "):
+            sys.exit("those don't match")
+    if not phrase:
+        sys.exit("an empty passphrase leaves the key in the clear; run without --passphrase if that's what you want")
+    return phrase
+
+
+def protect(path):
+    """Encrypt a key that is already on disk, in place, keeping a copy until the new one is proved to open."""
+    if not os.path.exists(path):
+        sys.exit(f"{path} isn't there")
+    if encrypted(path):
+        sys.exit(f"{path} is already encrypted")
+    phrase = ask_new_passphrase(path)
+    temporary = path + ".encrypted"
+    run(["openssl", "pkcs8", "-topk8", "-v2", "aes-256-cbc", "-in", path, "-out", temporary,
+         "-passout", "pass:" + phrase])
+    os.chmod(temporary, 0o600)
+    # Prove the new file opens before the old one goes: a passphrase typed wrong twice would lose the key.
+    run(["openssl", "ec", "-in", temporary, "-noout", "-passin", "pass:" + phrase])
+    os.replace(temporary, path)
+    print(f"{path} is encrypted now. Put the passphrase in your password manager; there is no way back without it.")
+
+
+def newkey(path, with_passphrase=False):
     if os.path.exists(path):
         sys.exit(f"{path} already exists — move it aside first, codes signed with it would stop working.")
     run(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", path])
     os.chmod(path, 0o600)
-    public = run(["openssl", "ec", "-in", path, "-pubout", "-outform", "DER"])
+    if with_passphrase:
+        protect(path)
+    public = run(["openssl", "ec", "-in", path, "-pubout", "-outform", "DER"] + passin(path))
     print(f"Private key: {path}  (keep it, never commit it)")
     print("\nBetaKeys.SUPPORTER:\n")
     print(f'    const val SUPPORTER = "{base64.b64encode(public).decode()}"')
@@ -76,6 +129,8 @@ def base32(data):
 
 
 def mint(key, scopes, tier, expires, count, sql_pool=None):
+    # Asked once, not once per code: minting two hundred shouldn't mean typing the passphrase two hundred times.
+    signing = passin(key)
     bits = 0
     for scope in scopes:
         if scope not in SCOPES:
@@ -90,7 +145,7 @@ def mint(key, scopes, tier, expires, count, sql_pool=None):
     for _ in range(count):
         serial = secrets.randbits(32)
         payload = bytes([VERSION, bits, tier, day >> 8 & 0xFF, day & 0xFF]) + serial.to_bytes(4, "big")
-        der = run(["openssl", "dgst", "-sha256", "-sign", key], stdin=payload)
+        der = run(["openssl", "dgst", "-sha256", "-sign", key] + signing, stdin=payload)
         code = base32(payload + raw_signature(der))
         if sql_pool:
             print(f"INSERT OR IGNORE INTO codes (code, pool) VALUES ('{code}', '{sql_pool}');")
@@ -103,6 +158,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     new = sub.add_parser("newkey", help="make the signing key pair")
     new.add_argument("--key", default="supporter-key.pem")
+    new.add_argument("--passphrase", action="store_true", help="encrypt the key on disk (recommended)")
+    keep = sub.add_parser("protect", help="encrypt a key that is already on disk")
+    keep.add_argument("--key", default="supporter-key.pem")
     make = sub.add_parser("mint", help="make codes")
     make.add_argument("--key", default="supporter-key.pem")
     make.add_argument("--scopes", default="beta", help=f"comma separated: {', '.join(SCOPES)}")
@@ -118,7 +176,10 @@ def main():
     pool.add_argument("--pool", help="pool name in the worker (default: the scopes joined by +)")
     args = parser.parse_args()
     if args.command == "newkey":
-        newkey(args.key)
+        newkey(args.key, args.passphrase)
+        return
+    if args.command == "protect":
+        protect(args.key)
         return
     scopes = [s.strip() for s in args.scopes.split(",") if s.strip()]
     pool_name = (args.pool or "+".join(scopes)) if args.command == "pool" else None

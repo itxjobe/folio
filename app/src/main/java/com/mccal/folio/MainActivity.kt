@@ -461,12 +461,7 @@ class MainActivity : ComponentActivity() {
         if (intent.action != Intent.ACTION_VIEW) return false
         val link = MarketLink.parse(intent.data?.toString()) ?: return false
         intent.data = null
-        // A supporter's code is checked before anything else: it's what opens the Market in the first place.
-        if (link is MarketLink.Early) {
-            val result = MarketAccess.redeem(this, link.code)
-            android.widget.Toast.makeText(this, result.message, android.widget.Toast.LENGTH_LONG).show()
-            return result is com.mccal.folio.market.EarlyAccess.Result.Valid
-        }
+        // A supporter's code arrives as folio://redeem, which RedeemActivity handles and Settings answers.
         if (!MarketAccess.isOpen(this)) return false
         MarketLink.pending = link
         return true

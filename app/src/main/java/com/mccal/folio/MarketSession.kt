@@ -20,7 +20,6 @@ import com.mccal.folio.market.SourceList
 import com.mccal.folio.market.SourceStore
 import com.mccal.folio.market.UrlHttpClient
 import com.mccal.folio.market.AuthorTrust
-import com.mccal.folio.market.EarlyAccess
 import com.mccal.folio.market.MarketPrefs
 import com.mccal.folio.market.PackageInstaller
 import com.mccal.folio.market.PackageSafeMode
@@ -168,15 +167,13 @@ internal const val DEFAULT_LOCAL_SOURCE = "http://localhost:8787/"
  * is also in Settings, so a stable-release user isn't missing a feature — only the store that lists them.
  */
 internal object MarketAccess {
+    /**
+     * A supporter's code opens the Market through the same scope that opens every other early feature, and through
+     * the same beta switch: one code, one page to redeem it on, one switch to step back off the betas.
+     */
     fun isOpen(context: Context): Boolean = MarketFeature.isEnabled(
         packageName = context.packageName,
         onBeta = runCatching { SoftwareUpdate.beta(context) }.getOrDefault(false),
-        hasEarlyCode = early(context).has(EarlyAccess.MARKET),
+        hasEarlyCode = runCatching { Supporter.has(context, BetaCodes.SCOPE_BETA) }.getOrDefault(false),
     )
-
-    fun early(context: Context) = EarlyAccess(FileStore(File(context.applicationContext.filesDir, "market")))
-
-    /** Takes a supporter's code and says what happened, in the words the user sees. */
-    fun redeem(context: Context, code: String): EarlyAccess.Result =
-        early(context).redeem(code, EarlyAccess.MARKET)
 }

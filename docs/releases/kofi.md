@@ -20,55 +20,71 @@ that are all in Settings anyway. So a code buys time, not features: you see it f
 
 ## How a code works
 
-`folio-early:<feature>:<expires>.<signature>` — one line, signed with a key that lives offline, checked on the phone
-against the public half built into the app. No account, no server call, nothing stored about who paid: Folio keeps the
-code and the date it runs out.
+One short signed ticket, checked on the phone against a public key built into Folio. No account, no server call,
+nothing stored about who paid: Folio keeps the code and reads what it says.
 
-Codes are shareable on purpose. A supporter passing one to a friend is fine — it's a thank-you, not a licence — so
-they're minted per feature, not per person.
-
-```bash
-python3 tools/folio-code.py keygen            # once; prints what to paste into EarlyAccess.PUBLIC_KEY
-python3 tools/folio-code.py mint market       # a code that never runs out
-python3 tools/folio-code.py mint market --days 90
-python3 tools/folio-code.py verify <code> market
+```
+FOLIO-style groups of five, Crockford base32 (no I, L, O or U, so a typed code can't be misread)
+ └─ 9 bytes: version · scopes · tier · expiry day · serial      + a 64-byte ECDSA P-256 signature
 ```
 
-`folio-supporter.pem` never leaves the machine it's made on and is never committed. A new key stops every code already
+**Scopes** are what the code opens: `beta` (features a release or two early, which is what the Market is today),
+`look`, `power` and `keys` (Folio Keys). **Expiry** is a day, or none. **Serial** is what a withdrawal names.
+Editing any of it breaks the signature, and there are tests for that.
+
+Codes are shareable on purpose. A supporter passing one to a friend is fine — it's a thank-you, not a licence — so
+they're minted per scope, not per person.
+
+```bash
+./scripts/beta-code.py newkey --passphrase                    # once; prints what to paste into BetaKeys.SUPPORTER
+./scripts/beta-code.py mint --scopes beta                     # a code that never runs out
+./scripts/beta-code.py mint --scopes beta,keys --expires 2027-03-01 --count 25
+./scripts/beta-code.py pool --scopes beta --count 200 > pool.sql   # a batch for the Ko-fi worker
+```
+
+`supporter-key.pem` never leaves the machine it's made on and is never committed. A new key stops every code already
 handed out from working, so keep an offline copy.
+
+`BetaCodeToolTest` mints a code with that script and reads it with the app's own `BetaCodes`, so the tool and the
+phone can't drift apart without a test saying so.
 
 ### Where things stand
 
-Done on 2026-09-18:
+**One system, since 2026-09-19.** Two grew in parallel — `BetaCodes`/`Supporter` on `main` and an `EarlyAccess` in
+the 0.7.0 branch — and they merged in together. `BetaCodes` won on every axis (short typeable codes, scopes,
+withdrawal, a Settings page, a redeem link, a worker with tests), so `EarlyAccess`, `tools/folio-code.py` and
+`tools/kofi-webhook/` are gone. What the retired side was better at came across: the signing key can be encrypted
+at rest, and the verification now runs through the Market's `SourceKey`, so Folio has one ECDSA implementation
+rather than two.
 
-- The key exists: `~/.folio/folio-supporter.pem`, outside the repo, mode 600. **Back it up somewhere offline.** If it
-  is lost, a new key stops every code already handed out from working.
-  Fingerprint `6423 2915 002A CAD7 FD07 CC99 AC27 B99F`.
-- Its public half is in `EarlyAccess.PUBLIC_KEY`, and a test checks the built-in key parses.
-- One Market code is minted, at `~/.folio/market-code.txt`. It never runs out.
-- `~/Downloads/folio-early-access.txt` is the file to attach to the shop item, with the code and what to do with it.
-- `~/Downloads/folio-kofi-shop.jpg` is a 1080×1080 image for the item, from the Mockup Lab, badged
-  "Preview · Coming in 0.7.0".
+**What that costs McCal, concretely.** The key made on 2026-09-18 with the retired tool
+(`~/.folio/folio-supporter.pem`, fingerprint `6423 2915 002A CAD7 FD07 CC99 AC27 B99F`) is **not** the key Folio
+carries. The live one is `BetaKeys.SUPPORTER`, made with `scripts/beta-code.py`. So:
+
+- The code at `~/.folio/market-code.txt` and the file at `~/Downloads/folio-early-access.txt` are dead. Re-mint:
+  `./scripts/beta-code.py mint --scopes beta` and put the new code in the file.
+- The live key wants the same care the retired one got: back it up offline, and encrypt it with
+  `./scripts/beta-code.py protect`.
+- `~/.folio/folio-supporter.pem` can be deleted once nothing else references it. No code from it works.
+
+Still done and still good: `~/Downloads/folio-kofi-shop.jpg`, the 1080×1080 shop image from the Mockup Lab.
 
 Left to do, on Ko-fi itself:
 
 1. Ko-fi → **Shop** → add an item, with the image and the text below.
-2. Attach `folio-early-access.txt` as the digital file.
-3. Buy it yourself for the minimum, check the file arrives, and paste the code into
-   Settings › Market › Early access on the phone. It should say "Thanks — early access is on".
-
-More codes whenever they're wanted: `cd ~/.folio && python3 ~/dev/folio-0.7.0/tools/folio-code.py mint market`.
+2. Attach the re-minted `folio-early-access.txt` as the digital file.
+3. Buy it yourself for the minimum, check the file arrives, and paste the code into Settings › Supporter on the
+   phone. It should say "Code added — thank you", and the Market should appear.
 
 ## Who can make a code
 
-Only whoever has `~/.folio/folio-supporter.pem`. A code is an ECDSA P-256 signature over its own text: the public half
-in the app can check one, and can't be used to make one. Editing a code - a later date, a different feature - breaks
-the signature, and there's a test for that.
+Only whoever has `supporter-key.pem`. A code is an ECDSA P-256 signature over its own bytes: the public half in the
+app can check one, and can't be used to make one.
 
 So nobody can forge a code. Three things that are worth being clear-eyed about, because they aren't forgery:
 
-- **A code can be passed around.** That's deliberate. If it ever matters, mint dated ones (`--days 90`) or a code per
-  person through `tools/kofi-webhook/`.
+- **A code can be passed around.** That's deliberate. If it ever matters, mint dated ones (`--expires`) or a code
+  per person through `tools/kofi-worker/`.
 - **Folio is MIT, and the check runs on the phone.** Anyone can build from source with the check removed. No
   client-side check survives that, and pretending otherwise would mean shipping something closed. The answer is that
   the free core is worth having on its own, so there's little to gain.
@@ -78,20 +94,21 @@ So nobody can forge a code. Three things that are worth being clear-eyed about, 
 Keeping the key safe, in order of how much it buys:
 
 1. **Back it up offline.** Losing it is worse than leaking it: every code already handed out dies with it.
-2. **Encrypt it on disk:** `cd ~/.folio && python3 ~/dev/folio-0.7.0/tools/folio-code.py protect`. It asks for a
-   passphrase twice, writes the encrypted copy beside the old file, checks it reads back as the same key, and only
-   then replaces it - a wrong passphrase or a full disk leaves the key exactly as it was. Minting afterwards asks for
-   the passphrase, or reads `FOLIO_KEY_PASSPHRASE`. A new key can start that way with `keygen --passphrase`.
+2. **Encrypt it on disk:** `./scripts/beta-code.py protect`. It asks for a passphrase twice, writes the encrypted
+   copy beside the old file, checks it reads back as the same key, and only then replaces it - a wrong passphrase or
+   a full disk leaves the key exactly as it was. Minting afterwards asks for the passphrase, or reads
+   `FOLIO_KEY_PASSPHRASE`. A new key can start that way with `newkey --passphrase`.
 
    The passphrase belongs in a password manager: **without it the key is gone**, and losing the key is worse than
    leaking it. Replace the offline backup afterwards, since the old backup is still unencrypted.
-3. **Never let it near a server.** `tools/kofi-webhook/` hands out pre-minted codes for exactly this reason.
+3. **Never let it near a server.** `tools/kofi-worker/` hands out pre-minted codes for exactly this reason.
 4. **CI checks the repository for private keys** on every push (`tools/check-secrets.sh`). `.gitignore` covers the
    usual names, but ignoring a file doesn't stop `git add -f` or a key pasted into a document.
 
-If it ever does leak: mint a new key, put its public half in `EarlyAccess.PUBLIC_KEY`, ship it, and say so in the
+If it ever does leak: mint a new key, put its public half in `BetaKeys.SUPPORTER`, ship it, and say so in the
 release notes. Every code made with the old key stops working at that release, including the honest ones - so
-supporters need new codes, which is the real cost of a leak.
+supporters need new codes, which is the real cost of a leak. A code that went around publicly rather than a key can
+be withdrawn on its own, by putting its serial in `BetaKeys.WITHDRAWN`; that takes effect when people update.
 
 ## Getting a code to a supporter
 
@@ -108,7 +125,7 @@ file never needs changing; a dated code means re-uploading it when it runs out.
 
 ### A code per person, automatically
 
-`tools/kofi-webhook/` is a Cloudflare Worker that does this when the shop item isn't enough: Ko-fi posts to it on every
+`tools/kofi-worker/` is a Cloudflare Worker that does this when the shop item isn't enough: Ko-fi posts to it on every
 payment, it checks the payment is really Ko-fi's, takes one code off a batch minted offline, and emails it.
 
 The point of the design is that **the signing key never goes online**. Codes are minted on the Mac and uploaded; the
@@ -125,10 +142,12 @@ A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price
   arrives - against roughly $1.30 of a $2 one, because the fixed part is what bites at small prices. It also matches
   Ko-fi's default coffee. Check the live numbers on the Ko-fi page rather than trusting these.
 - **Image:** `~/Downloads/folio-kofi-shop.jpg`
-- **Digital file:** `~/Downloads/folio-early-access.txt`
+- **Digital file:** `~/Downloads/folio-early-access.txt` (re-mint it; see Where things stand)
 
 Description (McCal, 2026-09-18). Every line is either one of his own sentences from the README, a fact about what the
-app does, or - the last line - his answer about where the money goes. Nothing here was written for him.
+app does, or - the last line - his answer about where the money goes. Nothing here was written for him. One factual
+edit since: the code goes into Settings › Supporter, because Early access moved there when the two supporter-code
+systems became one.
 
 > Folio Launcher: a clean, iPhone-style Home Screen for Android — with the jailbreak tweaks I always wanted, and none
 > of the lockdown.
@@ -141,7 +160,7 @@ app does, or - the last line - his answer about where the money goes. Nothing he
 > Harborline after Harbor, Roll Call after Axon, Palette after Velvet, Colored Albums after ColorFlow. All re-created
 > from scratch for Android; none of their code is in here, and everyone is credited in the app.
 >
-> You'll get a code to paste into Settings › Market › Early access, and the store appears.
+> You'll get a code to paste into Settings › Supporter, and the store appears.
 >
 > Everything in the Market is already in Folio's Settings — this is a head start, not a paywall. Folio is free and
 > open source and stays that way, and nothing that has already shipped will ever move behind a code. There's no
@@ -194,8 +213,7 @@ it ships (`beta`), Folio Keys (`keys`), and the supporters-only posts.
   `Folio Keys, the keyboard extras` · `A new code whenever the old one runs out`
 - Description: the Market is how 0.7.0 hands out themes, tweaks and layouts. Everything in it is already in Folio's
   Settings, so this is a head start, not a paywall.
-- Welcome message: the code, and that it goes in Settings › Market › Early access. The worker can send this instead —
-  see below.
+- Welcome message: the code, and that it goes in Settings › Supporter. The worker can send this instead — see below.
 
 **Tier 3 — Fold tester, $10/mo**
 
@@ -214,24 +232,30 @@ A one-off payment earns a dated code: $5 → one month, $10 → two, $20 → fou
 1. **Shop items, one per length.** "Early access · 1 month", "· 3 months", "· 6 months", each with a code file
    attached from a pool minted for that horizon. No code to write, works while asleep, and it's the way the shop item
    already works today.
-2. **Tips, through the worker.** `tools/kofi-worker/` already picks a pool by tier name, by shop item, and by a single
-   tip threshold (`tipFrom` / `tipPool`). Amount bands need a small change: a list of `{from, pool}` instead of one
-   threshold, so $5, $10 and $20 land in the one-month, two-month and four-month pools.
+2. **Tips, through the worker.** `tools/kofi-worker/` picks a pool by tier name, by shop item, by a single tip
+   threshold (`tipFrom` / `tipPool`), and — since 19 Sep 2026 — by amount: `tipBands` is a list of `{from, pool}`, so
+   $5, $10 and $20 land in the one-month, two-month and four-month pools. A payment earns the largest band it clears.
 3. **Ko-fi's own annual option**, if it suits — a membership paid yearly is still a membership, and the worker sees it
    as `Subscription`.
 
-**The catch worth knowing before promising months.** A code is signed offline, so its end date is fixed when it is
-*minted*, not when it is *redeemed*: `scripts/beta-code.py --expires 2027-01-01` gives everyone in that pool the same
-last day. Someone who pays on the 28th gets a short month. Two ways out:
+**How the months work, now that the phone starts the clock.** A code is signed offline, so a fixed end date is
+decided when the code is *minted*, not when it is *redeemed* — everyone in a `--expires 2027-01-01` pool gets the same
+last day, and whoever pays on the 28th gets a short month. So codes grew a second shape, built 19 Sep 2026:
 
-- **Re-mint the pools on a schedule** (a batch a month, dated a month out). No app change; a chore forever.
-- **Let the phone start the clock.** The code payload already carries a free-form `tier` byte (`BetaCodes`, version 1,
-  scope bits + tier + expiry day + serial). Mint `tier` as the number of months, and have Folio count from the day the
-  code is redeemed. That gives a true "one month per $5" from an offline pool, with no format change and no key online.
-  It is an app change in `BetaCodes` / `Supporter`, plus a minting convention.
+```bash
+python3 scripts/beta-code.py mint --scopes beta,keys --months 1        # one month from the day it's redeemed
+python3 scripts/beta-code.py pool --scopes beta,keys --months 4 --count 50 --pool months4 > pool.sql
+```
 
-The second one is the one to build if months are the offer. Until then, say "early access until <date>" rather than
-"one month", because that is what the code does.
+`--months` mints a version 2 code: months and tier share one byte (months in the high nibble), so the code is the same
+length and version 1 codes read exactly as before. Folio writes down the day a code was first redeemed on that phone,
+one date per serial, and counts from there. Pasting the same code again resumes the window it started rather than
+handing out another month, and removing the code doesn't reset it. A code carrying both months and a fixed date ends
+on whichever comes first. Settings › Supporter shows the day it runs out.
+
+Two things this does not change: a pre-0.6.5 build has no key at all, and a build older than this change reads a
+version 2 code as "not a Folio code" — so months codes are for 0.6.5 and later. And `--months` takes 1 to 15; for
+longer, use `--expires`.
 
 ## The page itself
 
@@ -249,6 +273,7 @@ copy:**
 ## What it says inside the app
 
 - **Settings › Support Folio** — a row that opens the page.
-- **Settings › Market › Early access** — paste a code, see when it runs out, forget it, and a link to the page.
+- **Settings › Supporter** — redeem a code, see what it unlocks and when it runs out, remove it, and turn the beta
+  features it carries on or off. The Market's own settings page points here rather than offering a second box.
 - The Market is hidden entirely without a code, Beta Updates, or a dev build (`MarketFeature`), and it says so where
   someone would look for it.

@@ -17,7 +17,7 @@ object MarketFeature {
     fun isDevBuild(packageName: String) = packageName.endsWith(".dev")
 
     /**
-     * [onBeta] is the existing Beta Updates switch, and [hasEarlyCode] is a supporter's code ([EarlyAccess]). Either
+     * [onBeta] is the existing Beta Updates switch, and [hasEarlyCode] is a supporter's code with the beta scope. Either
      * one opens the Market; neither one is needed once it's released.
      */
     fun isEnabled(packageName: String, onBeta: Boolean = false, hasEarlyCode: Boolean = false): Boolean =
