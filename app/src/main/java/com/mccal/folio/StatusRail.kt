@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -144,6 +145,9 @@ private const val GAUGE_DOT_PITCH = .15f
 private const val GAUGE_BOTTOM_GAP = 66f
 /** Air either side of the reading inside the break. */
 private const val GAUGE_READING_PAD = .055f
+/** Where drawWifiFan puts its apex and drawCellBars its middle, and where drawSearchingFan puts its apex. */
+private const val GAUGE_FAN_ORIGIN = .56f
+private const val GAUGE_SEARCH_ORIGIN = .60f
 
 /** Shared capsule look for the side rail (status, dock, island). */
 
@@ -362,17 +366,16 @@ fun StatusRail(
                                 if (left > 0f) drawArc(arcColor, ring.leftStart + ring.side, -left, false, corner, box, style = stroke)
                                 if (right > 0f) drawArc(arcColor, ring.rightStart + ring.side, -right, false, corner, box, style = stroke)
                             }
-                            // drawWifiFan puts its apex at 56% of the width; the ring's middle is lower than that,
-                            // so the signal is moved down to sit in the ring rather than up against the reading.
-                            translate(0f, (ringCenter + .07f - .56f) * w) {
-                            scale(.80f, center) {
-                                when {
-                                    wifiVisual is WifiSignalVisual.Connected -> drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight)
-                                    cellularVisual is CellularSignalVisual.Available -> drawCellBars(w, activeDots, ink, onLight)
-                                    searching -> drawSearchingFan(w, sweep, ink, onLight)
-                                    else -> Unit
-                                }
-                            }
+                            // Each of these draws around its own origin: the Wi-Fi fan's apex and the cell bars' middle
+                            // both sit at 56% of the width, the searching fan's apex at 60%. Shifting them all by the
+                            // same amount left the searching fan low, so each is moved by its own to sit in the ring.
+                            fun centred(origin: Float, draw: DrawScope.() -> Unit) =
+                                translate(0f, (ringCenter + .07f - origin) * w) { scale(.80f, center) { draw() } }
+                            when {
+                                wifiVisual is WifiSignalVisual.Connected -> centred(GAUGE_FAN_ORIGIN) { drawWifiFan(w, wifiVisual, ink = ink, onLight = onLight) }
+                                cellularVisual is CellularSignalVisual.Available -> centred(GAUGE_FAN_ORIGIN) { drawCellBars(w, activeDots, ink, onLight) }
+                                searching -> centred(GAUGE_SEARCH_ORIGIN) { drawSearchingFan(w, sweep, ink, onLight) }
+                                else -> Unit
                             }
                             // Cellular strength as a row of dots under the ring, where the lower break opens.
                             if (showsDots) for (i in 0..4) drawCircle(

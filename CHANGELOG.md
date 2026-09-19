@@ -56,6 +56,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - Google Discover beside Home is only used on Android 17 and newer; on Android 16 (reported on the Galaxy Z Fold7, issue #12) it could leave smeared copies of Home on screen, so Discover opens as its own page there.
 - Creating a folder no longer shows a second copy of it on the unfolded screen's extra left page.
 - Folders can be moved again: dragging one no longer drops it onto itself (which buzzed and put it back).
+- Folding or rotating no longer throws away a search: the pull-down panel closes, Spotlight keeps what you typed, and the panel now closes on the first fold after a restart too.
+- In the Gauge, the mark shown when there's nothing to connect to sits in the middle of the ring, level with the Wi-Fi one.
+- The last of Folio's own words follow your language: brief messages (a file that isn't a theme, an app that won't open, a redeemed code) and the text left in What's New, Choose Home Apps, widget editing, Up Next, restore and the alerts.
 
 ## [0.6.0] - 2026-09-16
 

@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -168,7 +169,7 @@ internal fun AppContextMenu(
                     else MenuDivider()
                 }
                 if (lockedBy != null) {
-                    Text("Home editing is off while $lockedBy is on", color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                    Text(stringResource(R.string.home_editing_is_off_while_1_is_on, lockedBy), color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                     MenuDivider()
                 } else {
