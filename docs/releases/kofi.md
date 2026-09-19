@@ -59,13 +59,25 @@ rather than two.
 
 **What that costs McCal, concretely.** The key made on 2026-09-18 with the retired tool
 (`~/.folio/folio-supporter.pem`, fingerprint `6423 2915 002A CAD7 FD07 CC99 AC27 B99F`) is **not** the key Folio
-carries. The live one is `BetaKeys.SUPPORTER`, made with `scripts/beta-code.py`. So:
+carries. The live one is `BetaKeys.SUPPORTER`, and its private half is `supporter-key.pem` in the main checkout
+(gitignored, mode 600). Checked on 2026-09-19: the public half on disk is byte for byte the one in the app.
 
-- The code at `~/.folio/market-code.txt` and the file at `~/Downloads/folio-early-access.txt` are dead. Re-mint:
-  `./scripts/beta-code.py mint --scopes beta` and put the new code in the file.
-- The live key wants the same care the retired one got: back it up offline, and encrypt it with
-  `./scripts/beta-code.py protect`.
-- `~/.folio/folio-supporter.pem` can be deleted once nothing else references it. No code from it works.
+Done on 2026-09-19:
+
+- **Re-minted.** `~/.folio/market-code.txt` holds a new code, scope `beta`, no expiry, serial `4195613006` — that
+  serial is what `BetaKeys.WITHDRAWN` would name if it ever had to be pulled. A throwaway test read the file and
+  verified it against `BetaKeys.SUPPORTER` before it went anywhere, so the code in the shop file is known to work.
+- **`~/Downloads/folio-early-access.txt` rebuilt** around it, with the instructions pointing at Settings › Supporter
+  and a line about the beta switch. Same words otherwise.
+- `~/.folio/folio-supporter.pem` and any code from it are dead. Delete them when convenient; nothing reads them.
+
+Still to do, and it is McCal's to do because it needs a passphrase typed:
+
+- **Encrypt the live key.** `cd ~/dev/duo-fold-launcher && ~/dev/folio-0.7.0/scripts/beta-code.py protect`. It asks
+  twice, proves the encrypted copy opens before replacing the old file, and from then on minting asks for the
+  passphrase or reads `FOLIO_KEY_PASSPHRASE`. Put the passphrase in a password manager first: without it the key is
+  gone, and losing the key is worse than leaking it.
+- **Back it up offline**, after encrypting rather than before.
 
 Still done and still good: `~/Downloads/folio-kofi-shop.jpg`, the 1080×1080 shop image from the Mockup Lab.
 
