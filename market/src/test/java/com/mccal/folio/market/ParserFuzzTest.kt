@@ -110,6 +110,37 @@ class ParserFuzzTest {
         }
     }
 
+    /**
+     * `signature.json`, which comes out of a `.foliopkg` someone was sent: the one file in a package that is read
+     * before Folio knows who made it.
+     */
+    @FuzzTest(maxDuration = "5m")
+    fun authorSignature(data: FuzzedDataProvider) {
+        val text = data.consumeRemainingAsString()
+        val signature = AuthorSignature.fromFiles(mapOf(AuthorSignature.FILE to text.toByteArray())) ?: return
+        // Anything it hands back has a key Folio can read, or it should have refused it.
+        check(signature.key != null)
+        // And a signature over nothing in particular verifies nothing.
+        val version = DebVersion.parse("1.0.0")!!
+        check(!signature.verifies("dev.someone.package", version, "a".repeat(64)))
+    }
+
+    /**
+     * What a signature inside a package covers can't depend on the signature itself, or signing would change what
+     * was signed. Nor on the order the files arrive in.
+     */
+    @FuzzTest(maxDuration = "5m")
+    fun authorPayload(data: FuzzedDataProvider) {
+        val count = data.consumeInt(0, 8)
+        val files = buildMap {
+            repeat(count) { put(data.consumeString(24), data.consumeBytes(64)) }
+        }
+        val version = DebVersion.parse("1.0.0")!!
+        val payload = AuthorSignature.filesPayload("dev.someone.package", version, files)
+        check(payload == AuthorSignature.filesPayload("dev.someone.package", version, files.entries.reversed().associate { it.key to it.value }))
+        check(payload == AuthorSignature.filesPayload("dev.someone.package", version, files + (AuthorSignature.FILE to data.consumeRemainingAsBytes())))
+    }
+
     /** Whatever JsonGuard accepts, org.json must read without an exception. */
     @FuzzTest(maxDuration = "5m")
     fun jsonGuard(data: FuzzedDataProvider) {
