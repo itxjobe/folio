@@ -183,7 +183,7 @@ internal fun MarketScreen(
         val manifest = entry.entry.manifest
         if (!MarketExternalApp.isExternal(manifest)) { confirming = entry.id; return }
         val already = MarketExternalApp.installedAppId(appContext, manifest)
-        if (already != null) MarketExternalApp.open(context, already) else choosing = entry.id
+        if (already != null) MarketExternalApp.open(context, already, returns) else choosing = entry.id
     }
 
     // What finished while nobody was looking. Closing the Market during a download used to lose the message and the
@@ -808,7 +808,7 @@ private fun MarketRow(
 private fun externalAppId(manifest: com.mccal.folio.market.PackageManifest?): String? {
     val context = androidx.compose.ui.platform.LocalContext.current
     val resumed = LocalAppsChanged.current
-    return remember(manifest, resumed) { MarketExternalApp.installedAppId(context, manifest) }
+    return remember(manifest, resumed) { MarketExternalApp.installedAppId(context, manifest, resumed) }
 }
 
 /** Bumped when Folio comes back to the front, so "is it installed yet" is asked again after a trip to Play. */

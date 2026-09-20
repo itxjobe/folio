@@ -93,6 +93,33 @@ class MarketExternalAppTest {
         assertEquals("and Folio can see it", context.packageName, MarketExternalApp.installedAppId(context, both))
     }
 
+    @Test fun `the keyboard list is asked once per generation, not once per row`() {
+        val keys = manifest("""{ "store": "playStore", "id": "com.mccal.keyd" }""")
+        // Same generation: the shared part of the lookup is worked out once, however many rows ask.
+        repeat(5) { MarketExternalApp.installedAppId(context, keys, generation = 1) }
+        // And a new generation - Folio came back to the front - asks again, because the answer can have changed.
+        assertNull(MarketExternalApp.installedAppId(context, keys, generation = 2))
+    }
+
+    @Test fun `an app with no way in goes to its own settings page, not the keyboard ones`() {
+        fun lastStarted() = org.robolectric.Shadows.shadowOf(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>(),
+        ).nextStartedActivity
+
+        // An app with a launcher icon opens the app.
+        assertTrue(MarketExternalApp.open(context, context.packageName))
+        assertEquals(android.content.Intent.ACTION_MAIN, lastStarted().action)
+
+        // One with no launcher activity and no input method used to land in Android's keyboard settings, for no
+        // reason at all. Its own page in settings always exists, so that is where it goes.
+        val elsewhere = "com.example.no.launcher"
+        assertTrue(!MarketExternalApp.isKeyboard(context, elsewhere))
+        assertTrue(MarketExternalApp.open(context, elsewhere))
+        val started = lastStarted()
+        assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, started.action)
+        assertEquals("package:$elsewhere", started.data.toString())
+    }
+
     @Test fun `Folio finds an app that is installed`() {
         // Robolectric's own package stands in for one that is really there.
         val mine = manifest("""{ "store": "playStore", "id": "${context.packageName}" }""")

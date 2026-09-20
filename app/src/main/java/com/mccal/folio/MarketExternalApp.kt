@@ -32,24 +32,50 @@ internal object MarketExternalApp {
      * to choose one. Anything else needs a `<queries>` entry, and without one Android answers "not installed"
      * whether it is there or not, so that case says so rather than pretending to know.
      */
-    fun installedAppId(context: Context, manifest: PackageManifest?): String? {
+    fun installedAppId(context: Context, manifest: PackageManifest?, generation: Int = 0): String? {
         val ids = manifest?.via.orEmpty().mapNotNull { it.appId }.distinct()
         if (ids.isEmpty()) return null
-        val keyboards = runCatching {
-            context.getSystemService(InputMethodManager::class.java)
-                ?.inputMethodList.orEmpty().map { it.packageName }.toSet()
-        }.getOrDefault(emptySet())
+        val keyboards = keyboards(context, generation)
         return ids.firstOrNull { id ->
             id in keyboards || runCatching { context.packageManager.getPackageInfo(id, 0) }.isSuccess
         }
     }
 
-    /** Opens the app itself, once it's installed. Null when Android won't say how to. */
-    fun open(context: Context, appId: String): Boolean {
-        val intent = runCatching { context.packageManager.getLaunchIntentForPackage(appId) }.getOrNull()
-        // A keyboard has no launcher icon of its own, so there is nothing to open; the place to go is where
-        // Android keeps the keyboards.
-        val target = intent ?: Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+    /**
+     * Every installed input method, worked out once per [generation] rather than once per row.
+     *
+     * Building the list is a binder call and the answer is the same for every package on the screen, so a list
+     * with several external listings asked Android the same question once a row. [generation] is bumped when
+     * Folio comes back to the front, which is the only moment the answer can have changed.
+     */
+    private fun keyboards(context: Context, generation: Int): Set<String> {
+        cached?.let { (at, set) -> if (at == generation) return set }
+        val set = runCatching {
+            context.getSystemService(InputMethodManager::class.java)
+                ?.inputMethodList.orEmpty().map { it.packageName }.toSet()
+        }.getOrDefault(emptySet())
+        cached = generation to set
+        return set
+    }
+
+    @Volatile private var cached: Pair<Int, Set<String>>? = null
+
+    /** True when this package name belongs to an input method, which is the one case with no launcher icon. */
+    fun isKeyboard(context: Context, appId: String, generation: Int = 0) = appId in keyboards(context, generation)
+
+    /** Opens the app itself, once it's installed. False when there is nothing Android will open. */
+    fun open(context: Context, appId: String, generation: Int = 0): Boolean {
+        val launch = runCatching { context.packageManager.getLaunchIntentForPackage(appId) }.getOrNull()
+        val target = launch
+            // A keyboard has no launcher icon of its own, so there is nothing to open; the place to go is where
+            // Android keeps the keyboards. Only for a keyboard, though - sending someone there because an icon
+            // pack happens to have no launcher activity is a non-sequitur.
+            ?: Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).takeIf { isKeyboard(context, appId, generation) }
+            // Anything else with no way in: its own page in Android's settings, which always exists.
+            ?: Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", appId, null),
+            )
         return runCatching {
             context.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             true
