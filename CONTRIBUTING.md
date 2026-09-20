@@ -11,6 +11,24 @@ Thanks for helping with Folio! Bug reports, ideas, fixes and themes are all welc
 - **Themes:** see [themes/README.md](themes/README.md).
 - Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+## Trying the Market, without paying for it
+
+The Market is held back for supporters until 0.7.0 ships. That is a head start, not a paywall, and it must never
+get in the way of helping:
+
+- **Every theme and tweak the Market hands out is already in Settings.** Nothing that has shipped moves behind a
+  code, ever. Without the store you are missing the store, not a feature.
+- **A build you make yourself always has it.** Any Folio Dev build shows the Market with no code at all - that is
+  what `MarketFeature.isDevBuild` means, and there is a test holding it open:
+
+  ```bash
+  ./gradlew :app:assembleFast   # installs as "Folio Dev", beside a release Folio
+  ```
+
+- **If you would rather not build it, ask.** Codes are free for anyone testing or contributing, and there is
+  nothing to prove first. Open an issue or say so on an existing one.
+- When 0.7.0 is released the store is everyone's, and the gate stops existing.
+
 ## Making changes
 
 Keep changes focused. In the PR, describe what's different for someone using Folio, and how you checked it.

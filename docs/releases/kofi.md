@@ -18,6 +18,15 @@ ever becomes paid** — decided 2026-09-17. Two things follow from it:
 Right now the only thing behind a code is **early access to the Market**, and the Market hands out themes and tweaks
 that are all in Settings anyway. So a code buys time, not features: you see it first.
 
+**And the other side of that rule: not supporting must never cost you anything but time.** Closing the Beta Updates
+door (2026-09-19) took away the one in-app route a non-paying tester had, so two things have to stay true and are
+written into CONTRIBUTING.md:
+
+- A build anyone makes themselves always has the Market, with no code - `assembleFast` installs as Folio Dev. Folio
+  is MIT, so this is the point rather than a hole, and there is a test keeping that door open.
+- **Codes are free for anyone testing or contributing**, with nothing to prove first. Someone filing fold bugs on a
+  Pixel Fold is worth more than $3, and a store they can't open is a poor way to say thank you.
+
 ## How a code works
 
 One short signed ticket, checked on the phone against a public key built into Folio. No account, no server call,
@@ -235,45 +244,48 @@ don't list them.
 
 ### The tiers
 
-Drafts, not copy — **the words are McCal's.** Three tiers, as Ko-fi's own guidance suggests, with the middle one as
-the obvious choice. Two naming schemes are on the table, and the pricing is the real decision:
+**Decided (McCal, 19 Sep 2026): Coffee $3, Backer $7, Builder $15.** Names say what you *are* rather than what you
+unlock, so the perks can move without the name lying, and $15 reads as funding the project rather than buying a
+launcher. Drafts below — **the words are McCal's.** Images: `lab/walls/kofi-tiers/{coffee,backer,builder}.jpg`,
+1600 × 800, from `lab/kofi-tiers.html`.
 
-**A — what's built and rendered (Coffee $3 / Early access $5 / Fold tester $10).** Names say what you get, and the
-prices sit close to the $3 shop item. Tier images exist at `lab/walls/kofi-tiers/`.
-
-**B — patronage framing (Coffee $3 / Backer $7 / Builder $15).** Names say what you *are*, not what you unlock, which
-suits patronage and leaves the perks free to change. $15 reads as funding the project rather than buying a launcher.
-Needs the images re-rendered with the new names.
-
-Either way the middle tier should be visually and structurally dominant: more benefits, the "everything in Coffee,
-plus" framing, and a louder card. No BEST VALUE, no fake scarcity — the goal is patronage, not a pricing page.
-
-| | Coffee | Middle (Early access / Backer) | Top (Fold tester / Builder) |
+| | Coffee $3 | Backer $7 | Builder $15 |
 |---|---|---|---|
-| Supporters-only posts | ✓ | ✓ | ✓ |
-| Design previews | ✓ | ✓ | ✓ |
-| A vote on what's next | ✓ | ✓ | ✓ |
-| A code for the Market before it ships | | ✓ | ✓ |
-| Folio Keys | | ✓ | ✓ |
-| A new code when yours runs out | | ✓ | ✓ |
-| Beta and preview builds | | | ✓ |
+| Supporters-only posts, before the public ones | ✓ | ✓ | ✓ |
+| Design previews of what's being built | ✓ | ✓ | ✓ |
+| A vote on what comes after each update | ✓ | ✓ | ✓ |
+| A code for the Market, before it ships | | ✓ | ✓ |
+| Folio Keys, the keyboard extras | | ✓ | ✓ |
+| Preview builds when there's something to try | | ✓ | ✓ |
+| Beta builds as soon as they exist | | | ✓ |
+| Development posts as the work happens | | | ✓ |
 | Tweak and theme requests read first | | | ✓ |
 
-Each tier still needs its own description and welcome message on Ko-fi; the welcome message is where a code goes, or
-the worker sends it instead (see below). The tier images use the same Folio visual system but different subjects:
-Coffee is the brand gradient alone, the middle tier shows the Market, the top shows a real phone and the Roadmap.
+**Backer is the card that leads** — more benefits, the "everything in Coffee, plus" framing, and a lighter card with
+a teal ring around it. No "best value", no scarcity; the weight is in the design, not the shouting.
 
-### Positioning, which is McCal's call
+Each tier needs a description and a welcome message on Ko-fi. The welcome message is where a code goes for the two
+paid tiers (see *Getting the code out automatically*), and every card carries the "Folio remains Folio" line.
 
-The shop description he wrote on 18 Sep opens with "a clean, iPhone-style Home Screen for Android — with the
-jailbreak tweaks I always wanted". An alternative framing was suggested on 19 Sep: lead with **"Make Android feel
-intentional"** and describe Folio as a polished, customizable launcher for a calmer home screen, keeping the
-iOS-inspired work as *how* rather than *what*. The argument for it: it widens the audience past people who want an
-iPhone clone, and Play's store-listing guidance warns against metadata that implies a relationship with another
-company's product — which matters for the Play listing later, not for GitHub or Ko-fi today.
+Two lines that are **not** on any tier, because they don't exist yet: a supporter Discord role (the README's Discord
+is McCal's own handle, and says "until there's a community") and a name in supporter acknowledgements (no list in the
+app or the repository). "Development posts as the work happens" is a writing commitment, not a built feature — it
+becomes real with the first one, and *This week in Folio* is the shape suggested for it.
 
-Both are defensible and the words are his. What shouldn't happen is the two coexisting: the Ko-fi page, the README
-and the Play listing should make the same promise.
+### Positioning: two audiences, one promise each
+
+**Decided (McCal, 19 Sep 2026): split by venue.**
+
+- **GitHub, Ko-fi and Reddit** keep his own line from 18 Sep: "a clean, iPhone-style Home Screen for Android — with
+  the jailbreak tweaks I always wanted, and none of the lockdown." That audience is self-selected and already looking
+  for exactly this.
+- **The Play listing, when it happens**, leads with the outcome instead — *make Android feel intentional*, a
+  polished, customizable launcher for a calmer home screen — and treats the iOS-inspired work as *how*, not *what*.
+  Play's store-listing guidance is stricter about metadata or graphics implying a relationship with another
+  company's product, and the wider framing doesn't narrow the audience to people who want an iPhone clone.
+
+Both must keep saying the same thing about what Folio *does*; only the emphasis changes. When one is edited, check
+the other.
 
 ### One-off support: a month per $5
 
@@ -306,6 +318,35 @@ on whichever comes first. Settings › Supporter shows the day it runs out.
 Two things this does not change: a pre-0.6.5 build has no key at all, and a build older than this change reads a
 version 2 code as "not a Folio code" — so months codes are for 0.6.5 and later. And `--months` takes 1 to 15; for
 longer, use `--expires`.
+
+### Getting the code out automatically
+
+Three ways, cheapest first. What makes the cheap ones work is months-from-redemption (19 Sep): a `--months 1` code in
+a file starts its month when the buyer redeems it, so the file never goes stale and never needs re-uploading.
+
+| Path | What it takes | What it covers |
+|---|---|---|
+| **Shop item with the code file attached** | Nothing to run. Ko-fi emails the file on purchase | One-off support |
+| **Tier welcome message** | Nothing to run. Ko-fi sends it when someone joins | New members, once — not monthly |
+| **`tools/kofi-worker`** | A Cloudflare deploy, `KOFI_TOKEN` and `RESEND_KEY` | Every tier payment, shop order and tip, one unique code each |
+
+The gap in the cheap path: a welcome message fires once, so a member's code has to outlast the join. Either mint the
+member codes with a longer window (`--months 3`) and post a fresh one to the supporters feed when it runs out — the
+posts are a benefit anyway — or deploy the worker, which mints one month per payment and needs no post at all.
+
+**The conflict to settle before any of this goes live:** the shop item as drafted is $3 for a code that *never*
+expires, while Backer at $7/month leads on that same early access. Whoever notices will buy the $3 item instead, and
+they'll be right. Recommended fix, which also makes one price mean one month everywhere:
+
+| One-off | Code |
+|---|---|
+| $3 | `--months 1` |
+| $6 | `--months 2` |
+| $12 | `--months 4` |
+
+and the membership promise becomes "supporter access stays on while your membership does". `tipBands` in the worker
+then reads `[{from:3,pool:'months1'},{from:6,pool:'months2'},{from:12,pool:'months4'}]`. This replaces the earlier
+"$5 = one month" note; it needs McCal's yes because it re-prices an item he priced himself.
 
 ### Two posts, in this order
 
