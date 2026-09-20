@@ -1387,7 +1387,11 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         buttonBarAndroidOrder = j.optBoolean(SettingKeys.BUTTON_BAR_ANDROID_ORDER, false),
         buttonBarLight = j.optBoolean(SettingKeys.BUTTON_BAR_LIGHT, false),
         buttonBarFade = j.optBoolean(SettingKeys.BUTTON_BAR_FADE, true),
-        homeRows = j.optInt("homeRows", 0).takeIf { it == BASE_APP_ROWS } ?: 0,
+        // Automatic is the new default, but it must not rearrange a Home that already exists: a save written before
+        // this release comes back fixed at the four rows it was drawn with, and Settings › Home Screen & Dock offers
+        // Automatic to anyone who wants the taller screens filled.
+        homeRows = j.optInt("homeRows", if (j.optInt("schema", 1) in 1 until STATE_SCHEMA) BASE_APP_ROWS else 0)
+            .takeIf { it == BASE_APP_ROWS } ?: 0,
         homeFitCompact = j.optInt("homeFitCompact", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0,
         homeFitExpanded = j.optInt("homeFitExpanded", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0)
         .let { st ->

@@ -9,7 +9,7 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Added
 - **Gauge status glyph:** a sixth Icon style for the Side Bar: the battery as an arc, your connection inside it, and the percentage above (Icons & Side Bar › Icon style).
-- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable.
+- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable. A Home you already have keeps the four rows you arranged it in; Settings › Home Screen & Dock › Rows turns it on.
 - **Layout sliders:** adjust row, column and dock spacing, widget size and status spacing, and watch Home change as you drag.
 - **Apps, dock and status position:** apps at the top, the dock on the side or bottom, and the status anywhere, for each screen.
 - **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight. A new install starts there; updating from an earlier Folio does not change what you chose, and if you never chose, Folio stays on Manual until you say otherwise.

@@ -11,6 +11,8 @@ import org.junit.Test
 /** Saved Home layouts load, and older ones upgrade without moving anything (decodeLauncherState). */
 class LayoutLoadTest {
     /** A 0.6.0 (schema 8) save: 24-cell pages, an unfolded-only page, the old overflow widget at row 6. */
+    internal fun schema8Fixture(): JSONObject = schema8()
+
     private fun schema8(): JSONObject {
         val slots = JSONArray()
         repeat(24) { slots.put(if (it == 8) "com.a/.A" else JSONObject.NULL) }  // page 0, row 2, column 0
@@ -37,7 +39,9 @@ class LayoutLoadTest {
         // Per-screen settings keep their values, and new ones start at today's defaults.
         assertEquals(60f, state.compact.iconSize); assertEquals(12f, state.compact.rowGap); assertEquals(false, state.compact.dockAlignToGrid)
         assertEquals(DEFAULT_COLUMN_GAP, state.compact.columnGap); assertEquals(false, state.compact.pageTop)
-        assertEquals(0, state.homeRows)
+        // Rows are the exception: Automatic is the default for a new Folio, but a Home that already exists keeps the
+        // four rows it was arranged in until someone asks for more (McCal, 2026-09-20).
+        assertEquals(BASE_APP_ROWS, state.homeRows)
     }
 
     @Test fun `an upgraded layout saved again loads the same`() {
@@ -69,5 +73,33 @@ class LayoutLoadTest {
         assertTrue(state.homeSlots.all { it == null })
         assertNull(state.error)
         assertEquals(emptySet<String>(), state.installedTweaks)
+    }
+}
+
+/** An update must not rearrange a Home that was already there. */
+class UpgradeKeepsItsRowsTest {
+    private fun schema8() = LayoutLoadTest().schema8Fixture()
+
+    /** The same layout as a save this release would write: 36-cell pages, so decode accepts it. */
+    private fun schema9(): JSONObject {
+        val upgraded = decodeLauncherState(schema8().toString(), legacyRaw = null)
+        val slots = JSONArray().apply { upgraded.homeSlots.forEach { put(it ?: JSONObject.NULL) } }
+        val leading = JSONArray().apply { upgraded.leadingSlots.forEach { put(it ?: JSONObject.NULL) } }
+        val widgets = JSONArray().apply { upgraded.widgetPlacements.forEach { w -> put(JSONObject().put("slot", w.slot).put("id", w.id)
+            .put("page", w.page).put("column", w.column).put("row", w.row).put("spanX", w.spanX).put("spanY", w.spanY)) } }
+        return schema8().put("schema", STATE_SCHEMA).put("homeSlots", slots).put("leadingSlots", leading).put("widgets", widgets)
+    }
+
+    @Test fun `a save from before this release comes back at four rows, not automatic`() {
+        assertEquals(BASE_APP_ROWS, decodeLauncherState(schema8().toString(), legacyRaw = null).homeRows)
+    }
+
+    @Test fun `a save from this release keeps automatic`() {
+        assertEquals(0, decodeLauncherState(schema9().toString(), legacyRaw = null).homeRows)
+    }
+
+    @Test fun `a choice that was made is kept either way`() {
+        val chosen = schema9().put("homeRows", BASE_APP_ROWS).toString()
+        assertEquals(BASE_APP_ROWS, decodeLauncherState(chosen, legacyRaw = null).homeRows)
     }
 }
