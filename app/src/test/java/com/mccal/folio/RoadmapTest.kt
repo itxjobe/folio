@@ -16,7 +16,8 @@ class RoadmapTest {
         val listed = Regex("\"status\"").findAll(raw).count()
         assertEquals(listed, content.sections.sumOf { it.items.size })
         // The app's own version has a section, so What's New and the Roadmap agree.
-        val version = Regex("""val folioVersion = "([^"]+)"""").find(java.io.File(root, "app/build.gradle.kts").readText())!!.groupValues[1]
+        val version = Regex("""val folioVersion = "([^"]+)"""")
+            .find(java.io.File(root, "app/build.gradle.kts").readText())!!.groupValues[1].substringBefore('-')
         assertTrue(content.sections.any { it.release == version })
     }
 

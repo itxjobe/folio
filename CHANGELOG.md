@@ -20,6 +20,8 @@ Folio shows the newest section on the phone after an update, and every version u
 - **A source can pull a package:** a withdrawn one can be removed but never installed again, including as an update.
 - **Share and Report:** a package's page links to its source's issue form with the id, version and checksum filled in.
 - **Your packages travel with your layout:** a layout backup now carries what you got from the Market, and restoring one puts those packages back on the new phone - applied over the layout it just restored, not over the old phone's. Anything Safe Mode had turned off comes back turned off, and one this Folio can't apply waits in Installed instead of being half applied.
+- **Folio can install an app from a source** (Settings › Market › Installing apps, off until you turn it on). Some listings are apps of their own rather than something Folio applies, because Android says a keyboard has to be its own app. With this on, Folio downloads one, checks it against the checksum its source signed, and hands it to Android, which asks before installing and names the app itself. With it off, Folio opens the store the author named. What Folio can't check is the app itself: the source vouches for that, and the setting says so.
+- **A source is a place you go into:** tapping one opens its page, the way tapping a repo does in Cydia and Sileo, with its address, when it was signed, Refresh and Remove, and every package it offers. A package's page names the source that lists it, and that leads back there.
 - **Three columns in Settings:** the list, the page, and whatever you opened from it, so tapping a tweak no longer replaces the list you tapped it in.
 
 ### Changed
