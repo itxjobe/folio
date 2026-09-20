@@ -861,9 +861,11 @@
     <string name="large_banners_you_can_swipe_through">Large banners you can swipe through</string>
     <string name="calm">Calm</string>
     <string name="a_simple_list_like_settings">A simple list, like Settings</string>
-    <string name="the_market_arrives_in_0_7_0_turn_on_beta">The Market arrives in 0.7.0. Turn on Beta Updates to try it early, or use a supporter code. Every theme and tweak it hands out is already in Settings, so nothing is waiting behind it.</string>
+    <string name="the_market_arrives_in_0_7_0_turn_on_beta">The Market arrives in 0.7.0. Supporters see it early with a code, redeemed in Settings › Supporter. Every theme and tweak it hands out is already in Settings, so nothing is waiting behind it.</string>
     <string name="text_1_s_is_back_on">%1$s is back on</string>
     <string name="folio_couldn_t_put_1_s_back_on">Folio couldn\'t put %1$s back on</string>
     <string name="from_a_file_you_opened_checking_who_made">From a file you opened. Checking who made it…</string>
     <string name="featured_page_1_d_of_2_d">Featured, page %1$d of %2$d</string>
+    <string name="a_supporter_code_turned_this_on_you_can">A supporter code turned this on. You can turn it off here; the code stays.</string>
+    <string name="your_code_also_switched_on_beta_updates">Your code also switched on Beta Updates, so you get the builds these features arrive in. Software Update can turn that off on its own.</string>
 </resources>

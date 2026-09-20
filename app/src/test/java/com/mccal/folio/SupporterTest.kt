@@ -70,6 +70,35 @@ class SupporterTest {
         assertFalse(Supporter.has(context, BetaCodes.SCOPE_KEYS, keys))
     }
 
+    @Test fun `redeeming a beta code switches on the features and the builds`() {
+        var channel: Boolean? = null
+        assertFalse("nothing is on before the code", Supporter.betaOn(context))
+        Supporter.redeem(context, mint(beta), keys = keys, onBetaChannel = { channel = it })
+
+        // Without this a supporter redeems a code and sees nothing: the switch defaults off, and since Beta Updates
+        // stopped opening the Market the code is the only way in.
+        assertTrue("beta features", Supporter.betaOn(context))
+        assertTrue("the Market", Supporter.has(context, BetaCodes.SCOPE_BETA, keys))
+        // And the builds those features arrive in, because that is what supporting buys.
+        assertEquals(true, channel)
+    }
+
+    @Test fun `a code without the beta scope leaves both switches alone`() {
+        var channel: Boolean? = null
+        Supporter.redeem(context, mint(keysScope), keys = keys, onBetaChannel = { channel = it })
+        assertFalse(Supporter.betaOn(context))
+        assertNull("the channel is not touched", channel)
+        assertTrue("but the code is still good for what it carries", Supporter.has(context, BetaCodes.SCOPE_KEYS, keys))
+    }
+
+    @Test fun `turning the betas off afterwards sticks`() {
+        Supporter.redeem(context, mint(beta), keys = keys, onBetaChannel = {})
+        Supporter.setBetaOn(context, false)
+        // Redeeming the same code again is the only way back through that door, and it is the same code.
+        Supporter.redeem(context, mint(beta), keys = keys, onBetaChannel = { error("should not touch the channel again") })
+        assertFalse("still off, because the person turned it off", Supporter.betaOn(context))
+    }
+
     @Test fun `removing a code takes effect at once, and doesn't leave the old answer behind`() {
         Supporter.redeem(context, mint(beta or keysScope), keys = keys)
         Supporter.setBetaOn(context, true)

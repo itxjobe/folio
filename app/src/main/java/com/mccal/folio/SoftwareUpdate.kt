@@ -25,6 +25,22 @@ import java.security.MessageDigest
  */
 internal object SoftwareUpdate {
     private const val LATEST = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
+
+    /**
+     * Where betas come from: a repository of its own, holding releases and no code.
+     *
+     * It has to be **public**. Folio reads GitHub's plain releases API with no credentials at all - that is what
+     * keeps a source from telling one user from another (T13), and a token shipped inside an MIT app is a token
+     * everyone has. Private would mean an account system or a server, and Folio has neither.
+     *
+     * Public is safe here, because the APK is not what is gated: the Market inside it needs a supporter's code, and
+     * an update only installs if it is signed with the same key as the copy already on the phone ([sameSigner]). A
+     * stranger's build cannot become an update, and a stranger's download cannot become the store.
+     *
+     * A beta must therefore be signed with the release keystore. One signed with anything else installs on nothing.
+     */
+    private const val BETA_RECENT = "https://api.github.com/repos/McCal-Codes/folio-beta/releases?per_page=15"
+
     // GitHub's "latest" skips pre-releases, so the beta channel reads the recent list and takes the newest.
     private const val RECENT = "https://api.github.com/repos/McCal-Codes/folio/releases?per_page=15"
     private const val PREFS = "software_update"
@@ -238,8 +254,17 @@ internal object SoftwareUpdate {
         context.getSharedPreferences(PREFS, 0).edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         status.value = withContext(Dispatchers.IO) {
             runCatching {
-                val candidates = if (beta(context)) org.json.JSONArray(get(RECENT)).let { list -> (0 until list.length()).map(list::getJSONObject) }
-                    else listOf(JSONObject(get(LATEST)))
+                // On the beta channel, the beta repository and the public one together: a supporter shouldn't be
+                // stranded on an old beta when a newer stable release goes out, and shouldn't miss a beta either.
+                val candidates = if (beta(context)) {
+                    val betas = runCatching { org.json.JSONArray(get(BETA_RECENT)) }.getOrNull()
+                    val public = runCatching { org.json.JSONArray(get(RECENT)) }.getOrNull()
+                    // One of the two may fail (an empty repository answers 404); both failing is a failed check.
+                    if (betas == null && public == null) error(context.getString(R.string.no_release_has_an_apk))
+                    listOfNotNull(betas, public).flatMap { list -> (0 until list.length()).map(list::getJSONObject) }
+                } else {
+                    listOf(JSONObject(get(LATEST)))
+                }
                 val newest = candidates.filter { !it.optBoolean("draft") }.mapNotNull(::releaseOf)
                     .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error(context.getString(R.string.no_release_has_an_apk))
                 if (!isNewer(newest.version, installedVersion(context))) Status.UpToDate

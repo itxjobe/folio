@@ -176,10 +176,12 @@ internal object MarketAccess {
     /**
      * A supporter's code opens the Market through the same scope that opens every other early feature, and through
      * the same beta switch: one code, one page to redeem it on, one switch to step back off the betas.
+     *
+     * Beta Updates on its own no longer opens it. That switch is about which builds you get, and the store is what
+     * a supporter gets for supporting.
      */
     fun isOpen(context: Context): Boolean = MarketFeature.isEnabled(
         packageName = context.packageName,
-        onBeta = runCatching { SoftwareUpdate.beta(context) }.getOrDefault(false),
         hasEarlyCode = runCatching { Supporter.has(context, BetaCodes.SCOPE_BETA) }.getOrDefault(false),
     )
 }

@@ -2106,10 +2106,10 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
             SoftwareUpdate.Mode.MANUAL -> stringResource(R.string.folio_only_checks_when_you_open_this_pag)
         })
         IosMenuRow(stringResource(R.string.beta_updates), listOf(false to "Off", true to stringResource(R.string.folio_beta)), beta, { beta = it; SoftwareUpdate.setBeta(context, it) }, tag = "update-beta")
-        // What Beta Updates gets you right now, said plainly, so nobody has to guess what they're missing.
-        if (!MarketAccess.isOpen(context)) CardNote(stringResource(MARKET_NOT_YET))
         CardNote(if (beta) "You'll get Folio betas as well as public releases. Betas have new features first and may have bugs: please report them in Help › Report a Bug."
             else "Turn on to try new features before they're released. If you're on a beta and turn this off, you'll stay on it until a newer public release.")
+        // A supporter's code turns this on by itself, so say where it came from rather than leaving them to wonder.
+        if (beta && Supporter.has(context, BetaCodes.SCOPE_BETA)) CardNote(stringResource(R.string.a_supporter_code_turned_this_on_you_can))
     }
     CardNote(stringResource(R.string.every_update_is_checked_against_its_publ), Modifier.padding(horizontal = 16.dp))
 }

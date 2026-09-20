@@ -55,13 +55,32 @@ internal object Supporter {
     private fun stored(context: Context): String? =
         context.getSharedPreferences(PREFS, 0).getString(CODE, null)?.takeIf { it.isNotBlank() }
 
-    /** Checks a code and keeps it when it's good. The result is what Settings shows the person. */
+    /**
+     * Checks a code and keeps it when it's good. The result is what Settings shows the person.
+     *
+     * A code carrying the beta scope turns two things on as it lands, both of which the person can turn off again:
+     *
+     * - **Beta features**, because otherwise a supporter redeems a code and nothing happens. The switch is what
+     *   lets them step back off early access, and it defaults off, which was fine while Beta Updates opened the
+     *   Market as well and is a trapdoor now that a code is the only way in.
+     * - **Beta Updates**, so the builds come too. Supporting Folio buys the store *and* the releases it is in;
+     *   asking someone to find a second switch in another page to get what they paid for is a way to lose them.
+     *
+     * Only on the way in, and only the first time: turning either off afterwards sticks, because redeeming again
+     * with the same code is refused before it reaches here.
+     */
     fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now(),
-        keys: List<String> = keys(context)): BetaCodes.Result {
+        keys: List<String> = keys(context), onBetaChannel: (Boolean) -> Unit = { SoftwareUpdate.setBeta(context, it) },
+    ): BetaCodes.Result {
         val result = BetaCodes.verify(text, keys, today, BetaKeys.WITHDRAWN)
         if (result is BetaCodes.Result.Valid) {
+            val first = stored(context) == null
             checked = null
             context.getSharedPreferences(PREFS, 0).edit().putString(CODE, BetaCodes.group(text)).apply()
+            if (first && BetaCodes.SCOPE_BETA in result.code.scopes) {
+                setBetaOn(context, true)
+                runCatching { onBetaChannel(true) }
+            }
         }
         return result
     }

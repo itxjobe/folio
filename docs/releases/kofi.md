@@ -100,8 +100,9 @@ So nobody can forge a code. Three things that are worth being clear-eyed about, 
 - **Folio is MIT, and the check runs on the phone.** Anyone can build from source with the check removed. No
   client-side check survives that, and pretending otherwise would mean shipping something closed. The answer is that
   the free core is worth having on its own, so there's little to gain.
-- **Beta Updates opens the Market too**, by design - the whole point is testers. If early access should be the only
-  early door, that switch has to close first.
+- **Beta Updates used to open the Market too.** It doesn't since 2026-09-19 (McCal): the store is what a supporter
+  gets for supporting, and a switch anyone can flick is not that. It goes the other way round now - redeeming a code
+  switches Beta Updates on, so a supporter gets the builds as well as the store, and can turn that off on its own.
 
 Keeping the key safe, in order of how much it buys:
 
@@ -200,42 +201,79 @@ give: a supporter code with an end date. The months are Folio's, not Ko-fi's.
 The rule from the top of this file still decides everything below: a tier buys a head start and extras on the side.
 Nothing already shipped moves behind one.
 
+### The rule to print above the tiers
+
+Folio is open and free, so the membership has to be patronage rather than a paywall, and it has to say so where
+someone deciding can read it (McCal, 19 Sep 2026):
+
+> Folio remains Folio whether you support development or not. Supporters help fund continued development and get a
+> few extras along the way.
+
+That sentence answers the question an open-source user asks quietly: *are features about to disappear behind a
+paywall?* It belongs above the tier list on the page, and in the announcement post.
+
+### What can actually be promised every month
+
+A benefit that can't be delivered monthly turns into a debt. Measured against what Folio has today:
+
+| Benefit | Real now? |
+|---|---|
+| Supporters-only posts, before the public ones | **Yes** — the 0.6.5 posts are written |
+| Design previews of what's being built | **Yes** — the Mockup Lab produces them already |
+| A vote on what comes next | **Yes** — the supporters post carries one |
+| A code for the Market before it ships | **Yes** — `beta` scope, checked offline |
+| Folio Keys, the keyboard extras | **Yes** — `keys` scope, merged for 0.6.5 |
+| Beta builds before they're public | **Yes**, once 0.6.5 is out |
+| Preview and experimental builds | **Yes**, same channel as the betas |
+| A weekly "This week in Folio" post | **Only if it's written** — the information already exists as work happens |
+| A supporter Discord role | **No. There is no Folio Discord.** The README's Discord is McCal's own handle and
+  says "until there's a community". Don't promise a role until a server exists |
+| A name in supporter acknowledgements | **No** — there's no supporters list in the app or the repository yet |
+
+The last two are the only places the usual membership advice doesn't fit Folio yet. Build them or leave them out;
+don't list them.
+
 ### The tiers
 
-Drafts, not copy — **the words are McCal's.** Each is built from what a code actually opens today: the Market before
-it ships (`beta`), Folio Keys (`keys`), and the supporters-only posts.
+Drafts, not copy — **the words are McCal's.** Three tiers, as Ko-fi's own guidance suggests, with the middle one as
+the obvious choice. Two naming schemes are on the table, and the pricing is the real decision:
 
-| | Tier name (≤30) | Price | What it is |
+**A — what's built and rendered (Coffee $3 / Early access $5 / Fold tester $10).** Names say what you get, and the
+prices sit close to the $3 shop item. Tier images exist at `lab/walls/kofi-tiers/`.
+
+**B — patronage framing (Coffee $3 / Backer $7 / Builder $15).** Names say what you *are*, not what you unlock, which
+suits patronage and leaves the perks free to change. $15 reads as funding the project rather than buying a launcher.
+Needs the images re-rendered with the new names.
+
+Either way the middle tier should be visually and structurally dominant: more benefits, the "everything in Coffee,
+plus" framing, and a louder card. No BEST VALUE, no fake scarcity — the goal is patronage, not a pricing page.
+
+| | Coffee | Middle (Early access / Backer) | Top (Fold tester / Builder) |
 |---|---|---|---|
-| 1 | `Coffee` | $3/mo | The posts: betas announced first, design previews, the vote |
-| 2 | `Early access` | $5/mo | A code for the Market and Folio Keys, renewed while you're a member |
-| 3 | `Fold tester` | $10/mo | The above, plus beta builds first and requests read first |
+| Supporters-only posts | ✓ | ✓ | ✓ |
+| Design previews | ✓ | ✓ | ✓ |
+| A vote on what's next | ✓ | ✓ | ✓ |
+| A code for the Market before it ships | | ✓ | ✓ |
+| Folio Keys | | ✓ | ✓ |
+| A new code when yours runs out | | ✓ | ✓ |
+| Beta and preview builds | | | ✓ |
+| Tweak and theme requests read first | | | ✓ |
 
-**Tier 1 — Coffee, $3/mo**
+Each tier still needs its own description and welcome message on Ko-fi; the welcome message is where a code goes, or
+the worker sends it instead (see below). The tier images use the same Folio visual system but different subjects:
+Coffee is the brand gradient alone, the middle tier shows the Market, the top shows a real phone and the Roadmap.
 
-- Benefits: `Supporters-only posts, before the public ones` · `Design previews of what I'm building` ·
-  `A vote on what comes after each update`
-- Description: a coffee towards test devices and more time to build. You see what's coming first and say what you
-  want next.
-- Welcome message: thanks, what to expect (a post per update), and the link to the GitHub releases page.
+### Positioning, which is McCal's call
 
-**Tier 2 — Early access, $5/mo**
+The shop description he wrote on 18 Sep opens with "a clean, iPhone-style Home Screen for Android — with the
+jailbreak tweaks I always wanted". An alternative framing was suggested on 19 Sep: lead with **"Make Android feel
+intentional"** and describe Folio as a polished, customizable launcher for a calmer home screen, keeping the
+iOS-inspired work as *how* rather than *what*. The argument for it: it widens the audience past people who want an
+iPhone clone, and Play's store-listing guidance warns against metadata that implies a relationship with another
+company's product — which matters for the Play listing later, not for GitHub or Ko-fi today.
 
-- Benefits: everything in Coffee, plus `A supporter code: the Market before it ships` ·
-  `Folio Keys, the keyboard extras` · `A new code whenever the old one runs out`
-- Description: the Market is how 0.7.0 hands out themes, tweaks and layouts. Everything in it is already in Folio's
-  Settings, so this is a head start, not a paywall.
-- Welcome message: the code, and that it goes in Settings › Supporter. The worker can send this instead — see below.
-
-**Tier 3 — Fold tester, $10/mo**
-
-- Benefits: everything in Early access, plus `Beta builds as soon as they're built` ·
-  `Your tweak and theme requests read first` ·  `A thanks line in the app, if you want one`
-- Description: for people who want to break it before everyone else does, on folds, tall phones and small windows.
-- Welcome message: the code, how to get on the beta track, and how to send a bug report from the app.
-
-The thanks line is **not built** — there is no supporters list in the app today. Either build it before promising it,
-or leave that benefit out.
+Both are defensible and the words are his. What shouldn't happen is the two coexisting: the Ko-fi page, the README
+and the Play listing should make the same promise.
 
 ### One-off support: a month per $5
 
@@ -269,6 +307,58 @@ Two things this does not change: a pre-0.6.5 build has no key at all, and a buil
 version 2 code as "not a Folio code" — so months codes are for 0.6.5 and later. And `--months` takes 1 to 15; for
 longer, use `--expires`.
 
+### Two posts, in this order
+
+The release first, the ask second — a day or two apart.
+
+**Day 1 — Folio 0.6.5 is out.** Lead with the software: what changed, a short screen recording, the download button,
+and the trust layer that a launcher needs because it asks for permissions that look alarming out of context — the APK
+checksum, the VirusTotal scan and the permissions documentation. Nothing about money.
+
+**Day 2 or 3 — Support Folio.** Now the tiers, with the "Folio remains Folio" line above them. The order matters: it
+makes the message *here is something useful I shipped*, before *here is where you can help*.
+
+### The announcement post
+
+McCal's own draft (19 Sep 2026), with two facts corrected: there is no Folio Discord yet, and there is no supporters
+acknowledgements list, so neither is promised here.
+
+> **Folio now has a way to support development.**
+>
+> I've been building Folio because I wanted an Android launcher that feels deliberate, polished and customizable
+> without trying to fight the platform it runs on.
+>
+> As the project has grown, so has the amount of work behind it: testing devices, maintaining releases, building the
+> Market and package system, fixing edge cases, documentation, infrastructure and everything else that comes with
+> maintaining an actual piece of software.
+>
+> So I've opened three optional supporter tiers: **<tier names>**.
+>
+> Supporting Folio is not required to use the project. The goal is not to put the launcher behind a paywall.
+>
+> Supporters instead help fund continued development and get a few extras depending on the tier: development
+> updates, previews of what I'm building, the Market before it ships, preview builds, and a say in what comes next.
+>
+> If Folio has made your phone a little better and you want to help me keep building it, you can now do that.
+>
+> And if you cannot, or simply do not want to pay, keep using Folio, reporting bugs, sharing feedback and showing
+> people what you've built with it. That helps too.
+>
+> Thank you for giving this weird little launcher project a chance.
+
+### A supporter benefit that pays for itself
+
+"This week in Folio" — foldables: fixed X; Market: added Y; gestures: trying Z; one thing that broke; next: R. The
+information already exists as the work happens, which is what makes it sustainable, and it's the kind of thing that
+builds credibility faster than polished copy. It is also the honest version of "development updates" in the tier
+list: promise it only once one has been written.
+
+### Already done, and worth knowing
+
+`.github/FUNDING.yml` already points GitHub's Sponsor button at `ko_fi: mccal`, so the repository side of the funnel
+is in place. The order the rest of the funnel should read in: **Download Folio** first, then what it does, then the
+source, the documentation, the community, and support last.
+
 ## The page itself
 
 Things Ko-fi asks for, with what Folio needs each one to say. **The words are McCal's — these are placeholders, not
@@ -287,5 +377,5 @@ copy:**
 - **Settings › Support Folio** — a row that opens the page.
 - **Settings › Supporter** — redeem a code, see what it unlocks and when it runs out, remove it, and turn the beta
   features it carries on or off. The Market's own settings page points here rather than offering a second box.
-- The Market is hidden entirely without a code, Beta Updates, or a dev build (`MarketFeature`), and it says so where
+- The Market is hidden entirely without a code or a dev build (`MarketFeature`), and it says so where
   someone would look for it.
