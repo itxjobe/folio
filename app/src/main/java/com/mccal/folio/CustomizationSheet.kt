@@ -354,10 +354,11 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         }
                     }
                     if (page == CustomizationPage.TODAY) SettingsCard(stringResource(R.string.left_of_home)) {
-                        val leftContext = androidx.compose.ui.platform.LocalContext.current
-                        // The Home pager's page count changes with this; rebuild the screen once.
+                        // This used to ask for the screen to be rebuilt, through a cast that was always null in a
+                        // sheet, so it never happened — and the pager has been following the page count from state
+                        // on its own ever since. Restarting here would now throw you out of Settings to say so.
                         IosSegmented(listOf("TODAY" to stringResource(R.string.today_view), "DISCOVER" to stringResource(R.string.google_discover), "NONE" to "None"), state.leftPage,
-                            { model.setLeftPage(it); leftContext.asActivity()?.recreate() }, Modifier.padding(vertical = 6.dp), tag = "left-page")
+                            { model.setLeftPage(it) }, Modifier.padding(vertical = 6.dp), tag = "left-page")
                         CardNote(if (state.leftPage == "NONE") stringResource(R.string.nothing_to_the_left_of_home_swiping_righ)
                             else stringResource(R.string.today_view_is_iphone_s_widget_page_searc))
                         if (state.leftPage == "TODAY") {
