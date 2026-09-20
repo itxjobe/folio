@@ -40,6 +40,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,6 +103,18 @@ internal fun MarketScreen(
     /** Folio's own Settings, shown in the Settings tab. Without it the tab shows the Market's settings on their own. */
     settingsContent: (@Composable () -> Unit)? = null,
 ) {
+    // Coming back from Play or Obtainium is how an external app arrives, and there is no other signal that it did:
+    // Folio isn't told, it has to look again. This counts the returns, and the lookup is keyed on it.
+    var returns by remember { mutableIntStateOf(0) }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycle) {
+        val watcher = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) returns++
+        }
+        lifecycle.lifecycle.addObserver(watcher)
+        onDispose { lifecycle.lifecycle.removeObserver(watcher) }
+    }
+
     // Saveable, so folding, rotating or leaving and coming back keeps the tab and the package that was open.
     var tab by rememberSaveable { mutableStateOf(MarketTab.FEATURED) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -149,11 +163,27 @@ internal fun MarketScreen(
         refresh()
     }
 
+    /** An external app whose "where from" sheet is open. */
+    var choosing by rememberSaveable { mutableStateOf<String?>(null) }
+
     fun apply(entry: MarketEntry) {
         confirming = null
         // One at a time. Two installs at once would each write the list of what's installed from a copy read before
         // the other started, so one package would be applied to Home and forgotten, with no way left to remove it.
         MarketWork.install(entry.id, entry.name) { session.get(entry) }
+    }
+
+    val appContext = context.applicationContext
+
+    /**
+     * Get, for whichever kind of package this is: an app of its own goes to the sheet that says where it installs
+     * from, or straight to the app when Android already has it. Everything else goes to the confirm sheet.
+     */
+    fun onExternalOrConfirm(entry: MarketEntry) {
+        val manifest = entry.entry.manifest
+        if (!MarketExternalApp.isExternal(manifest)) { confirming = entry.id; return }
+        val already = MarketExternalApp.installedAppId(appContext, manifest)
+        if (already != null) MarketExternalApp.open(context, already) else choosing = entry.id
     }
 
     // What finished while nobody was looking. Closing the Market during a download used to lose the message and the
@@ -225,6 +255,9 @@ internal fun MarketScreen(
         return
     }
 
+    // Every row and page asks the same question about an external app, and re-asks it when Folio
+    // comes back to the front.
+    CompositionLocalProvider(LocalAppsChanged provides returns) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val regular = fitsRegularHomeLayout(maxWidth.value, maxHeight.value, LocalConfiguration.current.classScale)
         val split = regular && maxWidth.value >= 700f
@@ -288,7 +321,7 @@ internal fun MarketScreen(
                             onStyle = { chosen -> style = chosen; session.prefs.featuredStyle = chosen },
                             onIntroduce = { session.prefs.introductionSeen = false; introducing = true },
                             onOpen = { openId = it },
-                            onGet = { confirming = it.id },
+                            onGet = { onExternalOrConfirm(it) },
                             onRemove = { id, name -> remove(id, name) },
                         )
                     }
@@ -303,7 +336,7 @@ internal fun MarketScreen(
                             source = open.source,
                             showBack = !split,
                             onBack = { openId = null },
-                            onGet = { confirming = open.id },
+                            onGet = { onExternalOrConfirm(open) },
                             onRemove = { remove(open.id, open.name) },
                             onTryAgain = { tryAgain(open.id, open.name) },
                             onShare = { share(context, it) },
@@ -430,6 +463,29 @@ internal fun MarketScreen(
                 }
             }
         }
+        choosing?.let { id ->
+            entries.firstOrNull { it.id == id }?.entry?.manifest?.let { manifest ->
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { choosing = null }) {
+                    Box(
+                        Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
+                            .clickable(enabled = false) {},
+                    ) {
+                        MarketExternalSheet(
+                            manifest = manifest,
+                            onPick = { from ->
+                                choosing = null
+                                if (!MarketExternalApp.install(context, from)) {
+                                    say(context.getString(R.string.folio_couldn_t_open_1_s_on_this_phone,
+                                        context.getString(MarketExternalApp.label(from.store))))
+                                }
+                            },
+                            onCancel = { choosing = null },
+                        )
+                    }
+                }
+            }
+        }
         confirming?.let { id ->
             entries.firstOrNull { it.id == id }?.let { entry ->
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { confirming = null }) {
@@ -454,6 +510,7 @@ internal fun MarketScreen(
                 color = Color.White, modifier = Modifier.align(Alignment.Center).padding(32.dp),
             )
         }
+    }
     }
 }
 
@@ -729,11 +786,33 @@ private fun MarketRow(
                 Text(stringResource(R.string.refused), color = Color(0xFFFF453A), fontSize = 13.sp)
             entry.entry.needs.isNotEmpty() -> Text(stringResource(R.string.needs_a_newer_folio), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
             update -> MarketActionButton(R.string.update, name, onGet)
+            // An app of its own isn't installed by Folio, so what it offers is Get until Android has it, then Open.
+            MarketExternalApp.isExternal(entry.entry.manifest) ->
+                MarketActionButton(
+                    if (externalAppId(entry.entry.manifest) != null) R.string.open else R.string.get, name, onGet,
+                )
             installed != null -> MarketActionButton(R.string.remove, name, onRemove)
             else -> MarketActionButton(R.string.get, name, onGet)
         }
     }
 }
+
+/**
+ * The package name of an external app that is on this phone, or null.
+ *
+ * Asked of Android rather than remembered, because the app can arrive or go while Folio is open - the person
+ * leaves for Play and comes back - and a remembered answer would be wrong exactly then. It's a cheap lookup, and
+ * it is only asked for a package that says it is an app.
+ */
+@Composable
+private fun externalAppId(manifest: com.mccal.folio.market.PackageManifest?): String? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val resumed = LocalAppsChanged.current
+    return remember(manifest, resumed) { MarketExternalApp.installedAppId(context, manifest) }
+}
+
+/** Bumped when Folio comes back to the front, so "is it installed yet" is asked again after a trip to Play. */
+internal val LocalAppsChanged = androidx.compose.runtime.compositionLocalOf { 0 }
 
 /**
  * The Market's own settings, for when it's shown without the launcher's Settings behind it (the tests, and any future
@@ -814,6 +893,8 @@ private fun MarketPackagePage(
     }
     val name = entry.manifest?.name?.english ?: entry.id
     val backLabel = stringResource(R.string.back)
+    val external = MarketExternalApp.isExternal(entry.manifest)
+    val onPhone = if (external) externalAppId(entry.manifest) else null
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         if (showBack) {
             Row(Modifier.fillMaxWidth().clickable(onClickLabel = backLabel, onClick = onBack).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -862,6 +943,7 @@ private fun MarketPackagePage(
                     Text(stringResource(R.string.its_source_pulled_it_1_s, revoked), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
                 }
                 MarketWork.busyId == entry.id -> InstallProgress(MarketWork.progress, words = true, name = name)
+                external -> MarketActionButton(if (onPhone != null) R.string.open else R.string.get, name, onGet)
                 installed != null -> MarketActionButton(R.string.remove, name, onRemove)
                 else -> MarketActionButton(R.string.get, name, onGet)
             }
@@ -928,6 +1010,20 @@ private fun MarketPackagePage(
                     color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
                 )
                 installed?.let { Text(stringResource(R.string.installed_1_s, it.version), color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }
+                if (external) {
+                    // Where it comes from, and whether Android has it - the two things the store can honestly say
+                    // about an app it doesn't install.
+                    val stores = entry.manifest?.via.orEmpty()
+                        .map { stringResource(MarketExternalApp.label(it.store)) }.joinToString()
+                    Text(
+                        stringResource(R.string.get_it_on_1_s, stores),
+                        color = Color.White.copy(alpha = .85f), fontSize = 14.sp,
+                    )
+                    Text(
+                        stringResource(R.string.on_this_phone_1_s, onPhone ?: stringResource(R.string.not_yet)),
+                        color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                    )
+                }
             }
         }
         SheetGroup(Modifier.padding(bottom = 24.dp)) {

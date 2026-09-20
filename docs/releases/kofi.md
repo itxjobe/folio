@@ -158,13 +158,24 @@ README has the setup, and the whole thing is optional — start with the shop it
 
 A draft, not copy — **the words are McCal's.** Ko-fi asks for a title, a price, a description and an image.
 
-- **Title:** Folio early access
-- **Price:** $3 (McCal, 2026-09-18; $2 first, raised once the fees were on the table). A card fee is roughly a fixed
-  30c plus a few percent, and Ko-fi's own cut applies unless the account has Gold, so about $2.20 of a $3 sale
-  arrives - against roughly $1.30 of a $2 one, because the fixed part is what bites at small prices. It also matches
-  Ko-fi's default coffee. Check the live numbers on the Ko-fi page rather than trusting these.
-- **Image:** `~/Downloads/folio-kofi-shop.jpg`
-- **Digital file:** `~/Downloads/folio-early-access.txt` (re-mint it; see Where things stand)
+**Three items, one per length** (McCal, 19 Sep 2026), so one price means one month wherever someone pays and the
+$3 item no longer undercuts Backer at $7/month:
+
+| Title | Price | Digital file holds |
+|---|---|---|
+| Folio early access · 1 month | $3 | a `--months 1` code |
+| Folio early access · 2 months | $6 | a `--months 2` code |
+| Folio early access · 4 months | $12 | a `--months 4` code |
+
+$3 stays the entry price he settled on 18 Sep ($2 first, raised once the fees were on the table): a card fee is
+roughly a fixed 30c plus a few percent, and Ko-fi's own cut applies unless the account has Gold, so about $2.20 of a
+$3 sale arrives against roughly $1.30 of a $2 one, because the fixed part is what bites at small prices. It also
+matches Ko-fi's default coffee and the Coffee tier. Check the live numbers on the Ko-fi page rather than trusting
+these.
+
+- **Image:** `~/Downloads/folio-kofi-shop.jpg` (the same one on all three)
+- **Digital file:** one per item, each holding a months code. Because the month starts when the code is redeemed,
+  these files never go stale and never need re-uploading.
 
 Description (McCal, 2026-09-18). Every line is either one of his own sentences from the README, a fact about what the
 app does, or - the last line - his answer about where the money goes. Nothing here was written for him. One factual
@@ -287,16 +298,16 @@ becomes real with the first one, and *This week in Folio* is the shape suggested
 Both must keep saying the same thing about what Folio *does*; only the emphasis changes. When one is edited, check
 the other.
 
-### One-off support: a month per $5
+### One-off support: a month per $3
 
-A one-off payment earns a dated code: $5 → one month, $10 → two, $20 → four. Three ways to do it, cheapest first.
+**Decided (McCal, 19 Sep 2026):** a one-off payment earns a dated code — **$3 → one month, $6 → two, $12 → four** —
+matching the Coffee tier, so nobody can buy cheaper access than a member gets. Three ways to do it, cheapest first.
 
-1. **Shop items, one per length.** "Early access · 1 month", "· 3 months", "· 6 months", each with a code file
-   attached from a pool minted for that horizon. No code to write, works while asleep, and it's the way the shop item
-   already works today.
+1. **Shop items, one per length.** "Folio early access · 1 month", "· 2 months", "· 4 months", each with a months
+   code attached. Nothing to run, works while asleep, and the files never go stale.
 2. **Tips, through the worker.** `tools/kofi-worker/` picks a pool by tier name, by shop item, by a single tip
    threshold (`tipFrom` / `tipPool`), and — since 19 Sep 2026 — by amount: `tipBands` is a list of `{from, pool}`, so
-   $5, $10 and $20 land in the one-month, two-month and four-month pools. A payment earns the largest band it clears.
+   $3, $6 and $12 land in the one-month, two-month and four-month pools. A payment earns the largest band it clears.
 3. **Ko-fi's own annual option**, if it suits — a membership paid yearly is still a membership, and the worker sees it
    as `Subscription`.
 
@@ -334,9 +345,9 @@ The gap in the cheap path: a welcome message fires once, so a member's code has 
 member codes with a longer window (`--months 3`) and post a fresh one to the supporters feed when it runs out — the
 posts are a benefit anyway — or deploy the worker, which mints one month per payment and needs no post at all.
 
-**The conflict to settle before any of this goes live:** the shop item as drafted is $3 for a code that *never*
-expires, while Backer at $7/month leads on that same early access. Whoever notices will buy the $3 item instead, and
-they'll be right. Recommended fix, which also makes one price mean one month everywhere:
+**Settled (McCal, 19 Sep 2026).** The shop item was $3 for a code that *never* expired, while Backer at $7/month
+leads on that same early access — anyone who noticed would have bought the $3 item instead, and been right. One price
+now means one month everywhere:
 
 | One-off | Code |
 |---|---|
@@ -344,9 +355,18 @@ they'll be right. Recommended fix, which also makes one price mean one month eve
 | $6 | `--months 2` |
 | $12 | `--months 4` |
 
-and the membership promise becomes "supporter access stays on while your membership does". `tipBands` in the worker
-then reads `[{from:3,pool:'months1'},{from:6,pool:'months2'},{from:12,pool:'months4'}]`. This replaces the earlier
-"$5 = one month" note; it needs McCal's yes because it re-prices an item he priced himself.
+and the membership promise is "supporter access stays on while your membership does". `tipBands` in the worker reads
+`[{from:3,pool:'months1'},{from:6,pool:'months2'},{from:12,pool:'months4'}]`. Mint the pools with:
+
+```bash
+cd ~/.folio
+for m in 1 2 4; do
+  python3 ~/dev/folio-0.7.0/scripts/beta-code.py pool --key supporter-key.pem --scopes beta,keys \
+    --months $m --count 50 --pool months$m >> pool.sql
+done
+```
+
+`pool.sql` holds real codes, so it never gets committed.
 
 ### Two posts, in this order
 

@@ -873,4 +873,19 @@
     <string name="featured_page_1_d_of_2_d">Featured, page %1$d of %2$d</string>
     <string name="a_supporter_code_turned_this_on_you_can">A supporter code turned this on. You can turn it off here; the code stays.</string>
     <string name="your_code_also_switched_on_beta_updates">Your code also switched on Beta Updates, so you get the builds these features arrive in. Software Update can turn that off on its own.</string>
+    <string name="play_store">Play Store</string>
+    <string name="f_droid">F-Droid</string>
+    <string name="obtainium">Obtainium</string>
+    <string name="install_from_google_play">Install from Google Play</string>
+    <string name="install_from_f_droid">Install from F-Droid</string>
+    <string name="install_from_the_repository_s_releases">Install from the repository\'s releases, and keep updating from there</string>
+    <string name="folio_doesn_t_install_apps_itself_choose">Folio doesn\'t install apps itself. Choose where to get it; Android takes it from there.</string>
+    <string name="folio_never_downloads_or_installs_an_app">Folio never downloads or installs an app. It opens the store you pick, and notices afterwards when the app is on your phone.</string>
+    <string name="on_this_phone">On this phone</string>
+    <string name="not_yet">Not yet</string>
+    <string name="installed_from_1_s">Installed from %1$s</string>
+    <string name="get_it_on">Get it on</string>
+    <string name="folio_couldn_t_open_1_s_on_this_phone">Folio couldn\'t open %1$s on this phone</string>
+    <string name="get_it_on_1_s">Get it on: %1$s</string>
+    <string name="on_this_phone_1_s">On this phone: %1$s</string>
 </resources>
