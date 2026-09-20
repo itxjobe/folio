@@ -104,6 +104,7 @@
     <string name="stay_awake_on_the_cover_screen">Stay awake on the cover screen</string>
     <string name="samsung_locks_the_phone_when_you_fold_on">Samsung locks the phone when you fold on any home screen. Folio briefly steps aside while you close it so the cover screen stays on. Needs Settings › Display › Continue apps on cover screen › Always.</string>
     <string name="save_the_current_home_layout_folders_wid">Save the current Home layout, folders, widgets, and layout settings. </string>
+    <string name="save_the_current_home_layout_folders_wid_2">Save the current Home layout, folders, widgets, layout settings, and the packages you got from the Market. </string>
     <string name="restore">Restore</string>
     <string name="restore_shows_a_review_before_changing_h">Restore shows a review before changing Home.</string>
     <string name="lock_cover">Lock Cover</string>

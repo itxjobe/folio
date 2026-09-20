@@ -571,7 +571,16 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         MenuDivider()
                         IosActionRow(stringResource(R.string.restore_from_backup), "layout-import", onClick = onImportLayout)
                     }
-                    CardNote(stringResource(R.string.save_the_current_home_layout_folders_wid) + stringResource(R.string.restore_shows_a_review_before_changing_h), Modifier.padding(horizontal = 4.dp))
+                    // A backup carries Market packages too, but only a phone that has the Market is told so: the row
+                    // that leads to it is hidden here as well, and naming a store the reader can't open explains
+                    // nothing. What the backup actually saves doesn't change either way.
+                    CardNote(
+                        stringResource(
+                            if (MarketAccess.isOpen(sheetContext)) R.string.save_the_current_home_layout_folders_wid_2
+                            else R.string.save_the_current_home_layout_folders_wid,
+                        ) + stringResource(R.string.restore_shows_a_review_before_changing_h),
+                        Modifier.padding(horizontal = 4.dp),
+                    )
                     LayoutHistoryCard(state, model, onClose)
                 }
                 CustomizationPage.SIDE_KEY -> SideKeyPage()
