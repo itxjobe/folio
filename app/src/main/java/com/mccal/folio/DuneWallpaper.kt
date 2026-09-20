@@ -240,6 +240,16 @@ internal fun SystemWallpaperParallax(pager: androidx.compose.foundation.pager.Pa
  *
  * Turning it off needs no restart: an opaque background over the same window hides the wallpaper, as it always did.
  */
+/**
+ * The activity behind a context. Compose inside a sheet or dialog hands out a wrapper rather than the activity, so
+ * `context as? Activity` there is null and whatever it guarded silently never happens.
+ */
+internal tailrec fun android.content.Context.asActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.asActivity()
+    else -> null
+}
+
 internal fun android.app.Activity.applyWallpaperWindow(system: Boolean) {
     val showing = window.attributes.flags and android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER != 0
     if (system && !showing) { recreate(); return }

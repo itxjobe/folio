@@ -252,7 +252,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     AppIconCard(onChanged = { model.refresh() })
                     SettingsCard(stringResource(R.string.background)) {
                         IosSegmented(listOf(true to stringResource(R.string.android_wallpaper), false to stringResource(R.string.folio_background)),
-                            state.systemWallpaper, { system -> model.setSystemWallpaper(system); (wallpaperContext as? android.app.Activity)?.applyWallpaperWindow(system) },
+                            state.systemWallpaper, { system -> model.setSystemWallpaper(system); wallpaperContext.asActivity()?.applyWallpaperWindow(system) },
                             Modifier.padding(vertical = 6.dp), tag = "background-choice")
                         if (state.systemWallpaper) CardAction(stringResource(R.string.change_android_wallpaper), onClick = {
                             runCatching { wallpaperContext.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SET_WALLPAPER), "Change wallpaper")
@@ -357,7 +357,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         val leftContext = androidx.compose.ui.platform.LocalContext.current
                         // The Home pager's page count changes with this; rebuild the screen once.
                         IosSegmented(listOf("TODAY" to stringResource(R.string.today_view), "DISCOVER" to stringResource(R.string.google_discover), "NONE" to "None"), state.leftPage,
-                            { model.setLeftPage(it); (leftContext as? android.app.Activity)?.recreate() }, Modifier.padding(vertical = 6.dp), tag = "left-page")
+                            { model.setLeftPage(it); leftContext.asActivity()?.recreate() }, Modifier.padding(vertical = 6.dp), tag = "left-page")
                         CardNote(if (state.leftPage == "NONE") stringResource(R.string.nothing_to_the_left_of_home_swiping_righ)
                             else stringResource(R.string.today_view_is_iphone_s_widget_page_searc))
                         if (state.leftPage == "TODAY") {
