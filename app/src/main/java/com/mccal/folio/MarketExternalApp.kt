@@ -11,13 +11,14 @@ import com.mccal.folio.market.PackageManifest
 /**
  * A package that is an app of its own: Keyd, an icon pack from Play, anything Android has to install itself.
  *
- * **Folio never downloads or installs an APK a source named.** It knows how to install one - that is how Software
- * Update works - and pointing that at a source would turn a launcher into an app store, which is a different thing
- * with a different permission story and the exact shape that gets a sideloaded app distrusted. So a listing here is
- * a pointer: Get opens Play, F-Droid or Obtainium, Android does the installing and the asking, and Folio's part is
- * to notice afterwards that the app arrived.
+ * By default a listing here is only a pointer: Get opens Play, F-Droid or Obtainium, Android does the installing
+ * and the asking, and Folio's part is to notice afterwards that the app arrived. Settings › Market › Installing
+ * apps adds the other way, where Folio downloads it itself - see [MarketApkInstall] for what that does and does
+ * not check. Either way the store says where the app comes from before anything is tapped.
  *
- * What a listing can't do is hide what it is. The store shows where it installs from before anything is tapped.
+ * **Noticing it arrived is the weak part**, and it is Android's rule, not a choice: a package Folio has no
+ * `<queries>` entry for is invisible to it, even one Folio installed itself. Keyboards and icon packs are found
+ * through the lookups below; anything else Folio can't see honestly keeps saying Get.
  */
 internal object MarketExternalApp {
 
@@ -42,11 +43,23 @@ internal object MarketExternalApp {
     }
 
     /**
+     * A number that has never been used before, for the caller to key its lookups on.
+     *
+     * The cache below lives in this object, which outlives the Market screen, while the counter that used to key
+     * it started again at 0 every time the store opened. So the second time the store was opened it asked for
+     * generation 1 and got the answer from the first time, and an app installed in between stayed "not yet"
+     * until Folio was killed. Minting the numbers here means an old answer can never match a new question.
+     */
+    fun appsChanged(): Int = generation.incrementAndGet()
+
+    private val generation = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /**
      * Every installed input method, worked out once per [generation] rather than once per row.
      *
      * Building the list is a binder call and the answer is the same for every package on the screen, so a list
-     * with several external listings asked Android the same question once a row. [generation] is bumped when
-     * Folio comes back to the front, which is the only moment the answer can have changed.
+     * with several external listings asked Android the same question once a row. [generation] comes from
+     * [appsChanged], called when Folio comes back to the front or has just installed something.
      */
     private fun keyboards(context: Context, generation: Int): Set<String> {
         cached?.let { (at, set) -> if (at == generation) return set }

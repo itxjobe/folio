@@ -26,6 +26,10 @@
         <package android:name="com.openai.chatgpt" />
         <!-- Good Lock's RegiStar, which can take over the side key (mentioned on the Side Key page). -->
         <package android:name="com.samsung.android.app.galaxyregistry" />
+        <!-- Keyd, Folio's own keyboard, listed in the Market as an app of its own. A keyboard has no launcher
+             icon, so the MAIN/LAUNCHER query below never finds one, and Android would keep answering "not
+             installed" even for a copy Folio installed itself. Naming it is the only way to be told. -->
+        <package android:name="com.mccal.keyd" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

@@ -77,6 +77,27 @@ internal object MarketWork {
     fun taken(): Finished? = finished.also { finished = null }
 
     /**
+     * Work that takes the same turn as an install - the ring, and nothing else starting while it runs - but says
+     * what happened itself rather than ending in an [InstallResult].
+     *
+     * Handing an app to Android is the one of these: the download and the checksum finish here, and whether the
+     * app arrived is answered later by [MarketInstallReceiver], through [MarketApkInstall.status]. Ending this
+     * with a made-up result would put "Android is installing it" on the screen before Android had asked, and
+     * leave it there whatever the answer turned out to be.
+     */
+    fun run(id: String, work: suspend () -> Unit): Boolean {
+        if (busy) return false
+        busyId = id
+        progress = MarketProgress(MarketProgress.Phase.APPLYING)
+        scope.launch {
+            runCatching { work() }
+            busyId = null
+            progress = null
+        }
+        return true
+    }
+
+    /**
      * Something small that has to finish whether or not a screen is open - adding the supporter source after a
      * code is redeemed, say. It isn't an install, so it doesn't touch [busy] and two of them may overlap.
      */

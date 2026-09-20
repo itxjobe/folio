@@ -33,15 +33,33 @@ import java.io.File
  */
 internal object MarketApkInstall {
 
-    /** Where an install has got to, for the store's banner. */
+    /**
+     * Where an install has got to, for the store's banner.
+     *
+     * [Handed] is not the end of it: Android's install screen comes next, and whether the app arrived is only known
+     * when [MarketInstallReceiver] hears back - which can be a while, and can be after the store was closed. So the
+     * store follows this rather than the call that started the install.
+     */
     sealed interface Status {
         data object Idle : Status
         data class Working(val name: String) : Status
+        /** Given to Android, which is now asking. Nothing to say here: its own screen is in front. */
         data class Handed(val name: String) : Status
+        /** Android installed it. [appId] is what it turned out to be, which Folio never told it. */
+        data class Installed(val name: String, val appId: String?) : Status
         data class Failed(val message: String) : Status
     }
 
     val status = MutableStateFlow<Status>(Status.Idle)
+
+    /**
+     * The store has said what happened, so it isn't said again the next time the store opens. An outcome nobody
+     * has read stays, which is how an install that finished while the Market was closed still gets announced.
+     */
+    fun seen() {
+        val now = status.value
+        if (now is Status.Installed || now is Status.Failed) status.compareAndSet(now, Status.Idle)
+    }
 
     /**
      * Whether Folio may install [entry] itself: the setting is on, and the listing has an APK with a checksum to
@@ -129,7 +147,13 @@ class MarketInstallReceiver : BroadcastReceiver() {
                 @Suppress("DEPRECATION") val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
-            PackageInstaller.STATUS_SUCCESS -> MarketApkInstall.status.value = MarketApkInstall.Status.Idle
+            PackageInstaller.STATUS_SUCCESS -> {
+                val handed = MarketApkInstall.status.value as? MarketApkInstall.Status.Handed
+                MarketApkInstall.status.value = MarketApkInstall.Status.Installed(
+                    name = handed?.name ?: intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME).orEmpty(),
+                    appId = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME),
+                )
+            }
             else -> MarketApkInstall.status.value = MarketApkInstall.Status.Failed(
                 intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                     ?.let { context.getString(R.string.android_didn_t_install_it_1_s, it) }

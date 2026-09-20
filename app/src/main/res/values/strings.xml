@@ -845,6 +845,7 @@
     <string name="information">Information</string>
     <string name="source_1_s">Source: %1$s</string>
     <string name="built_into_folio">Built into Folio</string>
+    <string name="its_source_didn_t_say_how_it_was_built">Its source didn\'t say how it was built</string>
     <string name="installed_1_s">Installed %1$s</string>
     <string name="share">Share</string>
     <string name="report_a_package">Report a package</string>
@@ -898,6 +899,9 @@
     <string name="install_with_folio">Install with Folio</string>
     <string name="folio_downloads_it_and_android_asks">Folio downloads it and Android asks before installing</string>
     <string name="android_is_installing_1_s">Android is installing %1$s</string>
+    <string name="install_it_with_folio_or_get_it_from">Install it with Folio, or get it from a store you already use.</string>
+    <string name="folio_checks_the_download_against_the">Folio checks the download against the checksum its source signed. Android asks before installing, and names the app itself.</string>
+    <string name="text_1_s_is_installed">%1$s is installed</string>
     <string name="installing_apps">Installing apps</string>
     <string name="folio_downloads_and_installs">Folio downloads and installs</string>
     <string name="open_play_f_droid_or_obtainium_instead">Open Play, F-Droid or Obtainium instead</string>

@@ -72,6 +72,35 @@ class MarketApkInstallTest {
         assertTrue(MarketApkInstall.status.value is MarketApkInstall.Status.Failed)
     }
 
+    @Test fun `what Android answers is what the store says, not what handing it over returned`() {
+        // The install screen is a different app and its answer comes back afterwards, so the outcome lives here
+        // rather than in the call that started it. Before this, the store said "Android is installing it" the
+        // moment the bytes were handed over, and left that on the screen whatever happened next.
+        MarketApkInstall.status.value = MarketApkInstall.Status.Handed("Keyd")
+        MarketInstallReceiver().onReceive(
+            context,
+            android.content.Intent()
+                .putExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, android.content.pm.PackageInstaller.STATUS_SUCCESS)
+                .putExtra(android.content.pm.PackageInstaller.EXTRA_PACKAGE_NAME, "com.mccal.keyd"),
+        )
+        val done = MarketApkInstall.status.value
+        assertTrue("$done", done is MarketApkInstall.Status.Installed)
+        done as MarketApkInstall.Status.Installed
+        assertEquals("Keyd", done.name)
+        // The package name is Android's answer, not something Folio told it: the session never named one.
+        assertEquals("com.mccal.keyd", done.appId)
+    }
+
+    @Test fun `an outcome nobody has read waits, and is only said once`() {
+        MarketApkInstall.status.value = MarketApkInstall.Status.Installed("Keyd", "com.mccal.keyd")
+        MarketApkInstall.seen()
+        assertEquals(MarketApkInstall.Status.Idle, MarketApkInstall.status.value)
+        // An install that is still running is not something anyone has read, so seen() leaves it alone.
+        MarketApkInstall.status.value = MarketApkInstall.Status.Working("Keyd")
+        MarketApkInstall.seen()
+        assertEquals(MarketApkInstall.Status.Working("Keyd"), MarketApkInstall.status.value)
+    }
+
     @Test fun `the checksum it checks is the one the index promised`() = runTest {
         val bytes = "pretend this is an apk".toByteArray()
         val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

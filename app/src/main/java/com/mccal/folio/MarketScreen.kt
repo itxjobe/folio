@@ -105,11 +105,11 @@ internal fun MarketScreen(
 ) {
     // Coming back from Play or Obtainium is how an external app arrives, and there is no other signal that it did:
     // Folio isn't told, it has to look again. This counts the returns, and the lookup is keyed on it.
-    var returns by remember { mutableIntStateOf(0) }
+    var returns by remember { mutableIntStateOf(MarketExternalApp.appsChanged()) }
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycle) {
         val watcher = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) returns++
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) returns = MarketExternalApp.appsChanged()
         }
         lifecycle.lifecycle.addObserver(watcher)
         onDispose { lifecycle.lifecycle.removeObserver(watcher) }
@@ -198,16 +198,30 @@ internal fun MarketScreen(
      */
     fun installApp(entry: MarketEntry) {
         if (MarketWork.busy) return
-        MarketWork.install(entry.id, entry.name) {
-            val ok = MarketApkInstall.install(context, entry.name, entry.entry) { url, onProgress ->
+        MarketWork.run(entry.id) {
+            MarketApkInstall.install(context, entry.name, entry.entry) { url, onProgress ->
                 session.sources.fetch(entry.source, url, entry.entry.size ?: 0, onProgress)
             }
-            InstallResult.Failed(
-                InstallResult.Reason.APPLY,
-                if (ok) context.getString(R.string.android_is_installing_1_s, entry.name)
-                else (MarketApkInstall.status.value as? MarketApkInstall.Status.Failed)?.message
-                    ?: context.getString(R.string.folio_couldn_t_download_that_app),
-            )
+        }
+    }
+
+    /**
+     * What became of an app Folio handed to Android. It arrives from a broadcast, not from [installApp], because
+     * Android's install screen is a different app and the answer comes back after it - so the banner is driven
+     * from here, and nothing is said while that screen is in front of everything anyway.
+     */
+    LaunchedEffect(Unit) {
+        MarketApkInstall.status.collect { status ->
+            when (status) {
+                is MarketApkInstall.Status.Installed -> {
+                    say(context.getString(R.string.text_1_s_is_installed, status.name))
+                    // Ask Android again whether the app is there, so the row stops saying Get.
+                    returns = MarketExternalApp.appsChanged()
+                    MarketApkInstall.seen()
+                }
+                is MarketApkInstall.Status.Failed -> { say(status.message); MarketApkInstall.seen() }
+                else -> Unit
+            }
         }
     }
 
@@ -975,8 +989,14 @@ private fun MarketPackagePage(
                 else -> MarketActionButton(R.string.get, name, onGet)
             }
             Spacer(Modifier.width(8.dp))
+            // The version beside the button. "Built in" belongs to Folio's own packages; a listing from a source
+            // that isn't installed yet was being called built in too, which is the one thing it certainly isn't.
             Text(
-                if (installed != null) stringResource(R.string.version_1, installed.version) else stringResource(R.string.built_in),
+                when {
+                    installed != null -> stringResource(R.string.version_1, installed.version)
+                    source.kind == Source.Kind.BUILT_IN -> stringResource(R.string.built_in)
+                    else -> stringResource(R.string.version_1, entry.version.text)
+                },
                 color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
             )
         }
@@ -1032,8 +1052,15 @@ private fun MarketPackagePage(
         SheetGroup(Modifier.padding(bottom = 12.dp)) {
             Column(Modifier.padding(14.dp)) {
                 Text(stringResource(R.string.source_1_s, source.label), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                // Provenance, or the honest absence of it. A package from a source with no provenance was being
+                // called "Built into Folio", which said the opposite of where it actually came from.
+                val built = entry.provenance
                 Text(
-                    entry.provenance?.let { stringResource(R.string.built_from_1_s_2_s, it.repo, it.commit) } ?: stringResource(R.string.built_into_folio),
+                    when {
+                        built != null -> stringResource(R.string.built_from_1_s_2_s, built.repo, built.commit)
+                        source.kind == Source.Kind.BUILT_IN -> stringResource(R.string.built_into_folio)
+                        else -> stringResource(R.string.its_source_didn_t_say_how_it_was_built)
+                    },
                     color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
                 )
                 installed?.let { Text(stringResource(R.string.installed_1_s, it.version), color = Color.White.copy(alpha = .55f), fontSize = 13.sp) }

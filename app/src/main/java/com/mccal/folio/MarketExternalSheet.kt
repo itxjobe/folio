@@ -26,11 +26,11 @@ import com.mccal.folio.market.ExternalSource
 import com.mccal.folio.market.PackageManifest
 
 /**
- * Where to get an app that Folio can't install itself.
+ * Where to get an app of its own.
  *
- * The manifest's `via` list is the whole menu, and it is the author's, so the sheet shows every option rather than
- * choosing one. Tapping one leaves Folio: Android takes it from there, asks its own questions, and Folio finds out
- * the app arrived by looking for it afterwards.
+ * The manifest's `via` list is the author's, so the sheet shows every option rather than choosing one, and each of
+ * them leaves Folio: Android takes it from there, asks its own questions, and Folio finds out the app arrived by
+ * looking for it afterwards. [onInstallHere] adds the one that doesn't leave, when the setting allows it.
  */
 @Composable
 internal fun MarketExternalSheet(
@@ -41,27 +41,33 @@ internal fun MarketExternalSheet(
     onCancel: () -> Unit,
 ) {
     val name = manifest.name.english
+    // Both lines of this sheet's own copy say what Folio does, so both change when Folio is one of the answers.
+    // Leaving "Folio doesn't install apps itself" above a row that says "Install with Folio" was a lie by layout.
+    val here = onInstallHere != null
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 18.dp).testTag("market-external-sheet")) {
         Text(
             stringResource(R.string.get_1_s, name),
             color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
         )
         Text(
-            stringResource(R.string.folio_doesn_t_install_apps_itself_choose),
+            stringResource(
+                if (here) R.string.install_it_with_folio_or_get_it_from
+                else R.string.folio_doesn_t_install_apps_itself_choose,
+            ),
             color = Color.White.copy(alpha = .7f), fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp),
         )
         Spacer(Modifier.height(14.dp))
         onInstallHere?.let { install ->
             // First, because it is the one that doesn't leave. Sileo's shape: the store fetches and Android asks.
-            val here = stringResource(R.string.install_with_folio)
+            val label = stringResource(R.string.install_with_folio)
             SheetGroup(Modifier.padding(bottom = 10.dp)) {
                 Column(
                     Modifier.fillMaxWidth().heightIn(min = 44.dp)
-                        .clickable(onClickLabel = here, onClick = install)
+                        .clickable(onClickLabel = label, onClick = install)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                         .testTag("market-external-here"),
                 ) {
-                    Text(here, color = Color(0xFF0A84FF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(label, color = Color(0xFF0A84FF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         stringResource(R.string.folio_downloads_it_and_android_asks),
                         color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
@@ -87,9 +93,13 @@ internal fun MarketExternalSheet(
                 }
             }
         }
-        // Said before anything is tapped, not after: leaving Folio for an app store is the part worth knowing.
+        // Said before anything is tapped, not after: leaving Folio for an app store is the part worth knowing -
+        // or, when Folio can install it, what Folio checks and what it can't.
         Text(
-            stringResource(R.string.folio_never_downloads_or_installs_an_app),
+            stringResource(
+                if (here) R.string.folio_checks_the_download_against_the
+                else R.string.folio_never_downloads_or_installs_an_app,
+            ),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp),
         )
         Spacer(Modifier.height(16.dp))

@@ -125,4 +125,14 @@ class MarketExternalAppTest {
         val mine = manifest("""{ "store": "playStore", "id": "${context.packageName}" }""")
         assertEquals(context.packageName, MarketExternalApp.installedAppId(context, mine))
     }
+
+    @Test fun `no number is ever handed out twice`() {
+        // The keyboard list is cached against this number, and the cache outlives the screen that asks. A counter
+        // that started again at 0 each time the store opened meant the second visit asked the same question as
+        // the first and got the first visit's answer - so a keyboard installed in between stayed "not yet" until
+        // Folio was killed. These are minted here now, and they only go up.
+        val seen = (1..50).map { MarketExternalApp.appsChanged() }
+        assertEquals(seen.size, seen.toSet().size)
+        assertEquals(seen.sorted(), seen)
+    }
 }
