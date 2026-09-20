@@ -72,7 +72,7 @@ internal fun SupporterPage() {
         CardNote(stringResource(R.string.your_code_also_switched_on_beta_updates))
     }
 
-    // Folio Keys is in design, and "keys" is the scope a code carries for it. Until there is something to install,
+    // Keyd is in design, and "keys" is the scope a code carries for it (the scope kept the old name; see BetaCodes). Until there is something to install,
     // the card says where the keyboard has got to rather than pretending there is a switch to turn on.
     if (code?.scopes?.contains(BetaCodes.SCOPE_KEYS) == true) SettingsCard("FOLIO KEYS") {
         InfoRow(stringResource(R.string.status), stringResource(R.string.in_design))

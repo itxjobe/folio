@@ -38,7 +38,7 @@ FOLIO-style groups of five, Crockford base32 (no I, L, O or U, so a typed code c
 ```
 
 **Scopes** are what the code opens: `beta` (features a release or two early, which is what the Market is today),
-`look`, `power` and `keys` (Folio Keys). **Expiry** is a day, or none. **Serial** is what a withdrawal names.
+`look`, `power` and `keys` (Keyd). **Expiry** is a day, or none. **Serial** is what a withdrawal names.
 Editing any of it breaks the signature, and there are tests for that.
 
 Codes are shareable on purpose. A supporter passing one to a friend is fine — it's a thank-you, not a licence — so
@@ -242,7 +242,7 @@ A benefit that can't be delivered monthly turns into a debt. Measured against wh
 | Design previews of what's being built | **Yes** — the Mockup Lab produces them already |
 | A vote on what comes next | **Yes** — the supporters post carries one |
 | A code for the Market before it ships | **Yes** — `beta` scope, checked offline |
-| Folio Keys, the keyboard extras | **Yes** — `keys` scope, merged for 0.6.5 |
+| Keyd, the keyboard extras | **Yes** — `keys` scope, merged for 0.6.5 |
 | Beta builds before they're public | **Yes**, once 0.6.5 is out |
 | Preview and experimental builds | **Yes**, same channel as the betas |
 | A weekly "This week in Folio" post | **Only if it's written** — the information already exists as work happens |
@@ -266,7 +266,7 @@ launcher. Drafts below — **the words are McCal's.** Images: `lab/walls/kofi-ti
 | Design previews of what's being built | ✓ | ✓ | ✓ |
 | A vote on what comes after each update | ✓ | ✓ | ✓ |
 | A code for the Market, before it ships | | ✓ | ✓ |
-| Folio Keys, the keyboard extras | | ✓ | ✓ |
+| Keyd, the keyboard extras | | ✓ | ✓ |
 | Preview builds when there's something to try | | ✓ | ✓ |
 | Beta builds as soon as they exist | | | ✓ |
 | Development posts as the work happens | | | ✓ |

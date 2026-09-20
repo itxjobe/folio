@@ -9,7 +9,7 @@ import com.mccal.folio.market.PackageKind
 import com.mccal.folio.market.PackageManifest
 
 /**
- * A package that is an app of its own: Folio Keys, an icon pack from Play, anything Android has to install itself.
+ * A package that is an app of its own: Keyd, an icon pack from Play, anything Android has to install itself.
  *
  * **Folio never downloads or installs an APK a source named.** It knows how to install one - that is how Software
  * Update works - and pointing that at a source would turn a launcher into an app store, which is a different thing

@@ -27,7 +27,7 @@ class MarketExternalAppTest {
     private fun manifest(via: String): PackageManifest {
         val json = """
             {
-              "format": 1, "id": "dev.mccal.keys", "name": "Folio Keys", "version": "0.1.0",
+              "format": 1, "id": "dev.mccal.keyd", "name": "Keyd", "version": "0.1.0",
               "author": { "name": "Folio" }, "minFolio": "0.7.0", "section": "tweaks",
               "kind": ["externalApp"], "permissions": [], "via": [$via]
             }
@@ -41,16 +41,16 @@ class MarketExternalAppTest {
 
     @Test fun `each store gets the address it actually uses`() {
         assertEquals(
-            "market://details?id=dev.mccal.keys",
-            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.PLAY_STORE, "dev.mccal.keys", null)),
+            "market://details?id=dev.mccal.keyd",
+            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.PLAY_STORE, "dev.mccal.keyd", null)),
         )
         assertEquals(
-            "https://f-droid.org/packages/dev.mccal.keys/",
-            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.FDROID, "dev.mccal.keys", null)),
+            "https://f-droid.org/packages/dev.mccal.keyd/",
+            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.FDROID, "dev.mccal.keyd", null)),
         )
         assertEquals(
-            "obtainium://add/https://github.com/McCal-Codes/folio-keys",
-            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.OBTAINIUM, null, "https://github.com/McCal-Codes/folio-keys")),
+            "obtainium://add/https://github.com/McCal-Codes/folio-keyd",
+            MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.OBTAINIUM, null, "https://github.com/McCal-Codes/folio-keyd")),
         )
     }
 
@@ -58,11 +58,11 @@ class MarketExternalAppTest {
         // The schema requires an id for the two stores and a repo for Obtainium, so this shouldn't arrive - and if
         // it does, an option that leads nowhere is better than one that opens something unexpected.
         assertNull(MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.PLAY_STORE, null, null)))
-        assertNull(MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.OBTAINIUM, "dev.mccal.keys", null)))
+        assertNull(MarketExternalApp.uriFor(ExternalSource(ExternalSource.Store.OBTAINIUM, "dev.mccal.keyd", null)))
     }
 
     @Test fun `an external package is recognised, and an ordinary one isn't`() {
-        assertTrue(MarketExternalApp.isExternal(manifest("""{ "store": "obtainium", "repoUrl": "https://github.com/McCal-Codes/folio-keys" }""")))
+        assertTrue(MarketExternalApp.isExternal(manifest("""{ "store": "obtainium", "repoUrl": "https://github.com/McCal-Codes/folio-keyd" }""")))
         val tweak = (PackageManifest.parse(
             """{"format":1,"id":"dev.a.b","name":"B","version":"1.0.0","author":{"name":"A"},"minFolio":"0.7.0","section":"tweaks","kind":["tweakBundle"],"permissions":["tweaks"]}""",
         ) as ParseResult.Ok).value
@@ -71,11 +71,11 @@ class MarketExternalAppTest {
     }
 
     @Test fun `an app nobody has installed is not on the phone`() {
-        val keys = manifest("""{ "store": "playStore", "id": "dev.mccal.keys.nothere" }""")
+        val keys = manifest("""{ "store": "playStore", "id": "dev.mccal.keyd.nothere" }""")
         assertNull(MarketExternalApp.installedAppId(context, keys))
         // A listing with no app id at all - Obtainium only - has nothing to look for, and says so rather than
         // guessing from the package id, which is Folio's name for it and not Android's.
-        val obtainium = manifest("""{ "store": "obtainium", "repoUrl": "https://github.com/McCal-Codes/folio-keys" }""")
+        val obtainium = manifest("""{ "store": "obtainium", "repoUrl": "https://github.com/McCal-Codes/folio-keyd" }""")
         assertNull(MarketExternalApp.installedAppId(context, obtainium))
     }
 

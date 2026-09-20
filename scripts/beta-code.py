@@ -29,7 +29,7 @@ import subprocess
 import sys
 
 ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # Crockford base32, matching BetaCodes.kt
-SCOPES = ["beta", "look", "power", "keys"]     # bit order must match BetaCodes.SCOPE_BITS
+SCOPES = ["beta", "look", "power", "keys"]     # bit order must match BetaCodes.SCOPE_BITS ("keys" is Keyd)
 EPOCH = datetime.date(2026, 1, 1)
 VERSION = 1
 

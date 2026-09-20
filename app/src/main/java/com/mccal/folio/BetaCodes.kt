@@ -16,7 +16,10 @@ internal object BetaCodes {
     const val SCOPE_BETA = "beta"    // new features a release or two early
     const val SCOPE_LOOK = "look"    // personalization extras
     const val SCOPE_POWER = "power"  // power-user automation
-    const val SCOPE_KEYS = "keys"    // Folio Keyboard extras
+    // Keyd, the keyboard. The name stays "keys": it is the label for bit 3, its position is what a code actually
+    // carries, and it has to match scripts/beta-code.py's SCOPES list exactly. Renaming it buys nothing and a
+    // mismatch would read every code's scopes wrong, silently.
+    const val SCOPE_KEYS = "keys"
 
     private val SCOPE_BITS = listOf(SCOPE_BETA, SCOPE_LOOK, SCOPE_POWER, SCOPE_KEYS)
 
