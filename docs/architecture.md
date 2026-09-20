@@ -26,7 +26,7 @@ Each ordinary Home page has a four-column, six-row grid. Apps occupy cells; widg
 
 Unfolded navigation uses overlapping pairs: leading workspace + Home 1, Home 1 + Home 2, and so on. The leading workspace has separate `leadingSlots` and durable widget page `-1`; it disappears from the cover view without deleting its contents. **Pager page `-1` separately means Discover.** Use the address helpers in `HomeEditing.kt` rather than treating negative cell indices as missing values.
 
-Saved layouts use explicit JSON fields with migration backups. Layout export is a portable description, not a copy of Android's widget capabilities: an import must reconnect widgets, and cross-installation work profiles may require manual correction. Photo files are outside the layout backup.
+Saved layouts use explicit JSON fields with migration backups. Layout export is a portable description, not a copy of Android's widget capabilities: an import must reconnect widgets, and cross-installation work profiles may require manual correction. Photo files are outside the layout backup; Market packages are inside it, as records and the changes they made, never as the snapshots of what they replaced - those describe the phone the backup came from, so a restore applies each package's recorded changes again over the layout it has just put back.
 
 ## Native widgets and gestures
 

@@ -379,15 +379,18 @@ class PackageInstallerTest {
         installer.install(pack())
         val backup = store.export()
         val fresh = InstalledStore(MemoryStore())
-        assertTrue(fresh.restore(backup))
+        fresh.restore(fresh.readBackup(backup)!!)
         val restored = fresh.find("com.mccal.folio.cabinet")!!
         assertEquals("Cabinet", restored.name)
         assertEquals(DebVersion.parse("1.0.0"), restored.version)
+        // Off, with no snapshots: what this package replaced, it replaced on the phone the backup came from.
+        assertFalse(restored.enabled)
+        assertEquals(emptyList<String>(), restored.snapshots)
         // What it changed comes back too, so Folio can put the tweak back without downloading anything.
         val change = fresh.changesFor(restored.id, restored.version)?.single() as PackageChange.Tweaks
         assertEquals(listOf(TweakId.APP_PANELS), change.bundle.tweaks.map { it.id })
-        assertTrue("a backup Folio can't read changes nothing", !fresh.restore("not a backup"))
-        assertTrue(!fresh.restore("""{"format":2,"packages":[]}"""))
+        assertNull("a backup Folio can't read changes nothing", fresh.readBackup("not a backup"))
+        assertNull(fresh.readBackup("""{"format":2,"packages":[]}"""))
         assertEquals("Cabinet", fresh.find("com.mccal.folio.cabinet")?.name)
     }
 

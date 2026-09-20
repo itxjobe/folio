@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import com.mccal.folio.market.PackageInstaller
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -34,6 +35,10 @@ class BackupController(
     private val store = activity.getSharedPreferences("layout_backup_pending", Context.MODE_PRIVATE)
     private val userManager = activity.getSystemService(UserManager::class.java)
     private val scope = layoutBackupScope(activity)
+    // Built on first use, so a phone that never opens Settings never builds it.
+    private val market by lazy { MarketSession(activity, ModelLauncher(model)) }
+    /** Whether this phone has the Market. A package it can't show is one nobody could turn off or remove. */
+    private val marketOpen by lazy { runCatching { MarketAccess.isOpen(activity) }.getOrDefault(false) }
     private var operation: String? = null
     private var generation = 0
     private var importRaw: String? = null
@@ -74,7 +79,7 @@ class BackupController(
 
     fun startExport(fileName: String = "folio-layout.json") {
         val state = model.state.value
-        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope) }.getOrElse {
+        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
             errorMessage = it.message ?: "Layout backup could not be prepared."; return
         }
         begin(OP_EXPORT, raw)
@@ -85,7 +90,7 @@ class BackupController(
     /** Saves a backup straight to Download/Folio, no picker. */
     fun saveToFolioFolder(name: String? = null) {
         val state = model.state.value
-        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope) }.getOrElse {
+        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
             errorMessage = it.message ?: "Layout backup could not be prepared."; return
         }
         val name = FolioFiles.fileName(name, "folio-layout")
@@ -112,9 +117,18 @@ class BackupController(
             } }
             result.rethrowCancellation()
             if (token != generation || operation != OP_PREVIEW) return@launch
-            result.onSuccess {
-                val changed = model.applyImportedLayout(it)
-                successMessage = if (changed) "Layout restored. Widgets are ready to reconnect." else "This layout is already active."
+            result.onSuccess { imported ->
+                // The packages are put back around the layout, not after it: what a package replaced has to be the
+                // layout it was applied over. `:market` owns that order, so the layout goes back inside its call.
+                var changed = false
+                val putLayoutBack = { changed = model.applyImportedLayout(imported) }
+                val packages = if (marketOpen) imported.packages else null
+                val restored = runCatching { market.restorePackages(packages, PACKAGE_LEFT_OFF, putLayoutBack) }.getOrElse {
+                    // The Market failing is no reason to lose the layout the user asked for.
+                    if (!changed) putLayoutBack()
+                    null
+                }
+                successMessage = restoredMessage(changed, imported.packages, restored)
                 clearTransaction(clearMessages = false)
             }.onFailure { errorMessage = it.message ?: "This layout backup is no longer valid." }
         }
@@ -128,6 +142,26 @@ class BackupController(
         OP_EXPORT -> runCatching { createDocument.launch("folio-layout.json") }.isSuccess
         OP_IMPORT -> runCatching { openDocument.launch(arrayOf("application/json", "text/json", "text/plain")) }.isSuccess
         else -> false
+    }
+
+    /** What this phone has installed from the Market, for the backup to carry. */
+    private fun savedPackages(): String? = runCatching { market.exportPackages() }.getOrNull()
+
+    /** What the user is told afterwards: the layout first, then whatever happened to the packages it carried. */
+    private fun restoredMessage(changed: Boolean, packages: String?, restored: PackageInstaller.Restore?): String {
+        val parts = mutableListOf(if (changed) "Layout restored. Widgets are ready to reconnect." else "This layout is already active.")
+        when {
+            packages == null -> Unit
+            !marketOpen -> parts += "Its packages were left out: the Market isn't on for this phone."
+            restored == null -> parts += "Folio couldn't read its packages, so this phone's were left as they are."
+            else -> {
+                val on = restored.on.size
+                val off = restored.off.size + restored.failed.size
+                if (on > 0) parts += if (on == 1) "1 package is back." else "$on packages are back."
+                if (off > 0) parts += if (off == 1) "1 more is in Installed, turned off." else "$off more are in Installed, turned off."
+            }
+        }
+        return parts.joinToString(" ")
     }
 
     private fun begin(value: String, payload: String? = null) {
@@ -180,7 +214,10 @@ class BackupController(
         activity.lifecycleScope.launch {
             val state = model.state.first { !it.loading }
             val result = runCatching { withContext(Dispatchers.Default) {
-                decodeLayoutBackup(raw, state.apps, state.profiles, scope)
+                val imported = decodeLayoutBackup(raw, state.apps, state.profiles, scope)
+                // Only the Market can read what it wrote, so the count is filled in here rather than in the decoder,
+                // and off the main thread with the rest of the reading.
+                imported.copy(packageCount = if (marketOpen) runCatching { market.countPackages(imported.packages) }.getOrDefault(0) else 0)
             } }
             result.rethrowCancellation()
             result.onSuccess {
@@ -241,5 +278,9 @@ class BackupController(
         private const val OP_EXPORT = "export"
         private const val OP_IMPORT = "import"
         private const val OP_PREVIEW = "preview"
+
+        /** Why a package a restored backup carried is in the list but turned off. */
+        private const val PACKAGE_LEFT_OFF =
+            "Folio couldn't put this package back on this phone. Your settings are kept - try it again, or remove it."
     }
 }

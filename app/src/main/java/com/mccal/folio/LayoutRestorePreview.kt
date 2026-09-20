@@ -37,6 +37,8 @@ internal fun LayoutRestorePreview(preview: LayoutImportPreview, onRestore: () ->
                 }
                 val reconnect = preview.layout.widgetPlacements.count { it.id == NEEDS_BINDING_WIDGET }
                 if (reconnect > 0) Text(pluralStringResource(R.plurals.widgets_keep_their_saved_space, reconnect, reconnect))
+                if (preview.packageCount > 0)
+                    Text(pluralStringResource(R.plurals.packages_replace_what_this_phone_has, preview.packageCount, preview.packageCount))
                 Text(stringResource(R.string.nothing_changes_until_you_choose_restore), style = MaterialTheme.typography.bodySmall)
             }
         }, confirmButton = { TextButton(onClick = onRestore, modifier = Modifier.testTag("layout-restore-apply")) { Text(stringResource(R.string.restore)) } },

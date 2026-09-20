@@ -287,6 +287,64 @@ class PackageInstaller(
         return true
     }
 
+    /** What [restoreBackup] put back. */
+    data class Restore(
+        /** Packages whose changes are on Home again. */
+        val on: List<InstalledPackage>,
+        /** Packages that were off when the backup was taken, and are off here too, with their reason kept. */
+        val off: List<InstalledPackage>,
+        /** Packages this Folio couldn't put back on. They are in the list, turned off, so they can still be removed. */
+        val failed: List<InstalledPackage>,
+    )
+
+    /**
+     * Puts back the packages a layout backup carried, around the launcher putting its own layout back.
+     *
+     * A backup records what each package *changed*, never what Home looked like when it changed: its snapshots were
+     * taken on the phone it came from and describe nothing here, so nothing is replayed from them. Every package goes
+     * in turned off, and the ones that were on when the backup was taken have their recorded changes applied again
+     * from where this phone is now - which is what [enable] does for Try Again, and why a package Safe Mode had
+     * turned off comes back off, with its changes not applied and its reason kept.
+     *
+     * The order is the point, because a package's changes and the layout being restored are the same launcher:
+     *  1. this phone's packages come off first, while the snapshots saying what they replaced still describe it;
+     *  2. [putLayoutBack] restores the layout, onto a Home with no package on it;
+     *  3. the backup's packages go on over that, so what each one records replacing is what is really underneath.
+     *
+     * [offReason] is what the user is told about a package this Folio couldn't put back on. Returns null, leaving
+     * this phone's own packages alone, when the backup's packages can't be read; [putLayoutBack] runs either way.
+     */
+    fun restoreBackup(text: String, offReason: String, putLayoutBack: () -> Unit): Restore? {
+        val backup = store.readBackup(text)
+        if (backup == null) {
+            putLayoutBack()
+            return null
+        }
+        // Newest first, for the same reason a package undoes its own changes in reverse: each snapshot is the Home
+        // screen from before that package, so taking an older one off first would throw away everything stacked on
+        // top of it and then put it back.
+        store.installed().reversed().forEach { remove(it.id) }
+        putLayoutBack()
+        store.restore(backup)
+        val on = mutableListOf<InstalledPackage>()
+        val failed = mutableListOf<InstalledPackage>()
+        for (id in backup.wasOn) {
+            val record = store.find(id) ?: continue
+            // A backup can come from a Folio that does more than this one. A package needing something this build
+            // hasn't got is left off rather than failing halfway through being applied, as at install.
+            val changes = store.changesFor(record.id, record.version)
+            val supported = changes != null && changes.flatMap { it.capabilities }.all { it in host.capabilities }
+            if (supported && enable(id)) {
+                store.find(id)?.let { on += it }
+            } else {
+                store.setEnabled(id, enabled = false, reason = offReason)
+                store.find(id)?.let { failed += it }
+            }
+        }
+        val couldNot = failed.mapTo(mutableSetOf()) { it.id }
+        return Restore(on, store.installed().filter { !it.enabled && it.id !in couldNot }, failed)
+    }
+
     private fun undoChanges(installed: InstalledPackage) {
         val changes = store.changesFor(installed.id, installed.version) ?: return
         changes.zip(installed.snapshots).reversed().forEach { (change, snapshot) ->
@@ -455,42 +513,83 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
 
     /**
      * Everything about installed packages, for Folio's layout backup: the records and what each package changed, so a
-     * restored backup knows what to put back. Restoring only writes the list; the launcher applies it afterwards.
+     * restored backup can put them back without downloading anything again.
+     *
+     * The snapshots are deliberately left behind. A snapshot is what one change replaced *on this phone*, and it
+     * describes nothing on another one; putting a package back means applying its changes again from wherever that
+     * phone is, which is [PackageInstaller.restoreBackup]'s job. Unreadable data is left out rather than thrown, as
+     * everywhere else here.
      */
-    /** Everything the backup carries. Unreadable data is left out rather than thrown, as everywhere else here. */
     fun export(): String {
-        val packages = runCatching { JSONArray(keyValue.get(KEY) ?: "[]") }.getOrDefault(JSONArray())
+        val stored = runCatching { JSONArray(keyValue.get(KEY) ?: "[]") }.getOrDefault(JSONArray())
+        val packages = JSONArray()
         val changes = JSONObject()
-        for (i in 0 until packages.length()) {
-            val json = packages.optJSONObject(i) ?: continue
+        for (i in 0 until stored.length()) {
+            val json = stored.optJSONObject(i) ?: continue
             val key = "${json.optString("id")}@${json.optString("version")}"
-            keyValue.get("installed:changes:$key")?.let { text ->
-                runCatching { changes.put(key, JSONArray(text)) }
-            }
+            json.remove("snapshots")
+            packages.put(json)
+            keyValue.get(changesKey(key))?.let { text -> runCatching { changes.put(key, JSONArray(text)) } }
         }
         return JSONObject().put("format", 1).put("packages", packages).put("changes", changes).toString()
     }
 
-    /** Reads what [export] wrote. Returns false, and changes nothing, when the backup can't be read. */
-    fun restore(text: String): Boolean {
-        val json = runCatching { JSONObject(text) }.getOrNull() ?: return false
-        if (json.optInt("format") != 1) return false
-        val packages = json.optJSONArray("packages") ?: return false
+    /** A backup's packages, read but not written: nothing on this phone has been touched yet. */
+    class Backup internal constructor(
+        /** Every package the backup carries, on or off, as it was on the phone the backup came from. */
+        val records: List<InstalledPackage>,
+        /** What each of them changed, keyed `id@version` exactly as [export] wrote it. */
+        internal val changes: Map<String, String>,
+    ) {
+        /** The ids that were on when the backup was taken. */
+        val wasOn: List<String> = records.filter { it.enabled }.map { it.id }
+    }
+
+    /** Reads what [export] wrote, and writes nothing. Null means Folio can't read it, and this phone is untouched. */
+    fun readBackup(text: String): Backup? {
+        val json = runCatching { JSONObject(text) }.getOrNull() ?: return null
+        if (json.optInt("format") != 1) return null
+        // One record per id, as the store itself keeps: two records for one package would have the installer turn
+        // it on and then, finding it already on, write it off again with the list and Home no longer agreeing.
+        val records = parse(json.optJSONArray("packages") ?: return null).distinctBy { it.id }.take(MAX_BACKUP_PACKAGES)
         val changes = json.optJSONObject("changes") ?: JSONObject()
-        keyValue.set(KEY, packages.toString())
-        for (key in changes.keys()) keyValue.set("installed:changes:$key", changes.optJSONArray(key)?.toString())
-        return true
+        // Only the keys its own records account for. A backup says what it carries; it doesn't get to name keys of
+        // its own in Folio's store.
+        val wanted = records.mapTo(mutableSetOf()) { "${it.id}@${it.version}" }
+        return Backup(
+            records,
+            changes.keys().asSequence().filter { it in wanted }
+                .mapNotNull { key -> changes.optJSONArray(key)?.let { key to it.toString() } }.toMap(),
+        )
+    }
+
+    /**
+     * Writes a backup's packages: every one of them turned off, with no snapshots, because whatever they replaced
+     * they replaced on another phone. Turning the right ones back on is [PackageInstaller.restoreBackup], because
+     * that puts changes on Home and only the installer does that.
+     */
+    fun restore(backup: Backup) {
+        // The changes go first, as in [put]: a record pointing at changes that aren't there is worse than no record.
+        for ((key, text) in backup.changes) keyValue.set(changesKey(key), text)
+        write(backup.records.associate { it.id to it.copy(enabled = false, snapshots = emptyList()) })
     }
 
     fun changesFor(id: String, version: DebVersion): List<PackageChange>? =
         keyValue.get(changesKey(id, version))?.let(::decodeChanges)
 
-    private fun changesKey(id: String, version: DebVersion) = "installed:changes:$id@$version"
+    private fun changesKey(id: String, version: DebVersion) = changesKey("$id@$version")
+
+    private fun changesKey(key: String) = "installed:changes:$key"
 
     private fun read(): Map<String, InstalledPackage> {
         val text = keyValue.get(KEY) ?: return emptyMap()
         val array = runCatching { JSONArray(text) }.getOrNull() ?: return emptyMap()
-        return (0 until array.length()).mapNotNull { i ->
+        return parse(array).associateBy { it.id }
+    }
+
+    /** The records in [array], skipping any Folio can't read. Used for the store's own list and for a backup's. */
+    private fun parse(array: JSONArray): List<InstalledPackage> =
+        (0 until array.length()).mapNotNull { i ->
             val json = array.optJSONObject(i) ?: return@mapNotNull null
             val version = DebVersion.parse(json.optString("version")) ?: return@mapNotNull null
             InstalledPackage(
@@ -504,8 +603,7 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
                 enabled = json.optBoolean("enabled", true),
                 disabledReason = json.optString("disabledReason").takeIf { it.isNotEmpty() },
             ).takeIf { it.id.isNotEmpty() }
-        }.associateBy { it.id }
-    }
+        }
 
     private fun write(all: Map<String, InstalledPackage>): Boolean {
         val array = JSONArray()
@@ -577,5 +675,8 @@ class InstalledStore(internal val keyValue: KeyValueStore) {
 
     private companion object {
         const val KEY = "installed:packages"
+
+        /** As many packages as a backup may carry, in the spirit of every other cap here. */
+        const val MAX_BACKUP_PACKAGES = 200
     }
 }

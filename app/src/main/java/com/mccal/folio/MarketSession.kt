@@ -159,6 +159,25 @@ internal class MarketSession(
 
     /** Try Again, after Safe Mode turned a package off: its changes go back on. */
     fun enable(id: String): Boolean = installer.enable(id)
+
+    /** What a layout backup carries about packages, or null when this phone has none to carry. */
+    fun exportPackages(): String? = store.installed().takeIf { it.isNotEmpty() }?.let { store.export() }
+
+    /** How many packages a backup carries, for the restore sheet to say so before anything is touched. */
+    fun countPackages(text: String?): Int = text?.let { store.readBackup(it)?.records?.size } ?: 0
+
+    /**
+     * Puts a backup's packages back, with the launcher's own restore run in the middle - see
+     * [PackageInstaller.restoreBackup] for why the order matters. [putLayoutBack] always runs, including when there
+     * are no packages to put back or Folio can't read the ones there are; null is returned in both of those cases.
+     */
+    fun restorePackages(text: String?, offReason: String, putLayoutBack: () -> Unit): PackageInstaller.Restore? {
+        if (text == null) {
+            putLayoutBack()
+            return null
+        }
+        return installer.restoreBackup(text, offReason, putLayoutBack)
+    }
 }
 
 /** The Market's settings, for screens that only need those (Settings › Market) rather than the whole session. */

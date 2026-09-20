@@ -19,6 +19,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Safe Mode per package:** if Folio stops twice just after a package changed something, only that package is turned off, and its settings are kept.
 - **A source can pull a package:** a withdrawn one can be removed but never installed again, including as an update.
 - **Share and Report:** a package's page links to its source's issue form with the id, version and checksum filled in.
+- **Your packages travel with your layout:** a layout backup now carries what you got from the Market, and restoring one puts those packages back on the new phone - applied over the layout it just restored, not over the old phone's. Anything Safe Mode had turned off comes back turned off, and one this Folio can't apply waits in Installed instead of being half applied.
 - **Three columns in Settings:** the list, the page, and whatever you opened from it, so tapping a tweak no longer replaces the list you tapped it in.
 
 ### Changed

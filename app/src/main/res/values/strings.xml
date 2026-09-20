@@ -762,6 +762,10 @@
         <item quantity="one">%1$d widget will keep its saved space and ask to reconnect after restore.</item>
         <item quantity="other">%1$d widgets will keep their saved space and ask to reconnect after restore.</item>
     </plurals>
+    <plurals name="packages_replace_what_this_phone_has">
+        <item quantity="one">%1$d package from the Market comes back, replacing whatever this phone has installed.</item>
+        <item quantity="other">%1$d packages from the Market come back, replacing whatever this phone has installed.</item>
+    </plurals>
     <string name="choose_home_apps_title">Choose Home Apps</string>
     <string name="built_into_folio_so_there_s_nothing_to">Built into Folio, so there\'s nothing to download.</string>
     <string name="downloaded_from_a_source_you_added">Downloaded from a source you added.</string>
