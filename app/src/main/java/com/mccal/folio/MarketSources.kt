@@ -170,6 +170,17 @@ internal class MarketSources(
      * Downloads a package and installs it: size and checksum are checked against the index entry before anything is
      * opened, and [PackageInstaller] does the rest.
      */
+    /**
+     * Fetches a file a source listed, with no opinion about what it is: an APK the Market installs goes through
+     * the same client, the same byte cap and the same rules as everything else. [maxBytes] is what the index
+     * promised, so a source can't grow a download after the fact.
+     */
+    suspend fun fetch(source: Source, url: String, maxBytes: Int, onProgress: (Long, Long) -> Unit): ByteArray? =
+        withContext(io) {
+            val full = if (url.startsWith("https://")) url else source.url + url
+            (http.get(full, maxBytes, onProgress) as? HttpResult.Body)?.bytes
+        }
+
     suspend fun download(
         entry: IndexPackage,
         source: Source,

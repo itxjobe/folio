@@ -655,6 +655,18 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         IosActionRow(stringResource(R.string.supporter)) { onPage(CustomizationPage.SUPPORTER) }
                     }
                     CardNote(stringResource(R.string.the_market_is_here_early_for_supporters))
+                    SheetGroupLabel(stringResource(R.string.installing_apps))
+                    var installApps by remember { mutableStateOf(marketPrefs.installApps) }
+                    SheetGroup {
+                        SwitchRow(
+                            stringResource(R.string.installing_apps),
+                            stringResource(if (installApps) R.string.folio_downloads_and_installs else R.string.open_play_f_droid_or_obtainium_instead),
+                            installApps,
+                        ) { installApps = it; marketPrefs.installApps = it }
+                    }
+                    CardNote(stringResource(R.string.some_listings_are_apps_of_their_own))
+                    // The warning belongs on the switch, not buried in a sheet nobody reads twice.
+                    if (installApps) CardNote(stringResource(R.string.turn_it_on_only_for_sources_you_would))
                     SheetGroupLabel("Refreshing")
                     var background by remember { mutableStateOf(marketPrefs.backgroundRefresh) }
                     var wifiOnly by remember { mutableStateOf(marketPrefs.refreshOnWifiOnly) }

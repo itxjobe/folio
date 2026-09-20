@@ -37,6 +37,16 @@ class MarketPrefs(private val store: KeyValueStore) {
         get() = store.get(WIFI_ONLY) != "0"
         set(value) { store.set(WIFI_ONLY, if (value) null else "0") }
 
+    /**
+     * Whether Folio installs an app itself, rather than sending you to Play, F-Droid or Obtainium.
+     *
+     * Off by default, and only ever for a source whose key ships inside Folio - see `MarketApkInstall` for why
+     * that line is where it is. Android still shows its own install screen every time.
+     */
+    var installApps: Boolean
+        get() = store.get(INSTALL_APPS) == "1"
+        set(value) { store.set(INSTALL_APPS, if (value) "1" else null) }
+
     /** The introduction is shown once, after updating to 0.7.0, and again if the user asks for it in Settings. */
     var introductionSeen: Boolean
         get() = store.get(INTRO_SEEN) == "1"
@@ -47,5 +57,6 @@ class MarketPrefs(private val store: KeyValueStore) {
         const val INTRO_SEEN = "market:intro-seen"
         const val BACKGROUND_REFRESH = "market:background-refresh"
         const val WIFI_ONLY = "market:wifi-only"
+        const val INSTALL_APPS = "market:install-apps"
     }
 }

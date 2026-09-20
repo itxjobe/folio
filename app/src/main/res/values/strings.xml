@@ -889,4 +889,18 @@
     <string name="get_it_on_1_s">Get it on: %1$s</string>
     <string name="on_this_phone_1_s">On this phone: %1$s</string>
     <string name="added_with_your_supporter_code">Added with your supporter code</string>
+    <string name="that_listing_has_no_app_to_download">That listing has no app to download.</string>
+    <string name="folio_couldn_t_download_that_app">Folio couldn\'t download that app.</string>
+    <string name="that_app_didn_t_match_what_its_source">That app didn\'t match what its source promised, so nothing was installed.</string>
+    <string name="folio_couldn_t_hand_that_app_to_android">Folio couldn\'t hand that app to Android.</string>
+    <string name="android_didn_t_install_it_1_s">Android didn\'t install it: %1$s</string>
+    <string name="android_didn_t_install_that_app">Android didn\'t install that app.</string>
+    <string name="install_with_folio">Install with Folio</string>
+    <string name="folio_downloads_it_and_android_asks">Folio downloads it and Android asks before installing</string>
+    <string name="android_is_installing_1_s">Android is installing %1$s</string>
+    <string name="installing_apps">Installing apps</string>
+    <string name="folio_downloads_and_installs">Folio downloads and installs</string>
+    <string name="open_play_f_droid_or_obtainium_instead">Open Play, F-Droid or Obtainium instead</string>
+    <string name="some_listings_are_apps_of_their_own">Some listings are apps of their own rather than something Folio applies — a keyboard has to be its own app, because Android says so. With this on, Folio downloads one and hands it to Android, which asks before installing it and names the app. With it off, Folio opens the store the author named and you install it there.</string>
+    <string name="turn_it_on_only_for_sources_you_would">Turn it on only for sources you would install an app from anyway. Folio checks the download against the checksum the source signed, so nothing can be swapped in on the way — but the source is what vouches for the app itself, and Folio can\'t check that for you.</string>
 </resources>

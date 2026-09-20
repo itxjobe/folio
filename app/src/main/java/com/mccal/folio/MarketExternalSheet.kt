@@ -35,6 +35,8 @@ import com.mccal.folio.market.PackageManifest
 @Composable
 internal fun MarketExternalSheet(
     manifest: PackageManifest,
+    /** Folio's own install, when the setting allows it and the listing carries an APK. */
+    onInstallHere: (() -> Unit)? = null,
     onPick: (ExternalSource) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -49,6 +51,24 @@ internal fun MarketExternalSheet(
             color = Color.White.copy(alpha = .7f), fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp),
         )
         Spacer(Modifier.height(14.dp))
+        onInstallHere?.let { install ->
+            // First, because it is the one that doesn't leave. Sileo's shape: the store fetches and Android asks.
+            val here = stringResource(R.string.install_with_folio)
+            SheetGroup(Modifier.padding(bottom = 10.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(min = 44.dp)
+                        .clickable(onClickLabel = here, onClick = install)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .testTag("market-external-here"),
+                ) {
+                    Text(here, color = Color(0xFF0A84FF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.folio_downloads_it_and_android_asks),
+                        color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                    )
+                }
+            }
+        }
         SheetGroup {
             manifest.via.forEachIndexed { index, source ->
                 if (index > 0) MenuDivider()

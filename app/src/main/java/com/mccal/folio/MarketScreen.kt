@@ -192,6 +192,25 @@ internal fun MarketScreen(
         MarketWork.taken()?.let { announce(it.name, it.result) }
     }
 
+    /**
+     * Folio's own install of an app: download, check the checksum, hand it to Android. It runs where an install
+     * runs, so leaving the store doesn't stop it, and the ring in the button follows it like any other.
+     */
+    fun installApp(entry: MarketEntry) {
+        if (MarketWork.busy) return
+        MarketWork.install(entry.id, entry.name) {
+            val ok = MarketApkInstall.install(context, entry.name, entry.entry) { url, onProgress ->
+                session.sources.fetch(entry.source, url, entry.entry.size ?: 0, onProgress)
+            }
+            InstallResult.Failed(
+                InstallResult.Reason.APPLY,
+                if (ok) context.getString(R.string.android_is_installing_1_s, entry.name)
+                else (MarketApkInstall.status.value as? MarketApkInstall.Status.Failed)?.message
+                    ?: context.getString(R.string.folio_couldn_t_download_that_app),
+            )
+        }
+    }
+
     /** Puts back a package Safe Mode turned off. Its changes go on again, so it runs off the main thread too. */
     fun tryAgain(id: String, name: String) {
         if (MarketWork.busy) return
@@ -471,8 +490,16 @@ internal fun MarketScreen(
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
                             .clickable(enabled = false) {},
                     ) {
+                        val listing = entries.first { it.id == id }
                         MarketExternalSheet(
                             manifest = manifest,
+                            onInstallHere = if (
+                                MarketApkInstall.canInstall(listing.source, listing.entry, session.prefs.installApps)
+                            ) {
+                                { choosing = null; installApp(listing) }
+                            } else {
+                                null
+                            },
                             onPick = { from ->
                                 choosing = null
                                 if (!MarketExternalApp.install(context, from)) {
