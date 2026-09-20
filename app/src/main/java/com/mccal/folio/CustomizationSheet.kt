@@ -1914,7 +1914,12 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
         if (state.layoutHistory) {
             CardAction("Save Current Layout", onClick = { model.saveLayoutSnapshot("Saved by you", force = true) }, modifier = Modifier.testTag("layout-history-save"))
             snapshots.forEach { snapshot ->
-                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Merged, like the switch row above: without it every saved layout offers a button TalkBack reads as
+                // just "Restore", and there is no way to hear which layout it would put back. Merged, the row is one
+                // thing to land on - "Before restoring a backup, 19 Sep 2026 8:14 PM, Restore" - carrying the button's
+                // own action, and it is a bigger target besides.
+                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) {},
+                    verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(snapshot.reason, fontSize = 16.sp)
                         CardNote(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(snapshot.time)))

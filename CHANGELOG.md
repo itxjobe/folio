@@ -27,6 +27,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - A settings row title wraps to a second line in a narrow window or at a large text size instead of being cut short, and its value moves underneath when there isn't room beside it.
 
 ### Fixed
+- With TalkBack, every saved layout under Layout History offered a button that read as just "Restore", with no way to hear which layout it would put back. Each row is now one thing to land on, and it names the layout and when it was saved.
 - An install now outlives the screen that started it: pressing Back during a download used to leave the package applied with no message and no Undo.
 - A failed write to Folio's own store no longer destroys the value it was replacing — for a source, that value is its pinned key.
 - A source that published a list Folio couldn't read used to stay stuck on a tamper warning; it recovers as soon as the source publishes a good one.
