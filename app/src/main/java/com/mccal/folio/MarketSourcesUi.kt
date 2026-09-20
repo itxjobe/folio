@@ -11,8 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Warning
@@ -32,31 +37,50 @@ import com.mccal.folio.market.RefreshResult
 import com.mccal.folio.market.Source
 import com.mccal.folio.market.SourceKey
 
-/** The Sources tab: Folio's own, the ones the user added, and how to add another. */
+/**
+ * The Sources tab: Folio's own, the ones the user added, and how to add another.
+ *
+ * A source is a place with packages in it, so its row opens that place - Cydia's and Sileo's shape, where a repo
+ * is somewhere you go rather than a line with buttons on it. Refresh and Remove live on the page they belong to,
+ * which also stops a mis-tap on a crowded row from removing a source.
+ */
 @Composable
 internal fun MarketSourcesTab(
     builtInName: String,
     builtInCount: Int,
     statuses: List<SourceStatus>,
     localDevAllowed: Boolean,
+    openUrl: String?,
+    onOpen: (String) -> Unit,
     onAdd: () -> Unit,
     onAddLocalDev: () -> Unit,
-    onRefresh: (Source) -> Unit,
-    onForget: (Source) -> Unit,
 ) {
     Column {
         SheetGroupLabel(stringResource(R.string.sources))
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Home, contentDescription = null, tint = Color(0xFF30D158), modifier = Modifier.size(20.dp))
-                Column(Modifier.padding(start = 10.dp)) {
-                    Text(builtInName, color = Color.White, fontSize = 16.sp)
-                    Text(stringResource(R.string.built_into_the_app_1_d_packages_no, builtInCount), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
-                }
-            }
+            SourceRow(
+                name = builtInName,
+                // The count is its own column now, so the line under the name doesn't say it twice.
+                detail = stringResource(R.string.built_into_the_app_no_network),
+                icon = Icons.Rounded.Home,
+                tint = Color(0xFF30D158),
+                count = builtInCount,
+                selected = openUrl == BUILT_IN_SOURCE_URL,
+                onOpen = { onOpen(BUILT_IN_SOURCE_URL) },
+            )
             statuses.forEach { status ->
                 MenuDivider()
-                SourceRow(status, onRefresh = { onRefresh(status.source) }, onForget = { onForget(status.source) })
+                val local = status.source.kind == Source.Kind.LOCAL_DEV
+                SourceRow(
+                    name = status.source.label,
+                    detail = sourceDetail(status),
+                    icon = if (local) Icons.Rounded.Warning else Icons.Rounded.Public,
+                    tint = if (local) Color(0xFFFFB340) else Color(0xFF6CB4FF),
+                    failed = status.failure != null,
+                    count = status.packages.size.takeIf { status.snapshot != null },
+                    selected = openUrl == status.source.url,
+                    onOpen = { onOpen(status.source.url) },
+                )
             }
         }
         SheetGroup(Modifier.padding(bottom = 10.dp)) {
@@ -73,42 +97,173 @@ internal fun MarketSourcesTab(
     }
 }
 
+/** What a source's row says under its name: what it is, or what went wrong reaching it. */
 @Composable
-private fun SourceRow(status: SourceStatus, onRefresh: () -> Unit, onForget: () -> Unit) {
-    val source = status.source
-    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                if (source.kind == Source.Kind.LOCAL_DEV) Icons.Rounded.Warning else Icons.Rounded.Public,
-                contentDescription = null,
-                tint = if (source.kind == Source.Kind.LOCAL_DEV) Color(0xFFFFB340) else Color(0xFF6CB4FF),
-                modifier = Modifier.size(20.dp),
+private fun sourceDetail(status: SourceStatus): String = when {
+    status.refreshing -> stringResource(R.string.refreshing)
+    status.failure != null -> status.failure.message
+    status.source.kind == Source.Kind.LOCAL_DEV -> stringResource(R.string.unsigned_served_from_this_phone)
+    // A source nobody typed in says where it came from, or it looks like something that appeared on its own.
+    status.source.kind == Source.Kind.SUPPORTER && status.snapshot == null ->
+        stringResource(R.string.added_with_your_supporter_code)
+    status.snapshot != null -> stringResource(R.string.n_packages, status.packages.size)
+    else -> stringResource(R.string.not_read_yet)
+}
+
+@Composable
+private fun SourceRow(
+    name: String,
+    detail: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    count: Int?,
+    selected: Boolean,
+    onOpen: () -> Unit,
+    failed: Boolean = false,
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 44.dp)
+            .background(if (selected) Color.White.copy(alpha = .06f) else Color.Transparent)
+            .clickable(onClickLabel = name, onClick = onOpen)
+            .padding(14.dp)
+            .testTag("market-source-row"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Column(Modifier.padding(start = 10.dp).weight(1f)) {
+            Text(name, color = Color.White, fontSize = 16.sp)
+            Text(
+                detail,
+                color = if (failed) Color(0xFFFF6961) else Color.White.copy(alpha = .55f),
+                fontSize = 13.sp,
             )
-            Column(Modifier.padding(start = 10.dp).weight(1f)) {
-                Text(source.label, color = Color.White, fontSize = 16.sp)
+        }
+        count?.let {
+            Text("$it", color = Color.White.copy(alpha = .55f), fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
+        }
+        Icon(
+            androidx.compose.material.icons.Icons.Rounded.ChevronRight,
+            contentDescription = null, tint = Color.White.copy(alpha = .3f),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/**
+ * One source, and what is in it.
+ *
+ * The packages come in as [rows] rather than being drawn here, so a package listed by a source looks and behaves
+ * exactly as it does in the Packages tab - the same row, the same Get, the same long press.
+ */
+@Composable
+internal fun MarketSourcePage(
+    name: String,
+    source: Source,
+    status: SourceStatus?,
+    packageCount: Int,
+    showBack: Boolean,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onForget: () -> Unit,
+    rows: @Composable () -> Unit,
+) {
+    val builtIn = source.kind == Source.Kind.BUILT_IN
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
+            .testTag("market-source-page"),
+    ) {
+        if (showBack) {
+            val back = stringResource(R.string.back)
+            Row(
+                Modifier.fillMaxWidth().clickable(onClickLabel = back, onClick = onBack).padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.ChevronLeft, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(18.dp))
+                Text(back, color = Color(0xFF0A84FF), fontSize = 16.sp)
+            }
+        }
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                when {
+                    builtIn -> Icons.Rounded.Home
+                    source.kind == Source.Kind.LOCAL_DEV -> Icons.Rounded.Warning
+                    else -> Icons.Rounded.Public
+                },
+                contentDescription = null,
+                tint = when {
+                    builtIn -> Color(0xFF30D158)
+                    source.kind == Source.Kind.LOCAL_DEV -> Color(0xFFFFB340)
+                    else -> Color(0xFF6CB4FF)
+                },
+                modifier = Modifier.size(34.dp),
+            )
+            Column(Modifier.padding(start = 12.dp)) {
+                Text(name, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                // The address, not a tidied version of it: this is the thing to compare with what a publisher says.
                 Text(
-                    when {
-                        status.refreshing -> stringResource(R.string.refreshing)
-                        status.failure != null -> status.failure.message
-                        source.kind == Source.Kind.LOCAL_DEV -> stringResource(R.string.unsigned_served_from_this_phone)
-                        // A source nobody typed in says where it came from, or it looks like something that
-                        // appeared on its own.
-                        source.kind == Source.Kind.SUPPORTER && status.snapshot == null ->
-                            stringResource(R.string.added_with_your_supporter_code)
-                        status.snapshot != null -> stringResource(R.string.n_packages, status.packages.size)
-                        else -> stringResource(R.string.not_read_yet)
-                    },
-                    color = if (status.failure != null) Color(0xFFFF6961) else Color.White.copy(alpha = .55f),
-                    fontSize = 13.sp,
+                    if (builtIn) stringResource(R.string.inside_the_app) else source.url,
+                    color = Color.White.copy(alpha = .55f), fontSize = 14.sp,
                 )
             }
         }
-        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill(stringResource(R.string.refresh), onRefresh)
-            Pill(stringResource(R.string.remove), onForget, destructive = true)
+        status?.failure?.let { failure ->
+            SheetGroup(Modifier.padding(top = 14.dp)) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(stringResource(R.string.folio_couldn_t_reach_this_source), color = Color.White, fontSize = 15.sp)
+                    Text(failure.message, color = Color(0xFFFF6961), fontSize = 13.sp)
+                    if (status.snapshot != null) {
+                        Text(stringResource(R.string.showing_the_list_it_had_before), color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                    }
+                }
+            }
         }
+        SheetGroupLabel(stringResource(R.string.information))
+        SheetGroup(Modifier.padding(bottom = 12.dp)) {
+            Column(Modifier.padding(14.dp)) {
+                Text(stringResource(R.string.n_packages, packageCount), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Text(
+                    when {
+                        builtIn -> stringResource(R.string.it_updates_with_folio_and_uses_no)
+                        source.kind == Source.Kind.LOCAL_DEV -> stringResource(R.string.unsigned_and_read_only_over_localhost)
+                        status?.snapshot != null -> stringResource(
+                            R.string.signed_1_s,
+                            android.text.format.DateUtils.getRelativeTimeSpanString(
+                                status.snapshot.entry.timestamp * 1000L,
+                                System.currentTimeMillis(),
+                                android.text.format.DateUtils.MINUTE_IN_MILLIS,
+                            ).toString(),
+                        )
+                        else -> stringResource(R.string.not_read_yet)
+                    },
+                    color = Color.White.copy(alpha = .55f), fontSize = 13.sp,
+                )
+            }
+        }
+        if (!builtIn) {
+            Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill(
+                    stringResource(if (status?.refreshing == true) R.string.refreshing else R.string.refresh),
+                    onRefresh,
+                )
+                Pill(stringResource(R.string.remove), onForget, destructive = true)
+            }
+        }
+        SheetGroupLabel(stringResource(R.string.from_this_source))
+        if (packageCount == 0) {
+            Text(
+                stringResource(R.string.nothing_from_this_source_yet),
+                color = Color.White.copy(alpha = .55f), fontSize = 14.sp,
+                modifier = Modifier.padding(vertical = 16.dp),
+            )
+        } else {
+            rows()
+        }
+        Spacer(Modifier.height(24.dp))
     }
 }
+
+/** Folio's own source has no address; this stands in for one so a page can be opened on it like any other. */
+internal const val BUILT_IN_SOURCE_URL = "folio://built-in/"
 
 @Composable
 private fun Pill(label: String, onClick: () -> Unit, destructive: Boolean = false) {

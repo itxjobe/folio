@@ -118,6 +118,8 @@ internal fun MarketScreen(
     // Saveable, so folding, rotating or leaving and coming back keeps the tab and the package that was open.
     var tab by rememberSaveable { mutableStateOf(MarketTab.FEATURED) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    /** The source whose page is open, by address. Folio's own uses [BUILT_IN_SOURCE_URL]. */
+    var openSourceUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var introducing by rememberSaveable { mutableStateOf(!session.prefs.introductionSeen) }
     var style by rememberSaveable { mutableStateOf(session.prefs.featuredStyle) }
     var confirming by rememberSaveable { mutableStateOf<String?>(null) }
@@ -225,6 +227,29 @@ internal fun MarketScreen(
         }
     }
 
+    /** Reads a source again now, whatever its refresh schedule says. A key change comes back as a sheet. */
+    fun refreshSource(source: Source) {
+        scope.launch {
+            val result = session.sources.refresh(source.url, force = true)
+            if (result is RefreshResult.NeedsTrust) trusting = result
+            statuses = withContext(session.io) { session.sources.cached() }
+            say(refreshMessage(context, source, result))
+            refresh()
+        }
+    }
+
+    /** Forgets a source: its list, its cache and its pinned key. What it installed stays. */
+    fun forgetSource(source: Source) {
+        scope.launch {
+            // Deleting a source's cache and its pinned key is file work, not frame work.
+            withContext(session.io) { session.sources.forget(source.url) }
+            statuses = withContext(session.io) { session.sources.cached() }
+            openSourceUrl = null
+            say(context.getString(R.string.text_1_s_removed, source.label))
+            refresh()
+        }
+    }
+
     /** Puts back a package Safe Mode turned off. Its changes go on again, so it runs off the main thread too. */
     fun tryAgain(id: String, name: String) {
         if (MarketWork.busy) return
@@ -244,7 +269,11 @@ internal fun MarketScreen(
         }
     }
 
-    BackHandler(enabled = openId != null) { openId = null }
+    // Back unwinds one step at a time, in the order things were opened: the package first, then the source it
+    // was listed on, then the store itself (handled by the launcher).
+    BackHandler(enabled = openId != null || openSourceUrl != null) {
+        if (openId != null) openId = null else openSourceUrl = null
+    }
 
     // A .foliopkg someone opened: read it once, then the same confirm sheet as anything else. Keyed on the file
     // itself, so one shared while the Market is already open is read there and then.
@@ -304,14 +333,22 @@ internal fun MarketScreen(
         }
         val packages = entries.map { it.entry }
         val open = openId?.let { id -> entries.firstOrNull { it.id == id } }
+        // A source's page, when one is open and no package is open in front of it. Only on the Sources tab: the
+        // same source seen from a package's "Show source" row lands here too, by way of that tab.
+        val openSource = openSourceUrl
+            ?.takeIf { tab == MarketTab.SOURCES && open == null }
+            ?.let { url ->
+                if (url == BUILT_IN_SOURCE_URL) session.builtIn to null
+                else statuses.firstOrNull { it.source.url == url }?.let { it.source to it }
+            }
 
         Row(Modifier.fillMaxSize()) {
-        if (tabs == TabPlacement.SIDEBAR) MarketSidebar(tab) { tab = it; openId = null }
+        if (tabs == TabPlacement.SIDEBAR) MarketSidebar(tab) { tab = it; openId = null; openSourceUrl = null }
         Column(Modifier.weight(1f)) {
             Row(Modifier.weight(1f)) {
                 if (tab == MarketTab.SETTINGS && settingsContent != null) {
                     Box(Modifier.fillMaxSize()) { settingsContent() }
-                } else if (split || open == null) {
+                } else if (split || (open == null && openSource == null)) {
                     Box(if (split) Modifier.width(360.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
                         MarketList(
                             session = session,
@@ -319,30 +356,14 @@ internal fun MarketScreen(
                             index = index,
                             statuses = statuses,
                             localDevAllowed = session.localDevAllowed,
+                            openSourceUrl = openSourceUrl,
+                            onOpenSource = { openSourceUrl = it; openId = null },
                             onAddSource = { addingSource = true },
                             onAddLocalDev = {
                                 scope.launch {
                                     val result = session.sources.addLocalDev(DEFAULT_LOCAL_SOURCE)
                                     statuses = withContext(session.io) { session.sources.cached() }
                                     say(refreshMessage(context, Source(DEFAULT_LOCAL_SOURCE, kind = Source.Kind.LOCAL_DEV), result))
-                                    refresh()
-                                }
-                            },
-                            onRefreshSource = { source ->
-                                scope.launch {
-                                    val result = session.sources.refresh(source.url, force = true)
-                                    if (result is RefreshResult.NeedsTrust) trusting = result
-                                    statuses = withContext(session.io) { session.sources.cached() }
-                                    say(refreshMessage(context, source, result))
-                                    refresh()
-                                }
-                            },
-                            onForgetSource = { source ->
-                                scope.launch {
-                                    // Deleting a source's cache and its pinned key is file work, not frame work.
-                                    withContext(session.io) { session.sources.forget(source.url) }
-                                    statuses = withContext(session.io) { session.sources.cached() }
-                                    say(context.getString(R.string.text_1_s_removed, source.label))
                                     refresh()
                                 }
                             },
@@ -357,6 +378,41 @@ internal fun MarketScreen(
                             onGet = { onExternalOrConfirm(it) },
                             onRemove = { id, name -> remove(id, name) },
                         )
+                    }
+                }
+                if (openSource != null) {
+                    val (sourceOpen, statusOpen) = openSource
+                    val fromSource = entries.filter { it.source.url == sourceOpen.url }
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        MarketSourcePage(
+                            name = if (sourceOpen.kind == Source.Kind.BUILT_IN) {
+                                index?.name?.english ?: stringResource(R.string.folio)
+                            } else {
+                                statusOpen?.source?.label ?: sourceOpen.label
+                            },
+                            source = sourceOpen,
+                            status = statusOpen,
+                            packageCount = fromSource.size,
+                            showBack = !split,
+                            onBack = { openSourceUrl = null },
+                            onRefresh = { refreshSource(sourceOpen) },
+                            onForget = { forgetSource(sourceOpen) },
+                        ) {
+                            SheetGroup {
+                                for (entry in fromSource) {
+                                    MarketRow(
+                                        session = session,
+                                        entry = entry,
+                                        installed = installed[entry.id],
+                                        busy = entry.id == busyId,
+                                        selected = false,
+                                        onOpen = { openId = entry.id },
+                                        onGet = { onExternalOrConfirm(entry) },
+                                        onRemove = { remove(entry.id, entry.name) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 if (open != null) {
@@ -374,6 +430,11 @@ internal fun MarketScreen(
                             onTryAgain = { tryAgain(open.id, open.name) },
                             onShare = { share(context, it) },
                             onReport = { report(context, index?.issuesUrl, it) },
+                            onShowSource = {
+                                openId = null
+                                openSourceUrl = if (open.source.kind == Source.Kind.BUILT_IN) BUILT_IN_SOURCE_URL else open.source.url
+                                tab = MarketTab.SOURCES
+                            },
                         )
                     }
                 }
@@ -395,9 +456,9 @@ internal fun MarketScreen(
                     onDismiss = { message = null },
                 )
             }
-            if (tabs == TabPlacement.BOTTOM) MarketTabs(tab) { tab = it; openId = null }
+            if (tabs == TabPlacement.BOTTOM) MarketTabs(tab) { tab = it; openId = null; openSourceUrl = null }
         }
-        if (tabs == TabPlacement.RAIL) MarketRail(tab) { tab = it; openId = null }
+        if (tabs == TabPlacement.RAIL) MarketRail(tab) { tab = it; openId = null; openSourceUrl = null }
         }
         importing?.let { (bytes, pkg) ->
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { importing = null }) {
@@ -652,10 +713,10 @@ private fun MarketList(
     index: RepoIndex?,
     statuses: List<SourceStatus>,
     localDevAllowed: Boolean,
+    openSourceUrl: String?,
+    onOpenSource: (String) -> Unit,
     onAddSource: () -> Unit,
     onAddLocalDev: () -> Unit,
-    onRefreshSource: (Source) -> Unit,
-    onForgetSource: (Source) -> Unit,
     entries: List<MarketEntry>,
     installed: Map<String, InstalledPackage>,
     openId: String?,
@@ -702,10 +763,10 @@ private fun MarketList(
                     builtInCount = entries.count { it.source.kind == Source.Kind.BUILT_IN },
                     statuses = statuses,
                     localDevAllowed = localDevAllowed,
+                    openUrl = openSourceUrl,
+                    onOpen = onOpenSource,
                     onAdd = onAddSource,
                     onAddLocalDev = onAddLocalDev,
-                    onRefresh = onRefreshSource,
-                    onForget = onForgetSource,
                 )
             }
         }
@@ -926,6 +987,7 @@ private fun MarketPackagePage(
     onTryAgain: () -> Unit,
     onShare: (IndexPackage) -> Unit,
     onReport: (IndexPackage) -> Unit,
+    onShowSource: () -> Unit,
 ) {
     // Keyed on the version too: after an update the page has to read the new package's own text and images, not the
     // ones it read before. Reading them means parsing every bundled package, so it happens off the main thread.
@@ -1051,7 +1113,15 @@ private fun MarketPackagePage(
         SheetGroupLabel(stringResource(R.string.information))
         SheetGroup(Modifier.padding(bottom = 12.dp)) {
             Column(Modifier.padding(14.dp)) {
-                Text(stringResource(R.string.source_1_s, source.label), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                // The source's name leads to the source, the way it does in Cydia and Sileo: a package is listed
+                // somewhere, and that somewhere has the rest of what it offers.
+                val sourceLine = stringResource(R.string.source_1_s, source.label)
+                Text(
+                    sourceLine,
+                    color = Color(0xFF6CB4FF), fontSize = 14.sp,
+                    modifier = Modifier.clickable(onClickLabel = sourceLine, onClick = onShowSource)
+                        .heightIn(min = 44.dp).padding(vertical = 12.dp).testTag("package-show-source"),
+                )
                 // Provenance, or the honest absence of it. A package from a source with no provenance was being
                 // called "Built into Folio", which said the opposite of where it actually came from.
                 val built = entry.provenance

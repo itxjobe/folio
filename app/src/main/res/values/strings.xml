@@ -792,7 +792,7 @@
     <string name="next_step">Next step</string>
     <string name="open_the_market">Open the Market</string>
     <string name="sources">Sources</string>
-    <string name="built_into_the_app_1_d_packages_no">Built into the app · %1$d packages · no network</string>
+    <string name="built_into_the_app_no_network">Built into the app · no network</string>
     <string name="add_a_source">Add a source</string>
     <string name="add_a_local_source_folio_dev">Add a local source (Folio Dev)</string>
     <string name="folio_shows_a_source_s_key_fingerprint">Folio shows a source\'s key fingerprint before you trust it, and stops using a source that changes its key until you confirm the new one. It only ever reads static files, and only when you ask or when a background refresh is due.</string>
@@ -845,6 +845,14 @@
     <string name="information">Information</string>
     <string name="source_1_s">Source: %1$s</string>
     <string name="built_into_folio">Built into Folio</string>
+    <string name="inside_the_app">Inside the app</string>
+    <string name="folio_couldn_t_reach_this_source">Folio couldn\'t reach this source</string>
+    <string name="showing_the_list_it_had_before">Showing the list it had before.</string>
+    <string name="it_updates_with_folio_and_uses_no">It updates with Folio and uses no network.</string>
+    <string name="unsigned_and_read_only_over_localhost">Unsigned, and read only over localhost.</string>
+    <string name="signed_1_s">Signed %1$s</string>
+    <string name="from_this_source">From this source</string>
+    <string name="nothing_from_this_source_yet">Nothing from this source yet. Refresh it, or check the address.</string>
     <string name="its_source_didn_t_say_how_it_was_built">Its source didn\'t say how it was built</string>
     <string name="installed_1_s">Installed %1$s</string>
     <string name="share">Share</string>

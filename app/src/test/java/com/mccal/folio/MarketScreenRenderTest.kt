@@ -112,7 +112,7 @@ class MarketScreenRenderTest {
         session.prefs.introductionSeen = true
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-sources").performClick()
-        compose.onNodeWithText("Built into the app · 9 packages · no network").assertExists()
+        compose.onNodeWithText("Built into the app · no network").assertExists()
         compose.onNodeWithText("Add a source").performClick()
         // Adding one starts by asking for the address; nothing is trusted yet.
         compose.onNodeWithTag("market-add-source", useUnmergedTree = true).assertExists()
@@ -162,6 +162,34 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Cabinet").assertExists()
         // Folio's own packages say nothing about a source; this one names it.
         compose.onNodeWithText("Example · Maya").assertExists()
+    }
+
+    @Test fun `a source is a place with its packages in it`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        addCachedSource("https://maya.example/folio/", "Maya", mayaIndex())
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-sources").performClick()
+        // The row is the way in, the way a repo is in Cydia and Sileo - not a line with buttons on it.
+        compose.onNodeWithText("Maya").performClick()
+        compose.onNodeWithTag("market-source-page", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("https://maya.example/folio/").assertExists()
+        compose.onNodeWithText("FROM THIS SOURCE").assertExists()
+        // Its package is listed here, and it is the same row as anywhere else: Get and all.
+        compose.onNodeWithText("Sunset Icons").assertExists()
+        compose.onNodeWithContentDescription("Get Sunset Icons").assertExists()
+    }
+
+    @Test fun `a package names the source that lists it, and that leads there`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        addCachedSource("https://maya.example/folio/", "Maya", mayaIndex())
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-packages").performClick()
+        compose.onNodeWithText("Sunset Icons").performClick()
+        compose.onNodeWithTag("package-show-source", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("market-source-page", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("https://maya.example/folio/").assertExists()
     }
 
     /**
