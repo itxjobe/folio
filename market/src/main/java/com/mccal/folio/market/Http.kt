@@ -44,10 +44,16 @@ sealed interface HttpResult {
 /**
  * `HttpsURLConnection`, locked down for sources: HTTPS only, no cookies, no caching, a plain `User-Agent: Folio`
  * (T13: a source can't tell users apart), a byte cap, and redirects only to other HTTPS URLs.
+ *
+ * [allowLocalhost] is the one exception, and only Folio Dev sets it: a source being written on this phone and
+ * served over `adb reverse` has no certificate and can't have one. It is still only ever plain HTTP **to
+ * localhost** - a redirect away from it is refused like any other, so a local source can't send Folio somewhere
+ * else in the clear.
  */
 class UrlHttpClient(
     private val timeoutMs: Int = 15_000,
     private val maxRedirects: Int = 3,
+    private val allowLocalhost: Boolean = false,
     private val open: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
 ) : HttpClient {
 
@@ -64,7 +70,7 @@ class UrlHttpClient(
             } catch (e: Exception) {
                 return HttpResult.Failed("that isn't a link Folio can open")
             }
-            if (!parsed.protocol.equals("https", ignoreCase = true)) {
+            if (!parsed.protocol.equals("https", ignoreCase = true) && !(allowLocalhost && isLoopback(parsed))) {
                 return HttpResult.Failed(if (hop == 0) "sources must use https" else "that source redirected to an insecure link")
             }
             val connection = try {
@@ -112,6 +118,11 @@ class UrlHttpClient(
         }
         return HttpResult.Failed("that source redirected too many times")
     }
+
+    /** Only this phone talking to itself. A name that merely looks local is not enough. */
+    private fun isLoopback(url: URL) =
+        url.protocol.equals("http", ignoreCase = true) &&
+            url.host.lowercase() in setOf("localhost", "127.0.0.1", "::1", "[::1]")
 
     companion object {
         const val USER_AGENT = "Folio"

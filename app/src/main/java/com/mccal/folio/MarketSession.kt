@@ -66,12 +66,13 @@ internal class MarketSession(
     /** Sources the user added. Folio Dev can also point at a source served from the phone (unsigned, localhost only). */
     val sources = MarketSources(
         client = RepoClient(
-            http = UrlHttpClient(),
+            // Folio Dev, and only Folio Dev, may read a source served off this phone in the clear.
+            http = UrlHttpClient(allowLocalhost = localDevAllowed),
             store = SourceStore(files),
             allowLocalDev = localDevAllowed,
         ),
         list = SourceList(files),
-        http = UrlHttpClient(),
+        http = UrlHttpClient(allowLocalhost = localDevAllowed),
         io = io,
         knownRevocations = { source.revocations() },
     )

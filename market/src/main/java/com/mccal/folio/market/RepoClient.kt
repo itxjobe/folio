@@ -1,5 +1,6 @@
 package com.mccal.folio.market
 
+import org.json.JSONObject
 /** What a source looks like after a successful refresh. */
 data class SourceSnapshot(
     val url: String,
@@ -206,6 +207,9 @@ class RepoClient(
         val bytes = when (val result = http.get(base + "index.json", RepoIndex.MAX_CHARS)) {
             is HttpResult.Body -> result.bytes
             is HttpResult.TooLarge -> return RefreshResult.Failed(RefreshResult.Reason.SIZE, "that list is too big")
+            // Say what actually went wrong. "Nothing is being served there" was said for every failure, including
+            // the build refusing plain HTTP, which sent someone looking at their server for an hour.
+            is HttpResult.Failed -> return RefreshResult.Failed(RefreshResult.Reason.NETWORK, result.message)
             else -> return RefreshResult.Failed(RefreshResult.Reason.NETWORK, "nothing is being served at that address")
         }
         val index = when (val parsed = RepoIndex.parse(bytes.decodeToString())) {
@@ -214,11 +218,24 @@ class RepoClient(
             is ParseResult.Invalid -> return RefreshResult.Failed(RefreshResult.Reason.PARSE, parsed.errors.first())
         }
         val now = clock()
-        store.cache(base, "index", bytes.decodeToString())
-        store.save(base, store.state(base).copy(lastRefresh = now))
         val entry = SourceEntry("0".repeat(16), now, MIN_LOCAL_MAX_AGE, FileRef("index.json", sha256Hex(bytes), bytes.size))
+        store.cache(base, "index", bytes.decodeToString())
+        // The made-up entry is cached beside the index, because [cachedSnapshot] needs both and will hand back
+        // nothing without it. Without this the refresh says "updated" and the source then has no packages at
+        // all: not in the list, not in Packages, no count beside its name.
+        store.cache(base, "entry", localEntryJson(entry))
+        store.save(base, store.state(base).copy(lastRefresh = now))
         return RefreshResult.Updated(SourceSnapshot(base, entry, index, revocation = null, fetchedAt = now, notes = listOf(UNSIGNED_NOTE)))
     }
+
+    /** A local source has no `entry.json` to fetch, so Folio writes the one it made in the same shape. */
+    private fun localEntryJson(entry: SourceEntry) = JSONObject()
+        .put("format", 1)
+        .put("keyId", entry.keyId)
+        .put("timestamp", entry.timestamp)
+        .put("maxAge", entry.maxAge)
+        .put("index", JSONObject().put("path", entry.index.path).put("sha256", entry.index.sha256).put("size", entry.index.size))
+        .toString()
 
     /** The last good copy, so the store keeps working offline and a failed refresh changes nothing. */
     fun cachedSnapshot(url: String): SourceSnapshot? {

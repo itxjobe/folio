@@ -25,6 +25,21 @@ class LocalDevSourceTest {
 
     private fun client(allow: Boolean, host: Host) = RepoClient(host, SourceStore(MemoryStore()), allowLocalDev = allow) { 1_789_000_000L }
 
+    @Test fun `what it read is still there afterwards`() {
+        // The gap that let a whole feature look like it worked: the refresh returned a snapshot and cached only
+        // the index, and `cachedSnapshot` wants an entry too. So the source said "updated", showed no package
+        // count, and contributed nothing to Packages - and every test until now stopped at the return value.
+        val host = Host(mapOf(local + "index.json" to index.toByteArray()))
+        val client = client(allow = true, host)
+        val fresh = (client.refreshLocalDev(local) as RefreshResult.Updated).snapshot
+
+        val kept = client.cachedSnapshot(local)
+        assertTrue("the source should still be there after the refresh", kept != null)
+        assertEquals(fresh.index.packages.size, kept!!.index.packages.size)
+        assertEquals(fresh.index.name.english, kept.index.name.english)
+        assertEquals(fresh.entry.index.sha256, kept.entry.index.sha256)
+    }
+
     @Test fun `Folio Dev reads an unsigned index from this phone and says it's unsigned`() {
         val host = Host(mapOf(local + "index.json" to index.toByteArray()))
         val result = client(allow = true, host).refreshLocalDev(local)
