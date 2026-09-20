@@ -91,6 +91,10 @@ private fun SourceRow(status: SourceStatus, onRefresh: () -> Unit, onForget: () 
                         status.refreshing -> stringResource(R.string.refreshing)
                         status.failure != null -> status.failure.message
                         source.kind == Source.Kind.LOCAL_DEV -> stringResource(R.string.unsigned_served_from_this_phone)
+                        // A source nobody typed in says where it came from, or it looks like something that
+                        // appeared on its own.
+                        source.kind == Source.Kind.SUPPORTER && status.snapshot == null ->
+                            stringResource(R.string.added_with_your_supporter_code)
                         status.snapshot != null -> stringResource(R.string.n_packages, status.packages.size)
                         else -> stringResource(R.string.not_read_yet)
                     },

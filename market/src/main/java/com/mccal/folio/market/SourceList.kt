@@ -19,6 +19,16 @@ data class Source(
         ADDED("added"),
 
         /**
+         * Folio's supporter source, added by redeeming a code rather than by hand.
+         *
+         * Its key ships in the app, so adding it is not trust-on-first-use: there is no fingerprint to confirm
+         * because Folio already knows which key is right, and a source that answers with another one fails the
+         * signature like any other. That matters, because a source that appears without being asked for is
+         * exactly where showing a fingerprint would be skipped.
+         */
+        SUPPORTER("supporter"),
+
+        /**
          * A source served from the phone itself while someone builds a package (`folio-pkg serve` plus
          * `adb reverse`). Unsigned, http, and only in Folio Dev.
          */

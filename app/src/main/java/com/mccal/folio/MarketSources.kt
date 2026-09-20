@@ -122,12 +122,15 @@ internal class MarketSources(
     }
 
     /** Pins a key the user has confirmed, adds the source, and reads its list. */
-    suspend fun trust(url: String, key: SourceKey): RefreshResult = withContext(io) {
+    suspend fun trust(url: String, key: SourceKey, kind: Source.Kind = Source.Kind.ADDED): RefreshResult = withContext(io) {
         val base = normalizeSourceUrl(url)
         client.trust(base, key)
-        list.add(Source(base, addedAt = System.currentTimeMillis() / 1000))
+        list.add(Source(base, kind = kind, addedAt = System.currentTimeMillis() / 1000))
         refresh(base, force = true)
     }
+
+    /** True when this source is already in the list, whoever put it there. */
+    fun has(url: String): Boolean = sources().any { it.url == normalizeSourceUrl(url) }
 
     /** Adds a local source for development. Unsigned, so only Folio Dev can use it at all. */
     suspend fun addLocalDev(url: String): RefreshResult = withContext(io) {

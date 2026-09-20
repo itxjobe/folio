@@ -75,4 +75,12 @@ internal object MarketWork {
 
     /** Called by the store once it has said what happened. */
     fun taken(): Finished? = finished.also { finished = null }
+
+    /**
+     * Something small that has to finish whether or not a screen is open - adding the supporter source after a
+     * code is redeemed, say. It isn't an install, so it doesn't touch [busy] and two of them may overlap.
+     */
+    fun background(work: suspend () -> Unit) {
+        scope.launch { runCatching { kotlinx.coroutines.withContext(Dispatchers.IO) { work() } } }
+    }
 }

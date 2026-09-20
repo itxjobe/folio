@@ -888,4 +888,5 @@
     <string name="folio_couldn_t_open_1_s_on_this_phone">Folio couldn\'t open %1$s on this phone</string>
     <string name="get_it_on_1_s">Get it on: %1$s</string>
     <string name="on_this_phone_1_s">On this phone: %1$s</string>
+    <string name="added_with_your_supporter_code">Added with your supporter code</string>
 </resources>

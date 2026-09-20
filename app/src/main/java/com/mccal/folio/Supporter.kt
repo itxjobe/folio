@@ -66,11 +66,15 @@ internal object Supporter {
      * - **Beta Updates**, so the builds come too. Supporting Folio buys the store *and* the releases it is in;
      *   asking someone to find a second switch in another page to get what they paid for is a way to lose them.
      *
+     * It also adds the supporter source, so nobody has to be handed an address to paste - see [SUPPORTER_SOURCE]
+     * for why that is safe to do without asking.
+     *
      * Only on the way in, and only the first time: turning either off afterwards sticks, because redeeming again
      * with the same code is refused before it reaches here.
      */
     fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now(),
         keys: List<String> = keys(context), onBetaChannel: (Boolean) -> Unit = { SoftwareUpdate.setBeta(context, it) },
+        onSupporterSource: (Boolean) -> Unit = { if (it) MarketAccess.addSupporterSource(context) else MarketAccess.forgetSupporterSource(context) },
     ): BetaCodes.Result {
         val result = BetaCodes.verify(text, keys, today, BetaKeys.WITHDRAWN)
         if (result is BetaCodes.Result.Valid) {
@@ -81,13 +85,17 @@ internal object Supporter {
                 setBetaOn(context, true)
                 runCatching { onBetaChannel(true) }
             }
+            if (first) runCatching { onSupporterSource(true) }
         }
         return result
     }
 
-    fun remove(context: Context) {
+    fun remove(context: Context, onSupporterSource: (Boolean) -> Unit = { if (!it) MarketAccess.forgetSupporterSource(context) }) {
         checked = null
         context.getSharedPreferences(PREFS, 0).edit().remove(CODE).remove(BETA).apply()
+        // The list goes; what it listed and anything installed from it stays. Removing a code says "not a
+        // supporter on this phone any more", not "undo everything that ever came of it".
+        runCatching { onSupporterSource(false) }
     }
 
     fun storedText(context: Context): String? = stored(context)

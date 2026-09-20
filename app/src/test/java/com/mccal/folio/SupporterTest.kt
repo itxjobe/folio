@@ -83,6 +83,25 @@ class SupporterTest {
         assertEquals(true, channel)
     }
 
+    @Test fun `redeeming adds the supporter source, and removing the code takes it away`() {
+        val asked = mutableListOf<Boolean>()
+        Supporter.redeem(context, mint(beta), keys = keys, onBetaChannel = {}, onSupporterSource = { asked += it })
+        assertEquals("added on the way in", listOf(true), asked)
+
+        // Redeeming the same code again doesn't add it twice - it isn't the first time any more.
+        Supporter.redeem(context, mint(beta), keys = keys, onBetaChannel = {}, onSupporterSource = { asked += it })
+        assertEquals(listOf(true), asked)
+
+        Supporter.remove(context) { asked += it }
+        assertEquals("and goes when the code does", listOf(true, false), asked)
+    }
+
+    @Test fun `a code with no beta scope still brings the source, because it still came from supporting`() {
+        val asked = mutableListOf<Boolean>()
+        Supporter.redeem(context, mint(keysScope), keys = keys, onBetaChannel = {}, onSupporterSource = { asked += it })
+        assertEquals(listOf(true), asked)
+    }
+
     @Test fun `a code without the beta scope leaves both switches alone`() {
         var channel: Boolean? = null
         Supporter.redeem(context, mint(keysScope), keys = keys, onBetaChannel = { channel = it })

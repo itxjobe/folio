@@ -16,6 +16,7 @@ import com.mccal.folio.market.InstalledStore
 import com.mccal.folio.market.MarketFeature
 import com.mccal.folio.market.RepoClient
 import com.mccal.folio.market.Source
+import com.mccal.folio.market.SourceKey
 import com.mccal.folio.market.SourceList
 import com.mccal.folio.market.SourceStore
 import com.mccal.folio.market.UrlHttpClient
@@ -188,8 +189,26 @@ internal fun rememberedMarketPrefs(context: Context): MarketPrefs =
 internal const val DEFAULT_LOCAL_SOURCE = "http://localhost:8787/"
 
 /**
- * Whether this phone sees the Market: Folio Dev, Beta Updates, or a supporter's code. Everything the Market hands out
- * is also in Settings, so a stable-release user isn't missing a feature — only the store that lists them.
+ * The supporter source: Keyd's repository publishes its own releases and, beside them, a signed Folio source that
+ * lists Keyd as an `externalApp` package.
+ *
+ * Redeeming a code adds it, so a supporter doesn't have to be handed an address to paste. That only works safely
+ * because [SUPPORTER_SOURCE_KEY] ships in the app: adding a source normally shows its key fingerprint and waits
+ * for the user, which is what stops someone impersonating a source (T4), and a source that arrives on its own has
+ * nobody to ask. With the key already known there is nothing to confirm, and a host answering with a different
+ * key fails the signature like any other.
+ *
+ * **The key is empty until McCal makes one**, and an empty key means the source is never added - the same rule as
+ * `BetaKeys.SUPPORTER`. A placeholder would let anyone publish as Folio's supporter source, which is worse than
+ * the feature not working yet.
+ */
+internal const val SUPPORTER_SOURCE = "https://mccal-codes.github.io/folio-keyd/"
+
+internal const val SUPPORTER_SOURCE_KEY = ""
+
+/**
+ * Whether this phone sees the Market: Folio Dev or a supporter's code. Everything the Market hands out is also in
+ * Settings, so a stable-release user isn't missing a feature — only the store that lists them.
  */
 internal object MarketAccess {
     /**
@@ -203,4 +222,41 @@ internal object MarketAccess {
         packageName = context.packageName,
         hasEarlyCode = runCatching { Supporter.has(context, BetaCodes.SCOPE_BETA) }.getOrDefault(false),
     )
+
+    /**
+     * Adds the supporter source, once, when a code is redeemed. Nothing happens without a key built in, and
+     * nothing happens twice: a source already in the list is left exactly as it is, name and all.
+     *
+     * The reading happens in the background and its failure doesn't matter here - the source is in the list
+     * either way, and the store refreshes it the next time it's opened.
+     */
+    fun addSupporterSource(context: Context): Boolean {
+        val key = SourceKey.parse(SUPPORTER_SOURCE_KEY) ?: return false
+        val app = context.applicationContext
+        MarketWork.background {
+            val session = MarketSession(app, ReadOnlyMarketLauncher)
+            if (!session.sources.has(SUPPORTER_SOURCE)) {
+                session.sources.trust(SUPPORTER_SOURCE, key, Source.Kind.SUPPORTER)
+            }
+        }
+        return true
+    }
+
+    /** Removing the code removes the source with it. What it listed and installed stays; only the list goes. */
+    fun forgetSupporterSource(context: Context) {
+        if (SUPPORTER_SOURCE_KEY.isEmpty()) return
+        val app = context.applicationContext
+        MarketWork.background {
+            MarketSession(app, ReadOnlyMarketLauncher).sources.forget(SUPPORTER_SOURCE)
+        }
+    }
+}
+
+/** Adding or forgetting a source changes no setting and applies no package, and with this it can't. */
+private object ReadOnlyMarketLauncher : MarketLauncher {
+    override val state = LauncherState()
+    override fun installTweak(feature: TweakFeature) = Unit
+    override fun removeTweak(feature: TweakFeature) = Unit
+    override fun setFeatureScope(id: String, screen: FolioScreen, value: ScopeValue) = Unit
+    override fun applyTheme(theme: FolioTheme) = Unit
 }
