@@ -81,7 +81,7 @@ internal class MarketSession(
     fun index(): RepoIndex? = source.index()
 
     /** Folio's own source, as a [Source], so built-in packages carry a source like any other. */
-    val builtIn = Source("folio://built-in/", name = "Folio", kind = Source.Kind.BUILT_IN)
+    val builtIn = Source("folio://built-in/", name = appContext.getString(R.string.folio), kind = Source.Kind.BUILT_IN)
 
     /**
      * Every package the store can show: Folio's own first, then each source the user added, from its cached list.
@@ -102,11 +102,14 @@ internal class MarketSession(
      */
     suspend fun get(entry: MarketEntry): InstallResult = when {
         entry.revokedReason != null ->
-            InstallResult.Failed(InstallResult.Reason.REVOKED, "${entry.name} was pulled by its source: ${entry.revokedReason}")
+            InstallResult.Failed(
+                InstallResult.Reason.REVOKED,
+                appContext.getString(R.string.text_1_s_was_pulled_by_its_source_2_s, entry.name, entry.revokedReason),
+            )
         // A source claiming an id that belongs to a package inside Folio is claiming to be that package.
         entry.clash == MarketEntry.Impostor.BUILT_IN -> InstallResult.Failed(
             InstallResult.Reason.MISMATCH,
-            "${entry.source.label} offers this under a name that belongs to one of Folio's own packages",
+            appContext.getString(R.string.text_1_s_offers_this_under_a_name, entry.source.label),
         )
         entry.source.kind == Source.Kind.BUILT_IN -> withContext(io) { get(entry.entry) }
         else -> sources.download(
@@ -127,7 +130,7 @@ internal class MarketSession(
     }
 
     fun get(entry: IndexPackage): InstallResult {
-        val files = source.filesFor(entry.id) ?: return InstallResult.Failed(InstallResult.Reason.ARCHIVE, "Folio couldn't find that package")
+        val files = source.filesFor(entry.id) ?: return InstallResult.Failed(InstallResult.Reason.ARCHIVE, appContext.getString(R.string.folio_couldn_t_find_that_package))
         return installer.installBuiltIn(files)
     }
 
@@ -152,7 +155,7 @@ internal class MarketSession(
      */
     fun noteCrash(): InstalledPackage? {
         val id = safeMode.noteCrash() ?: return null
-        disable(id, "Folio stopped twice just after this package changed, so it's off. Your settings are kept.")
+        disable(id, appContext.getString(R.string.folio_stopped_twice_just_after_this_package))
         return store.find(id)
     }
 

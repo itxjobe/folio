@@ -641,10 +641,10 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     CrashReportsCard()
                 }
                 CustomizationPage.MARKET -> {
-                    Text("Themes and tweaks as packages you can get and remove. Folio's own come with the app; sources you add are signed by whoever publishes them.",
+                    Text(stringResource(R.string.market_page_intro),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-                    SheetGroup { IosActionRow("Open the Market", onClick = onOpenMarket) }
-                    SheetGroupLabel("Featured style")
+                    SheetGroup { IosActionRow(stringResource(R.string.open_the_market), onClick = onOpenMarket) }
+                    SheetGroupLabel(stringResource(R.string.featured_style))
                     val marketPrefs = remember(sheetContext) { rememberedMarketPrefs(sheetContext) }
                     var featuredStyle by remember { mutableStateOf(marketPrefs.featuredStyle) }
                     IosSegmented(
@@ -656,7 +656,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     Text(stringResource(featuredStyle.description),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                     SheetGroup {
-                        IosActionRow("Show the introduction again") { marketPrefs.introductionSeen = false }
+                        IosActionRow(stringResource(R.string.show_the_introduction_again)) { marketPrefs.introductionSeen = false }
                     }
                     // A code is redeemed in one place, Settings > Supporter, and this points at it rather than
                     // offering a second box that would take the same code for one feature only.
@@ -677,25 +677,25 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     CardNote(stringResource(R.string.some_listings_are_apps_of_their_own))
                     // The warning belongs on the switch, not buried in a sheet nobody reads twice.
                     if (installApps) CardNote(stringResource(R.string.turn_it_on_only_for_sources_you_would))
-                    SheetGroupLabel("Refreshing")
+                    SheetGroupLabel(stringResource(R.string.market_refreshing_section))
                     var background by remember { mutableStateOf(marketPrefs.backgroundRefresh) }
                     var wifiOnly by remember { mutableStateOf(marketPrefs.refreshOnWifiOnly) }
                     SheetGroup {
-                        SwitchRow("Refresh in the background", if (background) "Once a day" else "Off", background) {
+                        SwitchRow(stringResource(R.string.refresh_in_the_background), stringResource(if (background) R.string.once_a_day else R.string.off), background) {
                             background = it
                             marketPrefs.backgroundRefresh = it
                             MarketRefreshJob.schedule(sheetContext)
                         }
                         if (background) {
                             MenuDivider()
-                            SwitchRow("Only on Wi-Fi", if (wifiOnly) "Never uses mobile data" else "Any network", wifiOnly) {
+                            SwitchRow(stringResource(R.string.only_on_wifi), stringResource(if (wifiOnly) R.string.never_uses_mobile_data else R.string.any_network), wifiOnly) {
                                 wifiOnly = it
                                 marketPrefs.refreshOnWifiOnly = it
                                 MarketRefreshJob.schedule(sheetContext)
                             }
                         }
                     }
-                    Text("With this off, Folio only goes online when you open the Market and refresh a source yourself.",
+                    Text(stringResource(R.string.with_this_off_folio_only_goes_online),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                 }
                 CustomizationPage.TWEAKS -> {

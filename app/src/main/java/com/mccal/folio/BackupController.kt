@@ -123,7 +123,7 @@ class BackupController(
                 var changed = false
                 val putLayoutBack = { changed = model.applyImportedLayout(imported) }
                 val packages = if (marketOpen) imported.packages else null
-                val restored = runCatching { market.restorePackages(packages, PACKAGE_LEFT_OFF, putLayoutBack) }.getOrElse {
+                val restored = runCatching { market.restorePackages(packages, activity.getString(R.string.folio_couldn_t_put_this_package_back), putLayoutBack) }.getOrElse {
                     // The Market failing is no reason to lose the layout the user asked for.
                     if (!changed) putLayoutBack()
                     null
@@ -152,13 +152,13 @@ class BackupController(
         val parts = mutableListOf(if (changed) "Layout restored. Widgets are ready to reconnect." else "This layout is already active.")
         when {
             packages == null -> Unit
-            !marketOpen -> parts += "Its packages were left out: the Market isn't on for this phone."
-            restored == null -> parts += "Folio couldn't read its packages, so this phone's were left as they are."
+            !marketOpen -> parts += activity.getString(R.string.its_packages_were_left_out)
+            restored == null -> parts += activity.getString(R.string.folio_couldn_t_read_its_packages_so)
             else -> {
                 val on = restored.on.size
                 val off = restored.off.size + restored.failed.size
-                if (on > 0) parts += if (on == 1) "1 package is back." else "$on packages are back."
-                if (off > 0) parts += if (off == 1) "1 more is in Installed, turned off." else "$off more are in Installed, turned off."
+                if (on > 0) parts += activity.resources.getQuantityString(R.plurals.packages_are_back, on, on)
+                if (off > 0) parts += activity.resources.getQuantityString(R.plurals.more_are_in_installed_turned_off, off, off)
             }
         }
         return parts.joinToString(" ")
@@ -279,8 +279,5 @@ class BackupController(
         private const val OP_IMPORT = "import"
         private const val OP_PREVIEW = "preview"
 
-        /** Why a package a restored backup carried is in the list but turned off. */
-        private const val PACKAGE_LEFT_OFF =
-            "Folio couldn't put this package back on this phone. Your settings are kept - try it again, or remove it."
     }
 }

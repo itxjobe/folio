@@ -1199,4 +1199,45 @@
     <string name="widget_size_row">%1$d × %2$d widget · row %3$d</string>
     <string name="default_backup_name">Folio Layout %1$s</string>
     <string name="open_tweak">Open %1$s</string>
+
+    <!-- The Market's own words, moved out of the code for 0.6.6 so they can be translated with everything else. -->
+    <string name="market_page_intro">Themes and tweaks as packages you can get and remove. Folio\'s own come with the app; sources you add are signed by whoever publishes them.</string>
+    <string name="market_refreshing_section">Refreshing</string>
+    <string name="refresh_in_the_background">Refresh in the background</string>
+    <string name="once_a_day">Once a day</string>
+    <string name="only_on_wifi">Only on Wi-Fi</string>
+    <string name="never_uses_mobile_data">Never uses mobile data</string>
+    <string name="any_network">Any network</string>
+    <string name="with_this_off_folio_only_goes_online">With this off, Folio only goes online when you open the Market and refresh a source yourself.</string>
+    <string name="progress_applying">Applying…</string>
+    <string name="progress_nearly_done">Nearly done</string>
+    <string name="progress_a_few_seconds_left">A few seconds left</string>
+    <plurals name="progress_about_seconds_left">
+        <item quantity="one">About %1$d second left</item>
+        <item quantity="other">About %1$d seconds left</item>
+    </plurals>
+    <plurals name="progress_about_minutes_left">
+        <item quantity="one">About %1$d minute left</item>
+        <item quantity="other">About %1$d minutes left</item>
+    </plurals>
+    <string name="progress_megabytes">%1$s of %2$s MB</string>
+    <string name="applying_1_s">Applying %1$s</string>
+    <string name="text_1_s_version_2_s">%1$s · version %2$s</string>
+    <string name="installing_1_s">Installing %1$s</string>
+    <string name="text_1_s_was_pulled_by_its_source_2_s">%1$s was pulled by its source: %2$s</string>
+    <string name="text_1_s_offers_this_under_a_name">%1$s offers this under a name that belongs to one of Folio\'s own packages</string>
+    <string name="folio_couldn_t_find_that_package">Folio couldn\'t find that package</string>
+    <string name="folio_stopped_twice_just_after_this_package">Folio stopped twice just after this package changed, so it\'s off. Your settings are kept.</string>
+    <string name="folio_couldn_t_finish_that_install">Folio couldn\'t finish that install</string>
+    <string name="its_packages_were_left_out">Its packages were left out: the Market isn\'t on for this phone.</string>
+    <string name="folio_couldn_t_read_its_packages_so">Folio couldn\'t read its packages, so this phone\'s were left as they are.</string>
+    <string name="folio_couldn_t_put_this_package_back">Folio couldn\'t put this package back on this phone. Your settings are kept, so try it again or remove it.</string>
+    <plurals name="packages_are_back">
+        <item quantity="one">%1$d package is back.</item>
+        <item quantity="other">%1$d packages are back.</item>
+    </plurals>
+    <plurals name="more_are_in_installed_turned_off">
+        <item quantity="one">%1$d more is in Installed, turned off.</item>
+        <item quantity="other">%1$d more are in Installed, turned off.</item>
+    </plurals>
 </resources>

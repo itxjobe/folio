@@ -56,15 +56,16 @@ internal object MarketWork {
 
     /**
      * Starts an install, unless one is already running. [work] is the whole thing - download, checks, apply - and it
-     * runs to the end whether or not anyone is still looking.
+     * runs to the end whether or not anyone is still looking. [failed] is what to say if it throws; it comes from the
+     * caller because this object has no context to read a string with, and it has to be in the phone's language.
      */
-    fun install(id: String, name: String, work: suspend () -> InstallResult): Boolean {
+    fun install(id: String, name: String, failed: String, work: suspend () -> InstallResult): Boolean {
         if (busy) return false
         busyId = id
         progress = MarketProgress(MarketProgress.Phase.APPLYING)
         scope.launch {
             val result = runCatching { work() }.getOrElse {
-                InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't finish that install")
+                InstallResult.Failed(InstallResult.Reason.APPLY, failed)
             }
             finished = Finished(name, result)
             busyId = null

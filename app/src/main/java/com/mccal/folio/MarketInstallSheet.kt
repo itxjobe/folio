@@ -75,7 +75,7 @@ internal fun MarketInstallSheet(
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).testTag("market-install-sheet")) {
         Text(stringResource(R.string.get_1_s, name), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
         Text(
-            "${manifest.author.name.english} · version ${manifest.version}",
+            stringResource(R.string.text_1_s_version_2_s, manifest.author.name.english, manifest.version.toString()),
             color = Color.White.copy(alpha = .55f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp),
         )
 
