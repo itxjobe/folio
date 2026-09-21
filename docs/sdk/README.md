@@ -2,7 +2,7 @@
 
 Make themes, tweaks and layouts for the Folio Market.
 
-**Status:** draft for Folio 0.7.0. The format can still change before 0.7.0 ships.
+**Status:** draft, first shipped in Folio 0.6.6 for supporters. The format can still change before the Market opens to everyone in 0.7.0.
 
 | Page | What it covers |
 |---|---|

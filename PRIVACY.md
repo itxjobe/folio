@@ -20,7 +20,7 @@ Contacts (optional) are searched on the device from Spotlight only. When Bluetoo
 
 Android controls widget-binding approval and Home-app selection. Providers can require separate setup or permissions.
 
-## The Market (0.7.0)
+## The Market (0.6.6, for supporters)
 
 - **Folio's own packages need no network at all.** The themes and tweaks in the store ship inside the app.
 - **A source is only contacted once you add it.** Folio reads static files over HTTPS — a signed entry file, the

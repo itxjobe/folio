@@ -42,13 +42,13 @@ class RevocationAndVersionTest {
     )
 
     @Test fun `a package that asks for a later Folio is refused, not installed`() {
-        val bytes = pack(mapOf("\"minFolio\"" to "\"minFolio\"").plus("0.7.0" to "9.9.9"))
+        val bytes = pack(mapOf("\"minFolio\"" to "\"minFolio\"").plus("0.6.6" to "9.9.9"))
         val result = installer("0.7.0").install(bytes)
         assertTrue("expected NeedsNewerFolio, got $result", result is InstallResult.NeedsNewerFolio)
     }
 
     @Test fun `the same package installs on a build that is new enough`() {
-        val result = installer("9.9.9").install(pack(mapOf("0.7.0" to "9.9.9")))
+        val result = installer("9.9.9").install(pack(mapOf("0.6.6" to "9.9.9")))
         assertTrue("expected Installed, got $result", result is InstallResult.Installed)
     }
 

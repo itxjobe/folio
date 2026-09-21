@@ -1,6 +1,6 @@
 # Folio Package Format v1
 
-Status: **draft** for Folio 0.7.0. Fields marked *(0.7.x)* are reserved: parsers accept them, but Folio doesn't act on them yet.
+Status: **draft**, first shipped in Folio 0.6.6. Fields marked *(0.7.x)* are reserved: parsers accept them, but Folio doesn't act on them yet.
 
 This page is the reference for packages and sources. The machine-readable versions are the JSON Schemas in
 [`schema/v1/`](schema/v1/). Folio's parser and the `folio-pkg` tool are both tested against these schemas.

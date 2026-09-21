@@ -5,10 +5,10 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name (MAJOR × 10000 + MINOR × 100 + PATCH), so every release sorts correctly.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
-## [0.7.0] - Unreleased
+## [0.6.6] - Unreleased
 
 ### Added
-- **The Folio Market:** the app icon opens a store with Featured, Sources, Packages, Installed and Settings. In 0.7.0 it's for supporters: a code redeemed in Settings › Supporter opens it, and switches on Beta Updates so the builds come too. Every theme and tweak it hands out is still in Settings for everyone else, so nothing is waiting behind it.
+- **The Folio Market:** the app icon opens a store with Featured, Sources, Packages, Installed and Settings. For now it's for supporters: a code redeemed in Settings › Supporter opens it, and switches on Beta Updates so the builds come too. Everyone gets it in 0.7.0. Every theme and tweak it hands out is still in Settings for everyone else, so nothing is waiting behind it.
 - **Themes and tweaks are packages:** Folio's own now have a page each, with what they do, what you see, screenshots, what's changed, and a privacy label built from what the package asks for rather than from anything its author wrote.
 - **Add a source:** any HTTPS address, or a `folio://source/` link. Folio shows the source's key fingerprint before you trust it, remembers it, and says plainly what a changed key looks like.
 - **Nothing is applied unchecked:** size, checksum and signature first, then the whole package in one go, with Undo beside it. A package that fails halfway is put back the way it was.

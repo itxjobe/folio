@@ -42,7 +42,7 @@ Folio keeps working.
 Every release lists the APK's SHA-256. To check the file you downloaded:
 
 ```bash
-shasum -a 256 Folio-0.7.0-beta.1.apk
+shasum -a 256 Folio-0.6.6.apk
 ```
 
 Releases also link a [VirusTotal](https://www.virustotal.com/) scan of that exact APK, so you don't have to take the
