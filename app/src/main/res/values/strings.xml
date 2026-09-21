@@ -1256,4 +1256,34 @@
         <item quantity="one">%1$d more is in Installed, turned off.</item>
         <item quantity="other">%1$d more are in Installed, turned off.</item>
     </plurals>
+    <string name="make_folio_your_home_app">Make Folio your Home app</string>
+    <string name="so_home_gestures_and_the_fold_effect_are">So Home, gestures and the fold effect are always Folio.</string>
+    <!-- Button on a setup step: makes Folio the Home app. -->
+    <string name="set">Set</string>
+    <string name="folio_gestures_service">Folio gestures service</string>
+    <string name="continue_apps_on_cover_screen_always">Continue apps on cover screen: Always</string>
+    <string name="lets_control_center_turn_do_not_disturb">Lets Control Center turn Do Not Disturb on and off.</string>
+    <string name="keep_your_wallpaper">Keep your wallpaper</string>
+    <!-- Button on a setup step: starts using that wallpaper or messaging app. -->
+    <string name="use">Use</string>
+    <string name="folio_as_your_digital_assistant">Folio as your digital assistant</string>
+    <string name="hold_side_key_digital_assistant">Hold side key: Digital assistant</string>
+    <string name="contacts_in_spotlight">Contacts in Spotlight</string>
+    <string name="search_your_contacts_from_spotlight">Search your contacts from Spotlight.</string>
+    <string name="imessage_with_openbubbles">iMessage with OpenBubbles</string>
+    <!-- Name of Folio's live wallpaper in Android's wallpaper picker. -->
+    <string name="label_dune_wallpaper">Folio dunes</string>
+    <!-- Shown in Android Settings, Notification access, where people allow the Dynamic Island. -->
+    <string name="label_island_listener">Folio island</string>
+    <!-- Shown when opening a Folio theme file. -->
+    <string name="label_theme_import">Folio Theme</string>
+    <!-- Shown when opening a supporter code link. -->
+    <string name="label_redeem">Folio supporter code</string>
+    <string name="label_settings_shortcut">Folio settings</string>
+    <!-- Quick Settings tile that shows or hides the dock over other apps. -->
+    <string name="label_dock_tile">Folio Dock</string>
+    <!-- Notification category in Android Settings, Notifications. -->
+    <string name="software_updates_channel">Software updates</string>
+    <!-- Shown when opening a Folio package file. -->
+    <string name="label_package_import">Folio Package</string>
 </resources>

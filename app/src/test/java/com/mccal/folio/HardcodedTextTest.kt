@@ -47,5 +47,12 @@ class HardcodedTextTest {
         if (hits.size < LIMIT) println("HardcodedTextTest: ${hits.size} now; lower LIMIT from $LIMIT to ${hits.size}.")
     }
 
-    private companion object { const val LIMIT = 375 }
+    /** Labels in the manifest show in Android's own screens: Quick Settings, notification access, the wallpaper picker. */
+    @Test fun `manifest labels come from strings`() {
+        val manifest = java.io.File(root, "app/src/main/AndroidManifest.xml").readText()
+        val literal = Regex("""android:(label|description)="([^@$][^"]*)"""").findAll(manifest).map { it.groupValues[2] }.toList()
+        assertTrue("English in the manifest: $literal. Use @string/ so Android shows it translated.", literal.isEmpty())
+    }
+
+    private companion object { const val LIMIT = 361 }
 }
