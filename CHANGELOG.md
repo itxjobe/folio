@@ -40,7 +40,7 @@ Folio shows the newest section on the phone after an update, and every version u
 
 ### Added
 - **Gauge status glyph:** a sixth Icon style for the Side Bar: the battery as an arc, your connection inside it, and the percentage above (Icons & Side Bar › Icon style).
-- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable.
+- **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable. A Home you already have keeps the four rows you arranged it in; Settings › Home Screen & Dock › Rows turns it on.
 - **Layout sliders:** adjust row, column and dock spacing, widget size and status spacing, and watch Home change as you drag.
 - **Apps, dock and status position:** apps at the top, the dock on the side or bottom, and the status anywhere, for each screen.
 - **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight. A new install starts there; updating from an earlier Folio does not change what you chose, and if you never chose, Folio stays on Manual until you say otherwise.
@@ -104,6 +104,7 @@ Folio shows the newest section on the phone after an update, and every version u
 - Opening Software Update no longer uses up the day's check, so an automatic update still installs; a check that Android stops mid-way no longer stops the daily check for good.
 - A folio://redeem link can add a supporter code but never replace one you already have. Swapping is done in Settings › Supporter, which the link now opens.
 - Unfolded, the row of page dots, Search and App Library sits under Home instead of across the middle of the screen, where it ran into the widgets on the page beside it.
+- Switching Background to Android wallpaper shows it straight away. Turning it on from Settings did nothing at all to the window, so the wallpaper flashed up and vanished and Home was left a flat colour. Left of Home and the setup step's wallpaper button were silently doing nothing in the same way.
 
 ## [0.6.0] - 2026-09-16
 
