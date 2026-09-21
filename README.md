@@ -161,7 +161,8 @@ There's a lot to this launcher, and it's fun. I hope you have as much fun with i
 - No accounts, no ads, no analytics. Folio itself doesn't send anything anywhere unless you share a crash report or check
   for updates (which only asks GitHub for the latest release).
   Google search, Discover and widgets from other apps use those apps' own services. Every permission is optional and
-  explained where it's used. More in [PRIVACY.md](PRIVACY.md).
+  explained where it's used. Every permission is listed in [PERMISSIONS.md](PERMISSIONS.md), with what happens if you
+  say no; more about data in [PRIVACY.md](PRIVACY.md).
 
 ## What you need
 

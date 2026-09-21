@@ -283,6 +283,13 @@ fun effectiveHomeRows(setting: Int, fitCompact: Int, fitExpanded: Int): Int =
 /** Saved-state schema. 9: 36-cell Home pages (More rows); 6–8 had 24. */
 const val STATE_SCHEMA = 9
 
+/**
+ * The schema that brought More rows. A save older than this was arranged in four rows, and keeps them; anything
+ * from this schema on already had Automatic. Pinned to 9 rather than following [STATE_SCHEMA], or the next schema
+ * bump would start treating 0.6.5 saves as old and take their Automatic rows away.
+ */
+const val MORE_ROWS_SCHEMA = 9
+
 class LauncherModel(application: Application) : AndroidViewModel(application) {
     private data class RefreshedApps(val entries: List<AppEntry>, val profiles: List<AppProfile>,
         val authoritativeProfiles: Set<Long>, val removedProfiles: Set<Long>)
@@ -659,14 +666,20 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         commitLayout(com.mccal.folio.moveFolderApp(mutable.value.layout, folderId, appId, index))
     fun folder(id: String) = mutable.value.layout.folder(id)
 
-    fun applyImportedLayout(preview: LayoutImportPreview): Boolean {
+    /**
+     * [before] is the Home the user had when they chose to restore. It differs from the current state when the Market
+     * has already taken this phone's packages off, and it is what Layout History and Undo should give back.
+     */
+    fun applyImportedLayout(preview: LayoutImportPreview, before: LauncherState? = null): Boolean {
         if (statePayloadInvalid) return false
         val old = mutable.value
+        val kept = before ?: old
         if (old.layout == preview.layout && old.compact == preview.compact && old.expanded == preview.expanded &&
-            old.labels == preview.labels && old.googleSearch == preview.googleSearch && old.verticalStatus == preview.verticalStatus) return false
-        saveLayoutSnapshot("Before restoring a backup")
-        undoLayout = old.layout to preview.layout
-        undoImportSettings = UndoImportSettings(old.compact, old.expanded, old.labels, old.googleSearch, old.verticalStatus)
+            old.labels == preview.labels && old.googleSearch == preview.googleSearch && old.verticalStatus == preview.verticalStatus &&
+            old.appNames + preview.appNames == old.appNames) return false
+        if (old.layoutHistory && !old.loading) LayoutHistory.add(getApplication(), "Before restoring a backup", kept.layout)
+        undoLayout = kept.layout to preview.layout
+        undoImportSettings = UndoImportSettings(kept.compact, kept.expanded, kept.labels, kept.googleSearch, kept.verticalStatus)
         // A restored name replaces the one on this phone; names this backup says nothing about are left alone.
         val names = old.appNames + preview.appNames
         mutable.value = old.copy(appNames = names, apps = old.apps.withAppNames(names),
@@ -1387,7 +1400,11 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         buttonBarAndroidOrder = j.optBoolean(SettingKeys.BUTTON_BAR_ANDROID_ORDER, false),
         buttonBarLight = j.optBoolean(SettingKeys.BUTTON_BAR_LIGHT, false),
         buttonBarFade = j.optBoolean(SettingKeys.BUTTON_BAR_FADE, true),
-        homeRows = j.optInt("homeRows", 0).takeIf { it == BASE_APP_ROWS } ?: 0,
+        // Automatic is the new default, but it must not rearrange a Home that already exists: a save written before
+        // this release comes back fixed at the four rows it was drawn with, and Settings › Home Screen & Dock offers
+        // Automatic to anyone who wants the taller screens filled.
+        homeRows = j.optInt("homeRows", if (j.optInt("schema", 1) in 1 until MORE_ROWS_SCHEMA) BASE_APP_ROWS else 0)
+            .takeIf { it == BASE_APP_ROWS } ?: 0,
         homeFitCompact = j.optInt("homeFitCompact", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0,
         homeFitExpanded = j.optInt("homeFitExpanded", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0)
         .let { st ->

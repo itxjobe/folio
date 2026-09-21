@@ -152,6 +152,10 @@ fun LauncherScreen(
     var pinQuery by rememberSaveable { mutableStateOf("") }
     val launcherActivity = androidx.activity.compose.LocalActivity.current as MainActivity
     val launcherRootView = LocalView.current.rootView
+    val marketSession = remember(model) { MarketSession(launcherActivity, ModelLauncher(model)) }
+    // Package Safe Mode: runs as Home starts, so a package that crashed Folio while it was being applied is turned off
+    // on the next launch. Asked only when the Market opened, the minute-long marker had always expired by then.
+    LaunchedEffect(marketSession) { marketSession.noteCrash() }
     DisposableEffect(sheet == "widgets") {
         val active = sheet == "widgets"
         if (active) LiveDiscover.setExternalResultPending(launcherActivity, "main", "widget-picker", true)
@@ -302,8 +306,9 @@ fun LauncherScreen(
     LaunchedEffect(settingsRequests) { if (settingsRequests > 0) {
         drag.clear(); widgetSession = null; resize.stop(); overlays.menu = null; homeEdit.stop()
         if (SoftwareUpdate.openRequested) { SoftwareUpdate.openRequested = false; customizationPage = CustomizationPage.SOFTWARE_UPDATE }
-        SettingsLink.page?.let { customizationPage = it; SettingsLink.page = null }
-        sheet = "settings"
+        val linked = SettingsLink.page?.also { customizationPage = it; SettingsLink.page = null }
+        sheet = if (MarketLink.pending != null || MarketImport.pending != null) "market"
+            else sheetForAppIcon(linked, customizationPage, MarketAccess.isOpen(launcherActivity))
     } }
     // Saved layout damaged, or apps failed to load: say so instead of quietly showing an empty Home.
     var problemDismissed by rememberSaveable(state.error) { mutableStateOf(false) }
@@ -919,7 +924,7 @@ fun LauncherScreen(
                     sheet = ""; picker.packageName = null; picker.exactTarget = false
                 }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
-                    containerColor = MaterialTheme.colorScheme.surface, fullScreen = sheet.startsWith("settings")) {
+                    containerColor = MaterialTheme.colorScheme.surface, fullScreen = sheet.startsWith("settings") || sheet == "market") {
                     ModalDialogBackHandler {
                         if ((sheet == "settings" || sheet == "settings:wallpaper") &&
                             activeCustomizationPage != CustomizationPage.OVERVIEW) {
@@ -948,8 +953,10 @@ fun LauncherScreen(
                                 onActions = { overlays.menu = it.id; sheet = "" }, editing = true, modifier = Modifier.weight(1f).fillMaxWidth(),
                                 onTurnOnWork = { model.turnOnWork(it) })
                         }
-                        "settings", "settings:wallpaper" -> CustomizationSheet(state, wide, model, isDefaultHome,
-                            page = activeCustomizationPage, onPage = { customizationPage = it; sheet = "settings" },
+                        "settings", "settings:wallpaper", "market" -> {
+                          val settingsSheet: @Composable (String) -> Unit = { host ->
+                            CustomizationSheet(state, wide, model, isDefaultHome,
+                            page = activeCustomizationPage, onPage = { customizationPage = it; sheet = host },
                             onMakeDefault = { sheet = ""; onMakeDefault() },
                             onClose = { sheet = "" }, onEditPins = { sheet = "pins" },
                             onWidget = { picker.slot = it; picker.anyApp(); sheet = "widgets" },
@@ -965,7 +972,17 @@ fun LauncherScreen(
                             onShowWelcome = { sheet = ""; onShowWelcome() },
                             onShowWhatsNew = { sheet = ""; onShowWhatsNew() },
                             backgrounds = launcherActivity.backgrounds,
+                            onOpenMarket = { customizationPage = CustomizationPage.OVERVIEW; sheet = "market" },
                             onWallpaperPreview = { sheet = ""; onWallpaperPreview() }, homePage = pager.currentPage.coerceIn(0, homePages - 1))
+                          }
+                          if (sheet == "market") {
+                              // The Market lives here, so its Settings tab is Folio's own Settings rather than a jump.
+                              MarketScreen(marketSession, state.installedTweaks, onClose = { sheet = "" },
+                                  settingsContent = { settingsSheet("market") })
+                          } else {
+                              settingsSheet("settings")
+                          }
+                        }
                         "widgetActions" -> model.placement(picker.slot)?.let { placement ->
                             val topPitch = (geometry.widgetHeight + 18f) / 2f
                             val gridSizing = WidgetGridSizing(GRID_COLUMNS, pageRows(placement.page).coerceAtLeast(visibleRows), geometry.cellWidth,

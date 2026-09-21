@@ -4,6 +4,8 @@
 The private key stays on this machine; Folio only ever carries the public half.
 
     ./scripts/beta-code.py newkey                      # writes supporter-key.pem, prints the public key
+    ./scripts/beta-code.py newkey --passphrase         # the same, with the key encrypted on disk
+    ./scripts/beta-code.py protect                     # encrypt a key you already have
     ./scripts/beta-code.py mint --scopes beta,look     # one code, no expiry
     ./scripts/beta-code.py mint --scopes beta --expires 2027-01-01 --count 25
     ./scripts/beta-code.py mint --scopes beta,keys --months 1         # one month from the day it's redeemed
@@ -13,35 +15,95 @@ The private key stays on this machine; Folio only ever carries the public half.
 
 Paste the printed public key into BetaKeys.SUPPORTER (app/src/main/java/com/mccal/folio/Supporter.kt).
 Codes are checked on the phone against that key, so nothing here needs a server.
+
+**Keep the key encrypted.** A file at 0600 protects it from other accounts on this Mac and from nothing else: a
+backup, a synced folder or a stolen laptop all carry it away in the clear, and whoever has it can mint codes that
+every copy of Folio accepts. With a passphrase the key is AES-256 on disk and every mint asks for it; set
+FOLIO_KEY_PASSPHRASE to avoid typing it, or leave it unset and be prompted. Keeping the passphrase in a password
+manager and the encrypted key in a backup is the arrangement this is built for.
 """
 import argparse
 import base64
 import datetime
+import getpass
 import os
 import secrets
 import subprocess
 import sys
 
 ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # Crockford base32, matching BetaCodes.kt
-SCOPES = ["beta", "look", "power", "keys", "dev"]  # bit order must match BetaCodes.SCOPE_BITS
+SCOPES = ["beta", "look", "power", "keys", "dev"]  # bit order must match BetaCodes.SCOPE_BITS ("keys" is Keyd)
 EPOCH = datetime.date(2026, 1, 1)
 VERSION = 1           # a fixed last day, decided here
 VERSION_MONTHS = 2    # months counted from the day the code is redeemed (months and tier share one byte)
 
 
+# The passphrase reaches openssl through its environment, never its arguments: anything on the command line shows in
+# `ps` to every user on the Mac for as long as the command runs.
+PHRASE_VAR = "FOLIO_OPENSSL_PHRASE"
+_phrase_env = {}
+
+
 def run(args, stdin=None):
-    done = subprocess.run(args, input=stdin, capture_output=True)
+    env = {**os.environ, **_phrase_env} if _phrase_env else None
+    done = subprocess.run(args, input=stdin, capture_output=True, env=env)
     if done.returncode != 0:
         sys.exit(done.stderr.decode().strip() or f"{args[0]} failed")
     return done.stdout
 
 
-def newkey(path):
+def encrypted(path):
+    """Whether the key on disk is passphrase-protected, so openssl is told to ask for one."""
+    head = open(path, errors="ignore").read(200)
+    return "ENCRYPTED" in head or "Proc-Type" in head
+
+
+def passin(path):
+    """How openssl should read the passphrase, or nothing when the key isn't encrypted."""
+    if not encrypted(path):
+        return []
+    phrase = os.environ.get("FOLIO_KEY_PASSPHRASE") or getpass.getpass(f"Passphrase for {path}: ")
+    _phrase_env[PHRASE_VAR] = phrase
+    return ["-passin", "env:" + PHRASE_VAR]
+
+
+def ask_new_passphrase(path):
+    phrase = os.environ.get("FOLIO_KEY_PASSPHRASE")
+    if not phrase:
+        phrase = getpass.getpass("Passphrase for the new key: ")
+        if phrase != getpass.getpass("Again: "):
+            sys.exit("those don't match")
+    if not phrase:
+        sys.exit("an empty passphrase leaves the key in the clear; run without --passphrase if that's what you want")
+    return phrase
+
+
+def protect(path):
+    """Encrypt a key that is already on disk, in place, keeping a copy until the new one is proved to open."""
+    if not os.path.exists(path):
+        sys.exit(f"{path} isn't there")
+    if encrypted(path):
+        sys.exit(f"{path} is already encrypted")
+    phrase = ask_new_passphrase(path)
+    _phrase_env[PHRASE_VAR] = phrase
+    temporary = path + ".encrypted"
+    run(["openssl", "pkcs8", "-topk8", "-v2", "aes-256-cbc", "-in", path, "-out", temporary,
+         "-passout", "env:" + PHRASE_VAR])
+    os.chmod(temporary, 0o600)
+    # Prove the new file opens before the old one goes: a passphrase typed wrong twice would lose the key.
+    run(["openssl", "ec", "-in", temporary, "-noout", "-passin", "env:" + PHRASE_VAR])
+    os.replace(temporary, path)
+    print(f"{path} is encrypted now. Put the passphrase in your password manager; there is no way back without it.")
+
+
+def newkey(path, with_passphrase=False):
     if os.path.exists(path):
         sys.exit(f"{path} already exists — move it aside first, codes signed with it would stop working.")
     run(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", path])
     os.chmod(path, 0o600)
-    public = run(["openssl", "ec", "-in", path, "-pubout", "-outform", "DER"])
+    if with_passphrase:
+        protect(path)
+    public = run(["openssl", "ec", "-in", path, "-pubout", "-outform", "DER"] + passin(path))
     print(f"Private key: {path}  (keep it, never commit it)")
     print("\nBetaKeys.SUPPORTER:\n")
     print(f'    const val SUPPORTER = "{base64.b64encode(public).decode()}"')
@@ -80,6 +142,8 @@ def base32(data):
 
 
 def mint(key, scopes, tier, expires, count, sql_pool=None, months=0):
+    # Asked once, not once per code: minting two hundred shouldn't mean typing the passphrase two hundred times.
+    signing = passin(key)
     bits = 0
     for scope in scopes:
         if scope not in SCOPES:
@@ -106,7 +170,7 @@ def mint(key, scopes, tier, expires, count, sql_pool=None, months=0):
     for _ in range(count):
         serial = secrets.randbits(32)
         payload = bytes([version, bits, tier_byte, day >> 8 & 0xFF, day & 0xFF]) + serial.to_bytes(4, "big")
-        der = run(["openssl", "dgst", "-sha256", "-sign", key], stdin=payload)
+        der = run(["openssl", "dgst", "-sha256", "-sign", key] + signing, stdin=payload)
         code = base32(payload + raw_signature(der))
         if sql_pool:
             print(f"INSERT OR IGNORE INTO codes (code, pool) VALUES ('{code}', '{sql_pool}');")
@@ -119,6 +183,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     new = sub.add_parser("newkey", help="make the signing key pair")
     new.add_argument("--key", default="supporter-key.pem")
+    new.add_argument("--passphrase", action="store_true", help="encrypt the key on disk (recommended)")
+    keep = sub.add_parser("protect", help="encrypt a key that is already on disk")
+    keep.add_argument("--key", default="supporter-key.pem")
     make = sub.add_parser("mint", help="make codes")
     make.add_argument("--key", default="supporter-key.pem")
     make.add_argument("--scopes", default="beta", help=f"comma separated: {', '.join(SCOPES)}")
@@ -138,7 +205,10 @@ def main():
     pool.add_argument("--pool", help="pool name in the worker (default: the scopes joined by +)")
     args = parser.parse_args()
     if args.command == "newkey":
-        newkey(args.key)
+        newkey(args.key, args.passphrase)
+        return
+    if args.command == "protect":
+        protect(args.key)
         return
     scopes = [s.strip() for s in args.scopes.split(",") if s.strip()]
     pool_name = (args.pool or "+".join(scopes)) if args.command == "pool" else None

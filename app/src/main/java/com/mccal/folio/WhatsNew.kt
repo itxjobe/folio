@@ -89,6 +89,16 @@ internal object WhatsNew {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
 
     /**
+     * The release this build belongs to: [currentVersion] without a pre-release suffix.
+     *
+     * The changelog has a section per release, not per beta, and a beta shares its release's `versionCode` on
+     * purpose so the release installs over it. Matching on the full name meant 0.7.0-beta.1 found no notes and
+     * showed nobody what was new in it, which is most of what a beta is for. What is remembered as seen is still
+     * the full name, so the release itself shows its notes again over the beta.
+     */
+    fun releaseVersion(context: Context): String = currentVersion(context).substringBefore('-')
+
+    /**
      * Whether to show What's New now: only after an update to a version with notes, once. A first install records the
      * version without showing (the welcome covers it).
      */
@@ -100,7 +110,7 @@ internal object WhatsNew {
         if (firstRun || seen == null && !context.getSharedPreferences(SettingKeys.PREFS, 0).contains(SettingKeys.STATE)) {
             markSeen(context); return false
         }
-        return notes(context).any { it.version == current }
+        return notes(context).any { it.version == releaseVersion(context) }
     }
 
     fun markSeen(context: Context) = context.getSharedPreferences(PREFS, 0).edit().putString(SEEN, currentVersion(context)).apply()
@@ -111,7 +121,7 @@ internal object WhatsNew {
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 internal fun WhatsNewSheet(onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val version = androidx.compose.runtime.remember { WhatsNew.currentVersion(context) }
+    val version = androidx.compose.runtime.remember { WhatsNew.releaseVersion(context) }
     val notes = androidx.compose.runtime.remember { WhatsNew.notes(context) }
     val release = notes.firstOrNull { it.version == version } ?: notes.firstOrNull()
     val older = notes.filter { it != release }

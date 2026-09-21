@@ -52,6 +52,8 @@ internal fun SupporterPage() {
         if (current == null) {
             CardAction(stringResource(R.string.redeem_a_code), onClick = { problem = null; redeeming = true })
             CardNote(stringResource(R.string.codes_come_with_a_ko_fi_thank_you_folio))
+            // What a code opens today, on the page where someone would go looking for it.
+            if (!MarketAccess.isOpen(context)) CardNote(stringResource(MARKET_NOT_YET))
         } else {
             InfoRow(stringResource(R.string.code), shortCode(stored.orEmpty()))
             InfoRow(stringResource(R.string.unlocks), unlocksText(context, current.scopes))
@@ -68,9 +70,11 @@ internal fun SupporterPage() {
     if (code?.scopes?.contains(BetaCodes.SCOPE_BETA) == true) SettingsCard("BETA FEATURES") {
         SettingsSwitch(stringResource(R.string.beta_features), beta, { on -> Supporter.setBetaOn(context, on); beta = on }, "supporter-beta-switch")
         CardNote(stringResource(R.string.beta_features_arrive_a_release_or_two_ea))
+        // Redeeming turned the beta channel on as well, so say so here rather than only in Software Update.
+        CardNote(stringResource(R.string.your_code_also_switched_on_beta_updates))
     }
 
-    // Keyd is in design, and "keys" is the scope a code carries for it. Until there is something to install,
+    // Keyd is in design, and "keys" is the scope a code carries for it (the scope kept the old name; see BetaCodes). Until there is something to install,
     // the card says where the keyboard has got to rather than pretending there is a switch to turn on.
     if (code?.scopes?.contains(BetaCodes.SCOPE_KEYS) == true) SettingsCard("KEYD") {
         InfoRow(stringResource(R.string.status), stringResource(R.string.in_design))

@@ -36,21 +36,50 @@ internal object Supporter {
     private const val SEEN = "supporter_seen"
 
     /** Public keys a code may be signed with: McCal's, plus a test key the dev build (com.mccal.folio.dev) accepts. */
-    private fun keys(context: Context): List<String> = listOfNotNull(
+    internal fun keys(context: Context): List<String> = listOfNotNull(
         BetaKeys.SUPPORTER.takeIf { it.isNotBlank() },
         BetaKeys.TEST.takeIf { it.isNotBlank() && context.packageName.endsWith(".dev") })
 
     /** Whether this build can check codes at all: without a key, Settings doesn't offer the row. */
     fun available(context: Context): Boolean = keys(context).isNotEmpty()
 
-    fun code(context: Context, today: LocalDate = LocalDate.now()): BetaCodes.Code? {
+    /**
+     * The stored code, once it has been checked.
+     *
+     * Checking means an ECDSA verification, which is about a millisecond, and this is asked from inside
+     * composables: Settings asks on every redraw whether to show the Market row, twice over in the split view. A
+     * millisecond of signature maths per frame is a sixteenth of the frame, for an answer that only changes when
+     * somebody redeems or removes a code. So the signature's answer is kept, keyed on the exact text it was worked
+     * out from, and a new or removed code recomputes it.
+     *
+     * The whole answer is kept for the day it was worked out on, and a new day works it out again. That is safe
+     * because a code can only run out at a day's boundary: its own last day, or the end of the months it bought
+     * counted from the day it was first redeemed here. So a code doesn't stay valid past midnight because the answer
+     * was cached before it, and the clock is written at most once a day rather than on every redraw.
+     */
+    fun code(context: Context, today: LocalDate = LocalDate.now(), keys: List<String> = keys(context)): BetaCodes.Code? {
         val text = stored(context) ?: return null
+        val remembered = checked?.takeIf { it.text == text && it.keys == keys }
+        // Asked again the same day: the whole answer stands, window and clock included, so a redraw costs one
+        // preference read. A new day works it out again, which is also the only time the clock is written down.
+        if (remembered != null && remembered.day == today) return remembered.answer
         val clock = clock(context, today)
         val judged = clock ?: today
-        val code = (BetaCodes.verify(text, keys(context), judged, BetaKeys.WITHDRAWN) as? BetaCodes.Result.Valid)?.code
-            ?: return null
-        return code.takeIf { !it.expired(judged, window(context, it, clock)) }
+        val code = remembered?.code
+            ?: (BetaCodes.verify(text, keys, judged, BetaKeys.WITHDRAWN) as? BetaCodes.Result.Valid)?.code
+        val answer = code?.takeIf { !it.expired(judged, window(context, it, clock)) }
+        checked = Checked(text, keys, code, today, answer)
+        return answer
     }
+
+    /**
+     * The last code checked: what its signature came to, and what the whole answer was on [day]. The signature's
+     * part holds until the code changes; the answer only for the day it was worked out on.
+     */
+    private data class Checked(val text: String, val keys: List<String>, val code: BetaCodes.Code?,
+        val day: LocalDate, val answer: BetaCodes.Code?)
+
+    @Volatile private var checked: Checked? = null
 
     /** When this code's time runs out here, counting a months code from the day its window began. */
     fun ends(context: Context, code: BetaCodes.Code, today: LocalDate = LocalDate.now()): LocalDate? =
@@ -96,34 +125,67 @@ internal object Supporter {
     private fun stored(context: Context): String? =
         context.getSharedPreferences(PREFS, 0).getString(CODE, null)?.takeIf { it.isNotBlank() }
 
-    /** Checks a code and keeps it when it's good. The result is what Settings shows the person. */
-    fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now()): BetaCodes.Result {
+    /**
+     * Checks a code and keeps it when it's good. The result is what Settings shows the person.
+     *
+     * A code carrying the beta scope turns two things on as it lands, both of which the person can turn off again:
+     *
+     * - **Beta features**, because otherwise a supporter redeems a code and nothing happens. The switch is what
+     *   lets them step back off early access, and it defaults off, which was fine while Beta Updates opened the
+     *   Market as well and is a trapdoor now that a code is the only way in.
+     * - **Beta Updates**, so the builds come too. Supporting Folio buys the store *and* the releases it is in;
+     *   asking someone to find a second switch in another page to get what they paid for is a way to lose them.
+     *
+     * It also adds the supporter source, so nobody has to be handed an address to paste - see [SUPPORTER_SOURCE]
+     * for why that is safe to do without asking.
+     *
+     * Only on the way in, and only the first time: turning either off afterwards sticks, because redeeming again
+     * with the same code is refused before it reaches here.
+     *
+     * A months code starts its window the first time it is redeemed here; a code coming back after its window has
+     * run out is expired, not a fresh month.
+     */
+    fun redeem(context: Context, text: String, today: LocalDate = LocalDate.now(),
+        keys: List<String> = keys(context), onBetaChannel: (Boolean) -> Unit = { SoftwareUpdate.setBeta(context, it) },
+        onSupporterSource: (Boolean) -> Unit = { if (it) MarketAccess.addSupporterSource(context) else MarketAccess.forgetSupporterSource(context) },
+    ): BetaCodes.Result {
         val clock = clock(context, today)
         val judged = clock ?: today
-        val result = BetaCodes.verify(text, keys(context), judged, BetaKeys.WITHDRAWN)
+        val result = BetaCodes.verify(text, keys, judged, BetaKeys.WITHDRAWN)
         if (result !is BetaCodes.Result.Valid) return result
         val code = result.code
-        // A months code starts its window the first time it is redeemed here; a code coming back after its window
-        // has run out is expired, not a fresh month.
         if (code.expired(judged, window(context, code, clock))) return BetaCodes.Result.Expired(code)
+        // "First" means no working code, not no stored text: a supporter whose months ran out and who redeems a new
+        // code gets Beta and the supporter source like anyone new, rather than keeping a Market that stays shut.
+        val first = code(context, today, keys) == null
+        checked = null
         context.getSharedPreferences(PREFS, 0).edit().putString(CODE, BetaCodes.group(text)).apply()
+        if (first && BetaCodes.SCOPE_BETA in code.scopes) {
+            setBetaOn(context, true)
+            runCatching { onBetaChannel(true) }
+        }
+        if (first) runCatching { onSupporterSource(true) }
         return result
     }
 
-    fun remove(context: Context) {
+    fun remove(context: Context, onSupporterSource: (Boolean) -> Unit = { if (!it) MarketAccess.forgetSupporterSource(context) }) {
+        checked = null
         context.getSharedPreferences(PREFS, 0).edit().remove(CODE).remove(BETA).apply()
+        // The list goes; what it listed and anything installed from it stays. Removing a code says "not a
+        // supporter on this phone any more", not "undo everything that ever came of it".
+        runCatching { onSupporterSource(false) }
     }
 
     fun storedText(context: Context): String? = stored(context)
 
     /** A code unlocks a feature; beta features also need the switch, so early access can be left at any time. */
-    fun has(context: Context, scope: String): Boolean {
+    fun has(context: Context, scope: String, keys: List<String> = keys(context)): Boolean {
         // A development build can be told to behave as a supporter, so the gated features can be seen without a
         // code. The developer's own scope is never handed out this way: it has its own lock.
         if (scope != BetaCodes.SCOPE_DEV && Dev.face(context) != Dev.Face.FREE) {
             return scope != BetaCodes.SCOPE_BETA || betaOn(context)
         }
-        val code = code(context) ?: return false
+        val code = code(context, keys = keys) ?: return false
         if (scope !in code.scopes) return false
         return scope != BetaCodes.SCOPE_BETA || betaOn(context)
     }

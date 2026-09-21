@@ -7,6 +7,7 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Folio"
 include(":app")
+include(":market")
 include(":baselineprofile")
 
 // Optional isolated experiment; excluded from ordinary launcher builds.

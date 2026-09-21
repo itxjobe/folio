@@ -26,6 +26,17 @@ import java.security.MessageDigest
  */
 internal object SoftwareUpdate {
     private const val LATEST = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
+
+    /*
+     * Where betas come from: McCal-Codes/folio-beta, a repository of releases and no code, kept private (McCal's
+     * choice, 2026-09-19). GitHub answers 404 to an app asking with no token, so Folio never reads it directly: the
+     * supporter worker does, after checking the supporter code (see BETA_BROKER and tools/kofi-worker/beta.js).
+     *
+     * What protects the phone is unchanged either way: an update installs only if it is signed with the same key as
+     * the copy already there ([sameSigner]), so a beta must be signed with the release keystore, and one signed with
+     * anything else installs on nothing.
+     */
+
     // GitHub's "latest" skips pre-releases, so the beta channel reads the recent list and takes the newest.
     private const val RECENT = "https://api.github.com/repos/McCal-Codes/folio/releases?per_page=15"
     /**
@@ -290,13 +301,20 @@ internal object SoftwareUpdate {
         status.value = withContext(Dispatchers.IO) {
             runCatching {
                 val list = { text: String -> org.json.JSONArray(text).let { a -> (0 until a.length()).map(a::getJSONObject) } }
-                // A supporter's beta comes from the broker; if it can't be reached, the public pre-releases still can.
-                val brokered = betaSource(BETA_BROKER, Supporter.storedText(context)
-                    ?.takeIf { betaChannel(context) && Supporter.has(context, BetaCodes.SCOPE_BETA) })
-                val candidates = when {
-                    brokered != null -> runCatching { list(get(brokered.first, brokered.second)) }.getOrElse { list(get(RECENT)) }
-                    betaChannel(context) -> list(get(RECENT))
-                    else -> listOf(JSONObject(get(LATEST)))
+                // On the beta channel, betas and the public releases together: a supporter shouldn't be stranded on
+                // an old beta when a newer stable release goes out, and shouldn't miss a beta either. Betas come
+                // through the broker, since the beta repository is private; until it's deployed there are none to
+                // read, and the public releases carry on alone.
+                val candidates = if (betaChannel(context)) {
+                    val brokered = betaSource(BETA_BROKER, Supporter.storedText(context)
+                        ?.takeIf { Supporter.has(context, BetaCodes.SCOPE_BETA) })
+                    val betas = brokered?.let { runCatching { list(get(it.first, it.second)) }.getOrNull() }
+                    val public = runCatching { list(get(RECENT)) }.getOrNull()
+                    // Either may fail on its own; both failing is a failed check.
+                    if (betas == null && public == null) error(context.getString(R.string.no_release_has_an_apk))
+                    betas.orEmpty() + public.orEmpty()
+                } else {
+                    listOf(JSONObject(get(LATEST)))
                 }
                 val newest = candidates.filter { !it.optBoolean("draft") }.mapNotNull(::releaseOf)
                     .reduceOrNull { a, b -> if (isNewer(b.version, a.version)) b else a } ?: error(context.getString(R.string.no_release_has_an_apk))

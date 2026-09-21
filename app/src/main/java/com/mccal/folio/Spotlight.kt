@@ -160,7 +160,7 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                 keyboard?.show()
                 kotlinx.coroutines.delay(260)
                 if (!WindowInsetsHolderIme.visible(view)) runCatching {
-                    (context as? android.app.Activity)?.window?.let { w ->
+                    context.asActivity()?.window?.let { w ->
                         androidx.core.view.WindowCompat.getInsetsController(w, view).show(androidx.core.view.WindowInsetsCompat.Type.ime())
                     }
                 }

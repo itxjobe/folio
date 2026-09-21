@@ -112,6 +112,7 @@ class MainActivity : ComponentActivity() {
         updateDefaultHome()
         if (savedInstanceState == null && intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
         if (savedInstanceState == null && opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
+        if (savedInstanceState == null && takeMarketLink(intent)) settingsRequests.intValue++
         intent.removeExtra("duo_destination")
         // A recreated activity (rotation, fold, process restart) keeps the pending alert; the launch intent is used once.
         if (savedInstanceState == null) takeSharedTheme(intent)
@@ -131,6 +132,29 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.material3.Text(getString(R.string.restart_normally)) } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { safeAcknowledged.value = true }) {
                     androidx.compose.material3.Text(getString(R.string.continue_in_safe_mode)) } })
+            // After a crash or a freeze, offer to report it once, on the next launch. Safe Mode already has its own
+            // alert for repeated crashes, so this waits until that one is answered rather than stacking on top of it.
+            val unreported = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<java.io.File?>(null) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                unreported.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Diagnostics.unaskedFailure(this@MainActivity) }
+            }
+            val reportScope = androidx.compose.runtime.rememberCoroutineScope()
+            if (unreported.value != null && (!safeMode.value || safeAcknowledged.value)) AlertDialog(
+                onDismissRequest = { unreported.value?.let { Diagnostics.markAsked(this@MainActivity, it) }; unreported.value = null },
+                title = { androidx.compose.material3.Text(stringResource(R.string.folio_closed_unexpectedly)) },
+                text = { androidx.compose.material3.Text(stringResource(R.string.send_a_report_to_help_fix_it)) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                    val report = unreported.value
+                    unreported.value = null
+                    reportScope.launch {
+                        runCatching { startActivity(Diagnostics.reportIntent(this@MainActivity, email = true)) }
+                            .onSuccess { report?.let { Diagnostics.markAsked(this@MainActivity, it) } }
+                            .onFailure { IslandEvents.notice(this@MainActivity, getString(R.string.the_report_couldn_t_be_opened)) }
+                    }
+                }) { androidx.compose.material3.Text(stringResource(R.string.send_report)) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = {
+                    unreported.value?.let { Diagnostics.markAsked(this@MainActivity, it) }; unreported.value = null
+                }) { androidx.compose.material3.Text(stringResource(R.string.not_now)) } })
             val deviceStatus = ScreenshotMode.status(status.state.collectAsStateWithLifecycle().value, ScreenshotMode.on.collectAsStateWithLifecycle().value)
             // Folio shows its own status in the rail, so hide Android's status bar on Home (it
             // stays in apps, and a swipe from the very top edge reveals it briefly).
@@ -452,6 +476,20 @@ class MainActivity : ComponentActivity() {
     }
     /** Android's "Home app settings" gear, or Folio's own app icon (the FolioSettingsApp alias). Until Folio is the
      * Home app, its icon opens Home instead, as a preview you can leave with Back or the Home gesture. */
+    /**
+     * A `folio://package/…` or `folio://source/…` link someone shared. Folio remembers what to open and asks for the
+     * Market; a link it doesn't understand is ignored rather than guessed at.
+     */
+    private fun takeMarketLink(intent: Intent): Boolean {
+        if (intent.action != Intent.ACTION_VIEW) return false
+        val link = MarketLink.parse(intent.data?.toString()) ?: return false
+        intent.data = null
+        // A supporter's code arrives as folio://redeem, which RedeemActivity handles and Settings answers.
+        if (!MarketAccess.isOpen(this)) return false
+        MarketLink.pending = link
+        return true
+    }
+
     private fun opensSettings(intent: Intent) = intent.action == Intent.ACTION_APPLICATION_PREFERENCES ||
         (fromAppIcon(intent) && defaultHome.value)
     private fun fromAppIcon(intent: Intent) = intent.component?.className?.startsWith("$FOLIO_CLASSES.${AppIconChoice.ALIAS_PREFIX}") == true
@@ -471,7 +509,9 @@ class MainActivity : ComponentActivity() {
         FoldRenderExperiment.onNewIntent(this, intent)
         updateDefaultHome()
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
+        // One chain: tapping Folio's icon opens Settings *or* goes Home, never both.
         if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
+        else if (takeMarketLink(intent)) settingsRequests.intValue++
         else if (intent.hasCategory(Intent.CATEGORY_HOME) || fromAppIcon(intent) || intent.getStringExtra("duo_destination") == "home") {
             closeEverything(); homeRequests.intValue++
         }

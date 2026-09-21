@@ -26,6 +26,10 @@
         <package android:name="com.openai.chatgpt" />
         <!-- Good Lock's RegiStar, which can take over the side key (mentioned on the Side Key page). -->
         <package android:name="com.samsung.android.app.galaxyregistry" />
+        <!-- Keyd, Folio's own keyboard, listed in the Market as an app of its own. A keyboard has no launcher
+             icon, so the MAIN/LAUNCHER query below never finds one, and Android would keep answering "not
+             installed" even for a copy Folio installed itself. Naming it is the only way to be told. -->
+        <package android:name="com.mccal.keyd" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -51,6 +55,7 @@
     <application android:label="${appLabel}" android:icon="@mipmap/ic_launcher"
         android:name=".DuoApplication"
         android:theme="@style/Theme.Duo" android:allowBackup="false" android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:enableOnBackInvokedCallback="true">
         <property android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED" android:value="true" />
         <property android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_ALLOW_SYSTEM_OVERRIDE" android:value="false" />
@@ -104,6 +109,15 @@
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- folio://package/<id> and folio://source/<url>: a shared link opens it in the Market. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="folio" android:host="package" />
+                <data android:scheme="folio" android:host="source" />
+                <data android:scheme="folio" android:host="early" />
+            </intent-filter>
             <!-- Settings › Apps › Default apps › Home app (gear) and App info › Additional settings open Folio's settings. -->
             <intent-filter>
                 <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
@@ -147,6 +161,9 @@
         </activity-alias>
         <receiver android:name=".FocusScheduleReceiver" android:exported="false" />
         <receiver android:name=".SoftwareUpdateReceiver" android:exported="false" />
+        <!-- Android's answer when the Market hands it an app to install. Never exported: only the
+             installer session Folio created can reach it. -->
+        <receiver android:name=".MarketInstallReceiver" android:exported="false" />
         <service android:name=".SoftwareUpdateJob" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- Share a theme file to Folio: it's validated here, then Home asks before applying it. SEND only, so Folio
@@ -160,6 +177,24 @@
                 <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
+        <!-- A .foliopkg file opened or shared with Folio. It's unsigned, so the Market says so before anything runs. -->
+        <activity android:name=".PackageImportActivity" android:exported="true" android:excludeFromRecents="true"
+            android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.package"
+            android:noHistory="true" android:label="Folio Package">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+        <service android:name=".MarketRefreshJob" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- folio://redeem?c=… from a supporter email: the code is checked on the phone, so a bad link is simply refused. -->
         <activity android:name=".RedeemActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.redeem" android:noHistory="true"
@@ -216,6 +251,15 @@
             android:authorities="${applicationId}.buttons"
             android:exported="true"
             android:grantUriPermissions="false" />
+        <!-- A bug report is written to a file and handed to the share sheet through this, so an email app can attach
+             it. Not exported: an app reaches a report only when Folio gives it one, and only that one file. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.reports"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/report_paths" />
+        </provider>
 
     </application>
 </manifest>

@@ -10,24 +10,21 @@ class ScreenMatrixTest {
     private data class Screen(val name: String, val width: Float, val height: Float)
 
     /**
-     * Real screen sizes in dp, not guesses. Most come from the device definitions Android Studio ships in the SDK
-     * (sdklib devices.xml / nexus.xml / desktop.xml: pixels × 160 / density); the Galaxy Z Fold8 screens were measured
-     * with adb (2448×1848 and 1248×1972 px at 420 dpi). Split-screen entries are half of a listed screen.
+     * Real screen sizes in dp, not guesses, shared with the Mockup Lab: app/src/test/resources/screen-matrix.json.
+     * Most come from the device definitions Android Studio ships in the SDK (pixels × 160 / density); the Galaxy Z
+     * Fold8 screens were measured with adb (2448×1848 and 1248×1972 px at 420 dpi). Split-screen entries are half of a
+     * listed screen.
      */
-    private val devices = listOf(
-        Screen("Small Phone (Android Studio)", 360f, 640f), Screen("Nexus 4", 384f, 640f), Screen("Pixel 5", 393f, 851f),
-        Screen("Medium Phone / Pixel 9", 411f, 923f), Screen("Pixel 9 Pro", 427f, 952f), Screen("Pixel 9 Pro XL", 448f, 997f),
-        Screen("6.7\" Horizontal Fold-in (flip, open)", 360f, 879f), Screen("7.4\" Rollable", 610f, 925f),
-        Screen("Galaxy Z Fold8 cover", 475f, 751f), Screen("Galaxy Z Fold8 inner", 932f, 704f),
-        // Galaxy Z TriFold and Z Fold8 Ultra: pixels from Samsung's specs (via GSMArena) at an assumed 420 dpi like
-        // the Fold8; no measured density is published yet, so these are estimates (the TriFold's main screen most of all).
-        Screen("Galaxy Z TriFold main (estimated)", 823f, 603f), Screen("Galaxy Z TriFold cover (estimated)", 411f, 960f),
-        Screen("Galaxy Z Fold8 Ultra inner (estimated)", 859f, 954f), Screen("Galaxy Z Fold8 Ultra cover (estimated)", 411f, 960f),
-        Screen("Pixel Fold inner", 841f, 701f), Screen("Pixel 9 Pro Fold inner", 852f, 883f), Screen("8\" Fold-out", 838f, 945f),
-        Screen("7\" WSVGA tablet", 1024f, 600f), Screen("Nexus 7", 600f, 960f), Screen("Nexus 9", 1024f, 768f),
-        Screen("Medium Tablet / Pixel Tablet", 1280f, 800f), Screen("Pixel C", 1280f, 900f),
-        Screen("Small Desktop", 1366f, 768f), Screen("13.5\" Freeform", 1707f, 960f), Screen("Large Desktop", 1920f, 1080f),
-    )
+    private val devices = org.json.JSONObject(javaClass.getResource("/screen-matrix.json")!!.readText()).getJSONArray("devices").let { list ->
+        (0 until list.length()).map { i -> list.getJSONObject(i).let { Screen(it.getString("name"), it.getDouble("width").toFloat(), it.getDouble("height").toFloat()) } }
+    }
+
+    @Test fun `the shared device list is complete`() {
+        assertEquals(25, devices.size)
+        assertTrue(devices.any { it.name == "Galaxy Z Fold8 inner" && it.width == 932f && it.height == 704f })
+        // Estimated from Samsung's specs at 420 dpi; the file says so beside each one.
+        assertTrue(devices.any { it.name == "Galaxy Z TriFold main (estimated)" && it.width == 823f && it.height == 603f })
+    }
 
     /** Each device in both orientations, plus split-screen halves of the bigger ones. */
     private val screens = devices.flatMap { d ->
