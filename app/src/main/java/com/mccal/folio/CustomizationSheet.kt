@@ -602,12 +602,17 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug") { askDiagnostics = true }
                         if (askDiagnostics) {
                             fun openForm() { runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) } }
+                            val reportScope = rememberCoroutineScope()
                             AlertDialog(onDismissRequest = { askDiagnostics = false },
-                                title = { Text(stringResource(R.string.include_diagnostics)) },
-                                text = { Text(stringResource(R.string.copy_diagnostics_puts_your_phone_and_scr)) },
-                                confirmButton = { TextButton(onClick = { askDiagnostics = false; Diagnostics.copy(helpContext); openForm() },
-                                    modifier = Modifier.testTag("report-copy-diagnostics")) { Text(stringResource(R.string.copy_diagnostics)) } },
-                                dismissButton = { TextButton(onClick = { askDiagnostics = false; openForm() }) { Text(stringResource(R.string.just_open_form)) } })
+                                title = { Text(stringResource(R.string.how_should_this_report_go)) },
+                                text = { Text(stringResource(R.string.email_needs_no_account)) },
+                                confirmButton = { TextButton(onClick = { askDiagnostics = false
+                                    reportScope.launch { runCatching { helpContext.startActivity(Diagnostics.reportIntent(helpContext, email = true)) } } },
+                                    modifier = Modifier.testTag("report-email")) { Text(stringResource(R.string.email_a_report)) } },
+                                dismissButton = { TextButton(onClick = { askDiagnostics = false
+                                    // Copied off the main thread first, so the form opens with the details ready to paste.
+                                    reportScope.launch { Diagnostics.copy(helpContext); openForm() } },
+                                    modifier = Modifier.testTag("report-copy-diagnostics")) { Text(stringResource(R.string.use_github_instead)) } })
                         }
                         MenuDivider()
                         TweakRow(Icons.Rounded.WavingHand, 0xFFFF9F0A, "Show Welcome Again", "customization-onboarding") { onClose(); onShowWelcome() }
@@ -1340,9 +1345,11 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             CardAction(stringResource(R.string.share_latest), Modifier.fillMaxWidth(), onClick = { runCatching { context.startActivity(CrashLog.shareIntent(latest).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } })
             CardAction(stringResource(R.string.clear), Modifier.fillMaxWidth(), destructive = true, onClick = { CrashLog.clear(context); reports = emptyList() })
         }
-        CardAction(stringResource(R.string.share_diagnostics), onClick = { runCatching { context.startActivity(Diagnostics.shareIntent(context).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
-            modifier = Modifier.testTag("share-diagnostics"))
-        CardNote("Phone and screen settings, recent Folio events, crash, freeze and restart reports, and Folio's own log, for a bug report. You choose where it goes.")
+        val shareScope = rememberCoroutineScope()
+        CardAction(stringResource(R.string.share_diagnostics), onClick = {
+            shareScope.launch { runCatching { context.startActivity(Diagnostics.reportIntent(context, email = false)) } }
+        }, modifier = Modifier.testTag("share-diagnostics"))
+        CardNote(stringResource(R.string.diagnostics_file_note))
     }
 }
 
