@@ -270,6 +270,7 @@ internal fun HomePagePane(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val homeOptionsLabel = stringResource(R.string.home_options)
     val homeScroll = rememberScrollState()
     var paneBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     val pageStart = homeCellIndex(page, 0)
@@ -307,7 +308,7 @@ internal fun HomePagePane(
             }
         }
         .semantics {
-            onLongClick("Home options") {
+            onLongClick(homeOptionsLabel) {
                 if (!drag.active) onEmptyWidget(backgroundTarget)
                 !drag.active
             }
@@ -519,11 +520,18 @@ internal fun SharedHomeGrid(
     }
 }
 
-/** Cell offsets for moving without dragging: left, right, up, down, and the same cell on the next or previous page. */
-internal fun homeMoveOffsets(page: Int): List<Pair<String, Int>> = buildList {
-    add("Move Left" to -1); add("Move Right" to 1); add("Move Up" to -GRID_COLUMNS); add("Move Down" to GRID_COLUMNS)
+/** One way to move a Home item without dragging: what TalkBack offers, what it says after, and the cell offset. */
+internal data class HomeMove(@androidx.annotation.StringRes val label: Int, @androidx.annotation.StringRes val moved: Int, val offset: Int)
+
+/** Left, right, up, down, and the same cell on the next or previous page. */
+internal fun homeMoveOffsets(page: Int): List<HomeMove> = buildList {
+    add(HomeMove(R.string.move_left, R.string.moved_left, -1)); add(HomeMove(R.string.move_right, R.string.moved_right, 1))
+    add(HomeMove(R.string.move_up, R.string.moved_up, -GRID_COLUMNS)); add(HomeMove(R.string.move_down, R.string.moved_down, GRID_COLUMNS))
     // The unfolded-only page has no neighbors to move to.
-    if (page >= 0) { add("Move to Next Page" to HOME_CELLS); if (page > 0) add("Move to Previous Page" to -HOME_CELLS) }
+    if (page >= 0) {
+        add(HomeMove(R.string.move_to_next_page, R.string.moved_to_next_page, HOME_CELLS))
+        if (page > 0) add(HomeMove(R.string.move_to_previous_page, R.string.moved_to_previous_page, -HOME_CELLS))
+    }
 }
 
 /**
@@ -533,21 +541,23 @@ internal fun homeMoveOffsets(page: Int): List<Pair<String, Int>> = buildList {
 @Composable
 private fun Modifier.moveActions(id: String, page: Int, onMove: (String, Int) -> Unit): Modifier {
     val view = androidx.compose.ui.platform.LocalView.current
-    fun perform(label: String, offset: Int) { onMove(id, offset); view.announceForAccessibility(label.removePrefix("Move ").replaceFirstChar { it.lowercase() }.let { "Moved $it" }) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun perform(move: HomeMove) { onMove(id, move.offset); view.announceForAccessibility(context.getString(move.moved)) }
     val offsets = homeMoveOffsets(page)
+    val labels = offsets.map { stringResource(it.label) }
     return semantics {
-        customActions = offsets.map { (label, offset) -> androidx.compose.ui.semantics.CustomAccessibilityAction(label) { perform(label, offset); true } }
+        customActions = offsets.mapIndexed { i, move -> androidx.compose.ui.semantics.CustomAccessibilityAction(labels[i]) { perform(move); true } }
     }.onPreviewKeyEvent { event ->
         if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isAltPressed) return@onPreviewKeyEvent false
         val action = when (event.key) {
-            androidx.compose.ui.input.key.Key.DirectionLeft -> offsets.firstOrNull { it.second == -1 }
-            androidx.compose.ui.input.key.Key.DirectionRight -> offsets.firstOrNull { it.second == 1 }
-            androidx.compose.ui.input.key.Key.DirectionUp -> offsets.firstOrNull { it.second == -GRID_COLUMNS }
-            androidx.compose.ui.input.key.Key.DirectionDown -> offsets.firstOrNull { it.second == GRID_COLUMNS }
-            androidx.compose.ui.input.key.Key.PageDown -> offsets.firstOrNull { it.second == HOME_CELLS }
-            androidx.compose.ui.input.key.Key.PageUp -> offsets.firstOrNull { it.second == -HOME_CELLS }
+            androidx.compose.ui.input.key.Key.DirectionLeft -> offsets.firstOrNull { it.offset == -1 }
+            androidx.compose.ui.input.key.Key.DirectionRight -> offsets.firstOrNull { it.offset == 1 }
+            androidx.compose.ui.input.key.Key.DirectionUp -> offsets.firstOrNull { it.offset == -GRID_COLUMNS }
+            androidx.compose.ui.input.key.Key.DirectionDown -> offsets.firstOrNull { it.offset == GRID_COLUMNS }
+            androidx.compose.ui.input.key.Key.PageDown -> offsets.firstOrNull { it.offset == HOME_CELLS }
+            androidx.compose.ui.input.key.Key.PageUp -> offsets.firstOrNull { it.offset == -HOME_CELLS }
             else -> null
         } ?: return@onPreviewKeyEvent false
-        perform(action.first, action.second); true
+        perform(action); true
     }
 }

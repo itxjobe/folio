@@ -47,10 +47,10 @@ class PinWidgetActivity : ComponentActivity() {
             ?: runCatching { provider.loadIcon(this, resources.displayMetrics.densityDpi)?.toBitmap() }.getOrNull()
         setContent {
             var error by remember { mutableStateOf<String?>(null) }
-            PinCard(onCancel = ::finish, error = error, addLabel = "Add to Home Screen", tag = "pin-widget", onAdd = { error = add(request, provider) ?: run { finish(); null } }) {
+            PinCard(onCancel = ::finish, error = error, addLabel = stringResource(R.string.add_to_home_screen), tag = "pin-widget", onAdd = { error = add(request, provider) ?: run { finish(); null } }) {
                 preview?.let { Image(it.asImageBitmap(), null, Modifier.heightIn(max = 180.dp).clip(RoundedCornerShape(20.dp))) }
                 Text(label, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                Text(if (label != app) app else "Widget", color = Color.White.copy(alpha = .6f), fontSize = 15.sp)
+                Text(if (label != app) app else stringResource(R.string.widget), color = Color.White.copy(alpha = .6f), fontSize = 15.sp)
             }
         }
     }
@@ -58,17 +58,17 @@ class PinWidgetActivity : ComponentActivity() {
     /** A website or app shortcut: the same card with its icon; Add pins it and puts it in the first free spot on Home. */
     private fun showShortcut(request: LauncherApps.PinItemRequest) {
         val info = request.shortcutInfo ?: run { finish(); return }
-        val label = (info.shortLabel ?: info.longLabel ?: "Shortcut").toString()
+        val label = (info.shortLabel ?: info.longLabel ?: this@PinWidgetActivity.getString(R.string.shortcut)).toString()
         val app = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(info.`package`, 0)).toString() }.getOrDefault("")
         val icon = runCatching { getSystemService(LauncherApps::class.java).getShortcutIconDrawable(info, resources.displayMetrics.densityDpi)?.toBitmap(192, 192) }.getOrNull()
         setContent {
             var error by remember { mutableStateOf<String?>(null) }
-            PinCard(onCancel = ::finish, error = error, addLabel = "Add to Home Screen", tag = "pin-shortcut", onAdd = {
+            PinCard(onCancel = ::finish, error = error, addLabel = stringResource(R.string.add_to_home_screen), tag = "pin-shortcut", onAdd = {
                 val model = FolioSettingsBridge.liveModel?.get()
                 when {
-                    model == null -> error = "Open Folio once, then try again."
+                    model == null -> error = this@PinWidgetActivity.getString(R.string.open_folio_once_then_try_again)
                     runCatching { request.accept() }.getOrDefault(false) -> { model.placePinnedShortcut(info.`package`, info.id); finish() }
-                    else -> error = "The shortcut couldn't be added."
+                    else -> error = this@PinWidgetActivity.getString(R.string.the_shortcut_couldn_t_be_added)
                 }
             }) {
                 icon?.let { Image(it.asImageBitmap(), null, Modifier.size(72.dp).clip(RoundedCornerShape(18.dp))) }
@@ -80,8 +80,8 @@ class PinWidgetActivity : ComponentActivity() {
 
     /** Binds and places the widget; returns a message when it can't. */
     private fun add(request: LauncherApps.PinItemRequest, provider: android.appwidget.AppWidgetProviderInfo): String? {
-        val model = FolioSettingsBridge.liveModel?.get() ?: return "Open Folio once, then try again."
-        FocusPages.lockingFocus(model.state.value)?.let { return "Turn off ${it.name} to add to Home Screen." }
+        val model = FolioSettingsBridge.liveModel?.get() ?: return this@PinWidgetActivity.getString(R.string.open_folio_once_then_try_again)
+        FocusPages.lockingFocus(model.state.value)?.let { return this@PinWidgetActivity.getString(R.string.turn_off_to_add_to_home_screen, it.name) }
         val layout = model.state.value.layout
         val appRows = model.state.value.homeAppRows
         val density = resources.displayMetrics.density
@@ -93,13 +93,13 @@ class PinWidgetActivity : ComponentActivity() {
             maxResizeWidthDp = provider.maxResizeWidth / density, maxResizeHeightDp = provider.maxResizeHeight / density,
             targetCellWidth = provider.targetCellWidth, targetCellHeight = provider.targetCellHeight,
             horizontalPaddingDp = 0f, verticalPaddingDp = 0f, resizeMode = provider.resizeMode), grid)?.preferred ?: WidgetSpan(2, 2)
-        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height, appRows = appRows) ?: return "There's no room on Home for this widget."
+        val (page, index) = firstFreeWidgetSpot(layout, span.width, span.height, appRows = appRows) ?: return this@PinWidgetActivity.getString(R.string.there_s_no_room_on_home_for_this_widget)
         val host = AppWidgetHost(this, 1024)
         val id = host.allocateAppWidgetId()
         val accepted = runCatching { request.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }) }.getOrDefault(false)
         val local = homeCellLocal(index)
         val placed = accepted && model.placeWidget(WidgetPlacement(model.nextWidgetSlot(), id, page, local % GRID_COLUMNS, local / GRID_COLUMNS, span.width, span.height))
-        if (!placed) { host.deleteAppWidgetId(id); return "The widget couldn't be added." }
+        if (!placed) { host.deleteAppWidgetId(id); return this@PinWidgetActivity.getString(R.string.the_widget_couldn_t_be_added) }
         return null
     }
 }

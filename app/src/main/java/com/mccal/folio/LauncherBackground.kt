@@ -125,7 +125,7 @@ class LauncherBackgroundController(
             loading = true
             onExternalResultChanged(false)
             if (pendingUri != null && operation != null) decode(Uri.parse(pendingUri), operation)
-            else failPreviewRestore("The pending photo selection could not be restored.")
+            else failPreviewRestore(activity.getString(R.string.the_pending_photo_selection_could_not_be))
         } else if (previewPhase == PHASE_READY) {
             pickerPending = false
             previewPending = true
@@ -134,7 +134,7 @@ class LauncherBackgroundController(
             prefs.edit().remove(PENDING_URI).apply()
             if (operation != null && persistedPreviewFile?.isFile == true) {
                 restorePreview(persistedPreviewFile, operation)
-            } else failPreviewRestore("The pending photo preview could not be restored.")
+            } else failPreviewRestore(activity.getString(R.string.the_pending_photo_preview_could_not_be_r))
         } else if (pickerPending) {
             onExternalResultChanged(true)
         } else onExternalResultChanged(false)
@@ -156,7 +156,7 @@ class LauncherBackgroundController(
         onExternalResultChanged(true)
         try { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
         catch (error: Exception) {
-            errorMessage = error.message ?: "The photo picker is unavailable."
+            errorMessage = error.message ?: activity.getString(R.string.the_photo_picker_is_unavailable)
             clearPickerPending()
         }
     }
@@ -170,7 +170,7 @@ class LauncherBackgroundController(
         launcherBackgroundFile(activity).delete()
         prefs.edit().putBoolean(BACKGROUND_ENABLED, false).remove(BACKGROUND_ID).remove(PICKER_PENDING).remove(PENDING_URI)
             .remove(PENDING_OPERATION).remove(PREVIEW_PHASE).remove(PREVIEW_FILE).apply()
-        photoSelected = false; errorMessage = null; successMessage = "Using Folio dunes."
+        photoSelected = false; errorMessage = null; successMessage = activity.getString(R.string.using_folio_dunes)
         onExternalResultChanged(false)
         cleanupStagedFiles()
     }
@@ -198,10 +198,10 @@ class LauncherBackgroundController(
                 LauncherBackgroundCache.changed(staged.bitmap, staged.operation)
                 photoSelected = true
                 errorMessage = null
-                successMessage = "Launcher background updated."
+                successMessage = activity.getString(R.string.launcher_background_updated)
                 cleanupStagedFiles()
             }
-            .onFailure { errorMessage = it.message ?: "That photo could not be saved." }
+            .onFailure { errorMessage = it.message ?: activity.getString(R.string.that_photo_could_not_be_saved) }
     }
 
     fun cancelPreview() {
@@ -225,7 +225,7 @@ class LauncherBackgroundController(
 
     private fun beginPreview(uri: Uri, operation: String?) {
         if (operation == null) {
-            errorMessage = "The pending photo selection could not be restored."
+            errorMessage = activity.getString(R.string.the_pending_photo_selection_could_not_be)
             clearPickerPending()
             return
         }
@@ -251,7 +251,7 @@ class LauncherBackgroundController(
     }
 
     private fun decode(uri: Uri, operation: String?) {
-        if (operation == null) { failPreviewRestore("The pending photo selection could not be restored."); return }
+        if (operation == null) { failPreviewRestore(activity.getString(R.string.the_pending_photo_selection_could_not_be)); return }
         val token = generation
         activity.lifecycleScope.launch {
             // withContext has prompt cancellation: its IO block can finish creating the file
@@ -277,14 +277,14 @@ class LauncherBackgroundController(
                 return@launch
             }
             val staged = result.getOrElse {
-                failPreviewRestore(it.message ?: "That photo could not be used.")
+                failPreviewRestore(it.message ?: activity.getString(R.string.that_photo_could_not_be_used))
                 return@launch
             }
             val persisted = prefs.edit().putString(PREVIEW_PHASE, PHASE_READY)
                 .putString(PREVIEW_FILE, staged.file.name).remove(PENDING_URI).commit()
             if (!persisted || token != generation || !previewPending || pendingOperation() != operation) {
                 staged.discard()
-                if (!persisted) failPreviewRestore("That photo preview could not be saved.")
+                if (!persisted) failPreviewRestore(activity.getString(R.string.that_photo_preview_could_not_be_saved))
                 return@launch
             }
             releasePreviewGrant(operation)
@@ -318,7 +318,7 @@ class LauncherBackgroundController(
             }
             if (bitmap == null) {
                 file.delete()
-                failPreviewRestore("The pending photo preview could not be restored.")
+                failPreviewRestore(activity.getString(R.string.the_pending_photo_preview_could_not_be_r))
                 return@launch
             }
             val staged = StagedBackground(bitmap, file, operation)

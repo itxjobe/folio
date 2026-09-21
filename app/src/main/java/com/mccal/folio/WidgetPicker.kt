@@ -64,7 +64,7 @@ internal data class WidgetCatalogEntry(
     val appLabel: String,
     val description: String,
     val userSerial: Long = 0,
-    val profileLabel: String = "Personal",
+    val profileLabel: String,
     val isWork: Boolean = false,
 )
 
@@ -212,6 +212,13 @@ internal fun VisualWidgetPicker(
     onDrop: () -> Unit,
     onCancelDrag: () -> Unit,
 ) {
+    val widgetPanelLabel = stringResource(R.string.widget_panel_title)
+    val suggestionsLabel = stringResource(R.string.suggestions)
+    val bigClockLabel = stringResource(R.string.big_clock)
+    val upNextLabel = stringResource(R.string.up_next)
+    val dateLabel = stringResource(R.string.date)
+    val clockLabel = stringResource(R.string.clock)
+    val folioLabel = stringResource(R.string.folio)
     var query by rememberSaveable { mutableStateOf("") }
     val latestDragStart by rememberUpdatedState(onDragStart)
     val latestDrag by rememberUpdatedState(onDrag)
@@ -234,8 +241,8 @@ internal fun VisualWidgetPicker(
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.folioSafeTop).navigationBarsPadding().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.widgets), color = ink, fontSize = 32.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Box(Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)).clickable(onClickLabel = "Close", onClick = onBack),
-                    contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, "Back", tint = ink, modifier = Modifier.size(20.dp)) }
+                Box(Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)).clickable(onClickLabel = stringResource(R.string.close), onClick = onBack),
+                    contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, stringResource(R.string.back), tint = ink, modifier = Modifier.size(20.dp)) }
             }
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .12f))
                 .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -276,11 +283,11 @@ internal fun VisualWidgetPicker(
                     Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.TopCenter) { CircularProgressIndicator(color = ink) }
                 }
                 if (words.isEmpty() && selectedProfile.isPersonal) {
-                    header("duo-widgets", "Folio")
-                    items(listOf(Triple(CLOCK_WIDGET, "Clock", Icons.Rounded.Schedule), Triple(DATE_WIDGET, "Date", Icons.Rounded.CalendarToday),
-                        Triple(UP_NEXT_WIDGET, "Up Next", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(BIG_CLOCK_WIDGET, "Big Clock", Icons.Rounded.LockClock), Triple(SUGGESTIONS_WIDGET, "Suggestions", androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
-                        Triple(INFO_WIDGET, "Widget Panel", Icons.Rounded.Widgets)), key = { "builtin-${it.first}" }) { (id, label, icon) ->
-                        GalleryCard(label, "Folio", if (id == BIG_CLOCK_WIDGET) "Wide" else "Small", Modifier.testTag("widget-builtin-$id")
+                    header("duo-widgets", folioLabel)
+                    items(listOf(Triple(CLOCK_WIDGET, clockLabel, Icons.Rounded.Schedule), Triple(DATE_WIDGET, dateLabel, Icons.Rounded.CalendarToday),
+                        Triple(UP_NEXT_WIDGET, upNextLabel, androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(BIG_CLOCK_WIDGET, bigClockLabel, Icons.Rounded.LockClock), Triple(SUGGESTIONS_WIDGET, suggestionsLabel, androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
+                        Triple(INFO_WIDGET, widgetPanelLabel, Icons.Rounded.Widgets)), key = { "builtin-${it.first}" }) { (id, label, icon) ->
+                        GalleryCard(label, stringResource(R.string.folio), stringResource(if (id == BIG_CLOCK_WIDGET) R.string.wide else R.string.small), Modifier.testTag("widget-builtin-$id")
                             .clickable { focusManager.clearFocus(); keyboard?.hide(); onBuiltin(id) }) {
                             Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp))
                                 .background(Color.White.copy(alpha = .1f)), contentAlignment = Alignment.Center) {
@@ -294,9 +301,9 @@ internal fun VisualWidgetPicker(
                     items(group, key = { it.provider.provider.flattenToString() }) { entry ->
                         val span = footprint(entry.provider)
                         var origin by remember { mutableStateOf(Offset.Zero) }
-                        val sizeName = span?.let { when { it.width <= 2 && it.height <= 2 -> "Small"; it.height <= 2 -> "Medium"; else -> "Large" } }
+                        val sizeName = span?.let { when { it.width <= 2 && it.height <= 2 -> stringResource(R.string.small); it.height <= 2 -> stringResource(R.string.medium); else -> stringResource(R.string.large) } }
                         GalleryCard(entry.providerLabel, if (entry.isWork) "${entry.appLabel} · ${entry.profileLabel}" else entry.appLabel,
-                            span?.let { "$sizeName · ${it.width} × ${it.height}" } ?: "Doesn’t fit this layout",
+                            span?.let { "$sizeName · ${it.width} × ${it.height}" } ?: stringResource(R.string.doesn_t_fit_this_layout),
                             Modifier.testTag("widget-provider-${entry.provider.provider.flattenToString()}${if (entry.isWork) "-profile-${entry.userSerial}" else ""}")
                                 .onGloballyPositioned { origin = it.boundsInRoot().topLeft }
                                 .pointerInput(entry.provider) {

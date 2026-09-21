@@ -8,8 +8,12 @@ import org.junit.Test
  * fails if the count goes up, so new screens start translatable while the old ones are moved over. When you move some,
  * lower [LIMIT] to the new count the failure message prints, so it can't creep back.
  *
- * It's a heuristic: a capitalized, quoted phrase outside logs, keys and patterns. Brand and app names it flags count
- * too; they're few, and moving them keeps every visible word in one place.
+ * It's a heuristic: a capitalized, quoted phrase outside logs, keys and patterns, or text that starts with a value
+ * ("$count steps left"). Brand and app names it flags count too; moving them (translatable="false") keeps every visible
+ * word in one place. UntranslatedNoticeTest is the strict check for Text() and toasts; this one covers everything else.
+ *
+ * Text that must stay English is left out on purpose: whole files in [englishOnly], or a line ending in
+ * `// english-only`, with the reason beside it.
  */
 class HardcodedTextTest {
     private val root = generateSequence(java.io.File("").absoluteFile) { it.parentFile }.first { java.io.File(it, "CHANGELOG.md").exists() }
@@ -18,14 +22,20 @@ class HardcodedTextTest {
     private val templated = Regex(""""((?:[^"\\$]|\$\{[^{}"]*\}|\$\w+)*\$(?:[^"\\$]|\$\{[^{}"]*\}|\$\w+)*)"""")
     private val template = Regex("""\$\{[^{}"]*\}|\$\w+""")
     private val words = Regex("""\s[a-z]{3,}""")
+    /** Trace and log text such as "progress=$progress reason=…": key=value pairs are for developers, not people. */
+    private val debugLine = Regex("""\w=\$""")
     private val notText = Regex("""Log\.|TAG|const val|Regex|require\(|error\(|check\(|throw |Exception\(|\.put(Extra|String|Boolean|Int)|getString\(|optString|prefs|key =|Intent\(|action|@Preview|println|\.startsWith|\.equals|when \(|".*" ->|[Tt]race|section\(|json|JSON""")
 
-    private fun found(): List<String> = java.io.File(root, "app/src/main/java").walkTopDown().filter { it.extension == "kt" }.flatMap { file ->
+    /** Files whose text is read by McCal, not shown to people: it goes into crash logs and bug reports. */
+    private val englishOnly = setOf("Diagnostics.kt", "CrashLog.kt")
+
+    private fun found(): List<String> = java.io.File(root, "app/src/main/java").walkTopDown().filter { it.extension == "kt" && it.name !in englishOnly }.flatMap { file ->
         file.readLines().withIndex().flatMap { (i, line) ->
             val s = line.trim()
-            if (s.startsWith("//") || s.startsWith("*") || s.startsWith("/*") || notText.containsMatchIn(line)) emptyList()
+            if (s.startsWith("//") || s.startsWith("*") || s.startsWith("/*") || s.endsWith("// english-only") ||
+                notText.containsMatchIn(line)) emptyList()
             else (phrase.findAll(line).map { it.groupValues[1] }.filter { ' ' in it || it.length >= 4 } +
-                templated.findAll(line).map { it.groupValues[1] }.filter { !it.first().isUpperCase() && words.containsMatchIn(it.replace(template, "#")) })
+                templated.findAll(line).map { it.groupValues[1] }.filter { !it.first().isUpperCase() && !debugLine.containsMatchIn(it) && words.containsMatchIn(it.replace(template, "#")) })
                 .map { "${file.name}:${i + 1} $it" }.toList()
         }
     }.toList()
@@ -39,5 +49,12 @@ class HardcodedTextTest {
         if (hits.size < LIMIT) println("HardcodedTextTest: ${hits.size} now; lower LIMIT from $LIMIT to ${hits.size}.")
     }
 
-    private companion object { const val LIMIT = 386 }
+    /** Labels in the manifest show in Android's own screens: Quick Settings, notification access, the wallpaper picker. */
+    @Test fun `manifest labels come from strings`() {
+        val manifest = java.io.File(root, "app/src/main/AndroidManifest.xml").readText()
+        val literal = Regex("""android:(label|description)="([^@$][^"]*)"""").findAll(manifest).map { it.groupValues[2] }.toList()
+        assertTrue("English in the manifest: $literal. Use @string/ so Android shows it translated.", literal.isEmpty())
+    }
+
+    private companion object { const val LIMIT = 222 }
 }

@@ -386,6 +386,7 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
         val view = ComposeView(service).apply {
             setViewTreeLifecycleOwner(owner); setViewTreeSavedStateRegistryOwner(owner)
             setContent {
+                val islandStrings = androidx.compose.ui.platform.LocalContext.current.strings()
                 val content = islandContent.collectAsState().value
                 val w by animateDpAsState(content?.let { g.widthFor(it).dp } ?: 0.dp,
                     spring(dampingRatio = .72f, stiffness = Spring.StiffnessMediumLow), label = "overlay-island")
@@ -405,7 +406,7 @@ internal class EverywhereOverlay(private val service: AccessibilityService) {
                             (content as? IslandContent.Live)?.let { IslandListenerService.open(service, it.activity) }
                             ((content as? IslandContent.Event)?.event as? IslandEvent.Message)?.let { IslandListenerService.openKey(service, it.key, it.packageName) }
                         }
-                        .semantics { contentDescription = describe(content) }) {
+                        .semantics { contentDescription = describe(content, islandStrings) }) {
                         IslandPillContent(content, g.camW.dp, g.pillH.dp)
                     }
                 }
