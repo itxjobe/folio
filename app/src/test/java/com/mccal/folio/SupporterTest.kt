@@ -21,9 +21,9 @@ import java.util.Base64
  * What a redeemed code opens, and the cost of asking.
  *
  * Checking a code is an ECDSA verification, about a millisecond, and Settings asks on every redraw whether to show
- * the Market row — twice over in the split view. So the answer is remembered, and these check that remembering it
- * doesn't make it wrong: a removed code stops opening things at once, and an expiry is still measured against the
- * clock rather than against whenever the answer happened to be worked out.
+ * the Market row, twice over in the split view. So the answer is remembered for the day, and these check that
+ * remembering it doesn't make it wrong: a removed code stops opening things at once, and a new day is judged afresh,
+ * for a fixed last day and for a months window alike.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -37,9 +37,12 @@ class SupporterTest {
     @Before fun clean() = Supporter.remove(context)
 
     /** The same shape `scripts/beta-code.py` mints. */
-    private fun mint(scopeBits: Int, expires: LocalDate? = null, serial: Long = 7): String {
+    private fun mint(scopeBits: Int, expires: LocalDate? = null, serial: Long = 7, months: Int = 0): String {
         val day = expires?.let { (it.toEpochDay() - LocalDate.of(2026, 1, 1).toEpochDay()).toInt() } ?: 0
-        val payload = byteArrayOf(1, scopeBits.toByte(), 1, (day shr 8).toByte(), day.toByte()) +
+        // A months code is version 2, with the months in the high half of the tier byte.
+        val version: Byte = if (months > 0) 2 else 1
+        val tierByte: Byte = if (months > 0) ((months shl 4) or 1).toByte() else 1
+        val payload = byteArrayOf(version, scopeBits.toByte(), tierByte, (day shr 8).toByte(), day.toByte()) +
             ByteArray(4) { i -> (serial shr (24 - i * 8)).toByte() }
         val der = Signature.getInstance("SHA256withECDSA").run { initSign(pair.private); update(payload); sign() }
         var i = 2
@@ -148,6 +151,15 @@ class SupporterTest {
         assertNull("and winding the clock back doesn't return it", Supporter.code(context, last, keys))
     }
 
+    @Test fun `a months code runs out on its own day, through the day's cache`() {
+        val redeemed = LocalDate.of(2026, 10, 1)
+        assertTrue(Supporter.redeem(context, mint(beta, months = 1, serial = 21), redeemed, keys) is BetaCodes.Result.Valid)
+        assertNotNull(Supporter.code(context, redeemed.plusDays(20), keys))
+        assertNotNull("asked again the same day, the cache agrees", Supporter.code(context, redeemed.plusDays(20), keys))
+        assertNull("a month and more later it has run out", Supporter.code(context, redeemed.plusDays(40), keys))
+        assertNull("and the cache doesn't bring it back", Supporter.code(context, redeemed.plusDays(40), keys))
+    }
+
     @Test fun `asking again doesn't check the signature again`() {
         Supporter.redeem(context, mint(beta), keys = keys)
         Supporter.setBetaOn(context, true)
@@ -166,10 +178,9 @@ class SupporterTest {
         val checking = time { flip = !flip; Supporter.code(context, keys = if (flip) keys else other) }
         val remembered = time { Supporter.code(context, keys = keys) }
 
-        // Only that it is faster, not by how much. The remembered path still reads the preference and checks the
-        // expiry against today, so the saving is the signature and nothing else - about three times on this
-        // machine, and a tighter bound than "faster" is a flaky test rather than a stronger claim, especially
-        // with other builds running beside it.
+        // Only that it is faster, not by how much. The remembered path is one preference read and the day's
+        // answer, so it skips the signature, the clock and the window; a tighter bound than "faster" would be a
+        // flaky test rather than a stronger claim, especially with other builds running beside it.
         assertTrue(
             "a hundred repeats took ${remembered / 1000}us; a hundred real checks take ${checking / 1000}us",
             remembered < checking,

@@ -670,7 +670,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         if (statePayloadInvalid) return false
         val old = mutable.value
         if (old.layout == preview.layout && old.compact == preview.compact && old.expanded == preview.expanded &&
-            old.labels == preview.labels && old.googleSearch == preview.googleSearch && old.verticalStatus == preview.verticalStatus) return false
+            old.labels == preview.labels && old.googleSearch == preview.googleSearch && old.verticalStatus == preview.verticalStatus &&
+            old.appNames + preview.appNames == old.appNames) return false
         saveLayoutSnapshot("Before restoring a backup")
         undoLayout = old.layout to preview.layout
         undoImportSettings = UndoImportSettings(old.compact, old.expanded, old.labels, old.googleSearch, old.verticalStatus)

@@ -74,7 +74,9 @@ internal object Diagnostics {
         prefs.edit().putLong(LAST_EXIT, exits.maxOf { it.timestamp }).apply()
         // Java crashes are already written by the crash handler, with their stack trace.
         exits.filter { it.reason in WORTH_REPORTING }.forEach { exit ->
-            val trace = if (exit.reason == ApplicationExitInfo.REASON_ANR || exit.reason == ApplicationExitInfo.REASON_CRASH_NATIVE)
+            // Only a freeze's trace, which is text. A native crash's record is a binary tombstone that can hold pieces
+            // of whatever Folio had in memory: unreadable, and not something to put in a report someone emails.
+            val trace = if (exit.reason == ApplicationExitInfo.REASON_ANR)
                 runCatching { exit.traceInputStream?.bufferedReader()?.use { it.readText().take(TRACE_LIMIT) } }.getOrNull() else null
             CrashLog.save(context, "exit", buildString {
                 appendLine("Folio ${label(exit.reason)}")
@@ -184,10 +186,13 @@ internal object Diagnostics {
      * it to [SUPPORT_EMAIL]; without it, the share sheet leaves the choice of where entirely to them.
      */
     suspend fun reportIntent(context: Context, email: Boolean): Intent = withContext(Dispatchers.IO) {
-        // Only ever the newest one: an old report left in the cache is no use and not worth keeping around.
-        val dir = File(context.cacheDir, "reports").apply { deleteRecursively(); mkdirs() }
-        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm"))
-        val file = File(dir, "folio-report-$stamp.txt").apply { writeText(bundle(context)) }
+        // Old reports are cleared, but not one a mail app may still be reading: only those more than ten minutes old,
+        // and every report gets a name of its own, so two in the same minute don't overwrite each other.
+        val dir = File(context.cacheDir, "reports").apply { mkdirs() }
+        val now = System.currentTimeMillis()
+        dir.listFiles()?.filter { now - it.lastModified() > 10 * 60_000 }?.forEach { it.delete() }
+        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss"))
+        val file = File(dir, "folio-report-$stamp-${(1000..9999).random()}.txt").apply { writeText(bundle(context)) }
         val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.reports", file)
         val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -197,7 +202,10 @@ internal object Diagnostics {
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         // The chooser only passes read access on if the file is also in clipData.
         send.clipData = ClipData.newRawUri("", uri)
-        if (email) send.putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+        if (email) {
+            send.putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+            send.selector = Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:"))
+        }
         Intent.createChooser(send, context.getString(if (email) R.string.email_a_report else R.string.share_diagnostics))
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
@@ -208,25 +216,36 @@ internal object Diagnostics {
             ?.setPrimaryClip(ClipData.newPlainText("Folio diagnostics", text))
     }
 
-    /** Crashes and freezes are worth asking about; a restart on its own usually isn't. */
-    private val ASK_KINDS = setOf("crash", "exit")
-    private const val ASKED = "report_asked_through"
+    private const val ASKED = "report_asked_name"
 
     /**
-     * The newest crash or freeze nobody has been asked about yet, or null. The first time this runs it only notes
-     * the time, so someone updating Folio isn't greeted by a report from weeks ago: only what goes wrong from here on
-     * is offered.
+     * Worth asking about: a crash, a freeze, or a native crash. Not Android closing Folio to free memory, which a
+     * launcher in the background has happen to it routinely, and which telling someone "Folio closed unexpectedly"
+     * about would only alarm them.
+     */
+    internal fun worthAsking(report: File): Boolean = when (report.name.substringBefore('-')) {
+        "crash" -> true
+        "exit" -> runCatching { report.useLines { it.firstOrNull() } }.getOrNull()?.let { first ->
+            first == "Folio ${label(ApplicationExitInfo.REASON_ANR)}" || first == "Folio ${label(ApplicationExitInfo.REASON_CRASH_NATIVE)}"
+        } == true
+        else -> false
+    }
+
+    /**
+     * The newest crash or freeze nobody has been asked about yet, or null. It remembers the report it last offered,
+     * not a time, so a clock that is wrong in either direction can't hide one or offer one twice. The first time this
+     * runs it only takes note of what is already there, so someone updating Folio isn't greeted by a report from
+     * weeks ago.
      */
     fun unaskedFailure(context: Context): File? {
         val prefs = context.getSharedPreferences(PREFS, 0)
-        if (!prefs.contains(ASKED)) { prefs.edit().putLong(ASKED, System.currentTimeMillis()).apply(); return null }
-        val asked = prefs.getLong(ASKED, 0L)
-        return CrashLog.reports(context).firstOrNull { it.name.substringBefore('-') in ASK_KINDS }
-            ?.takeIf { it.lastModified() > asked }
+        val newest = CrashLog.reports(context).firstOrNull(::worthAsking)
+        if (!prefs.contains(ASKED)) { prefs.edit().putString(ASKED, newest?.name.orEmpty()).apply(); return null }
+        return newest?.takeIf { it.name != prefs.getString(ASKED, "") }
     }
 
-    /** Asked, whatever the answer: the same report is never offered twice. */
-    fun markAsked(context: Context) {
-        context.getSharedPreferences(PREFS, 0).edit().putLong(ASKED, System.currentTimeMillis()).apply()
+    /** Asked about [report], whatever the answer: it is never offered again. */
+    fun markAsked(context: Context, report: File) {
+        context.getSharedPreferences(PREFS, 0).edit().putString(ASKED, report.name).apply()
     }
 }

@@ -52,9 +52,10 @@ internal object Supporter {
      * somebody redeems or removes a code. So the signature's answer is kept, keyed on the exact text it was worked
      * out from, and a new or removed code recomputes it.
      *
-     * Whether the code has run out is deliberately not kept: its own last day, or the end of the months it bought
-     * counted from the day it was first redeemed here, is judged against the clock on every call, so a code doesn't
-     * stay valid past midnight because the answer was cached before it.
+     * The whole answer is kept for the day it was worked out on, and a new day works it out again. That is safe
+     * because a code can only run out at a day's boundary: its own last day, or the end of the months it bought
+     * counted from the day it was first redeemed here. So a code doesn't stay valid past midnight because the answer
+     * was cached before it, and the clock is written at most once a day rather than on every redraw.
      */
     fun code(context: Context, today: LocalDate = LocalDate.now(), keys: List<String> = keys(context)): BetaCodes.Code? {
         val text = stored(context) ?: return null

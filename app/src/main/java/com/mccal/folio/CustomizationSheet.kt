@@ -599,10 +599,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     val helpContext = androidx.compose.ui.platform.LocalContext.current
                     SheetGroup {
                         var askDiagnostics by remember { mutableStateOf(false) }
+                        // Outside the dialog on purpose: closing the dialog is the first thing either button does, and
+                        // a scope that went with it cancelled the report before it had been written.
+                        val reportScope = rememberCoroutineScope()
                         TweakRow(Icons.Rounded.BugReport, 0xFFFF453A, "Report a Bug", "customization-report-bug") { askDiagnostics = true }
                         if (askDiagnostics) {
                             fun openForm() { runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) } }
-                            val reportScope = rememberCoroutineScope()
                             AlertDialog(onDismissRequest = { askDiagnostics = false },
                                 title = { Text(stringResource(R.string.how_should_this_report_go)) },
                                 text = { Text(stringResource(R.string.email_needs_no_account)) },

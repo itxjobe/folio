@@ -1022,4 +1022,5 @@
     <string name="send_a_report_to_help_fix_it">A report helps get it fixed. It opens in your mail app so you can read everything first, and nothing is sent unless you send it.</string>
     <string name="send_report">Send Report</string>
     <string name="diagnostics_file_note">Phone and screen settings, recent Folio events, crash, freeze and restart reports, and Folio\'s own log, as one file. You choose where it goes.</string>
+    <string name="the_report_couldn_t_be_opened">The report couldn\'t be opened. Settings › Help › Report a Bug has it too.</string>
 </resources>
