@@ -283,6 +283,13 @@ fun effectiveHomeRows(setting: Int, fitCompact: Int, fitExpanded: Int): Int =
 /** Saved-state schema. 9: 36-cell Home pages (More rows); 6–8 had 24. */
 const val STATE_SCHEMA = 9
 
+/**
+ * The schema that brought More rows. A save older than this was arranged in four rows, and keeps them; anything
+ * from this schema on already had Automatic. Pinned to 9 rather than following [STATE_SCHEMA], or the next schema
+ * bump would start treating 0.6.5 saves as old and take their Automatic rows away.
+ */
+const val MORE_ROWS_SCHEMA = 9
+
 class LauncherModel(application: Application) : AndroidViewModel(application) {
     private data class RefreshedApps(val entries: List<AppEntry>, val profiles: List<AppProfile>,
         val authoritativeProfiles: Set<Long>, val removedProfiles: Set<Long>)
@@ -1390,7 +1397,7 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         // Automatic is the new default, but it must not rearrange a Home that already exists: a save written before
         // this release comes back fixed at the four rows it was drawn with, and Settings › Home Screen & Dock offers
         // Automatic to anyone who wants the taller screens filled.
-        homeRows = j.optInt("homeRows", if (j.optInt("schema", 1) in 1 until STATE_SCHEMA) BASE_APP_ROWS else 0)
+        homeRows = j.optInt("homeRows", if (j.optInt("schema", 1) in 1 until MORE_ROWS_SCHEMA) BASE_APP_ROWS else 0)
             .takeIf { it == BASE_APP_ROWS } ?: 0,
         homeFitCompact = j.optInt("homeFitCompact", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0,
         homeFitExpanded = j.optInt("homeFitExpanded", 0).takeIf { it in BASE_APP_ROWS..MAX_APP_ROWS } ?: 0)
