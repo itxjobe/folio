@@ -132,6 +132,9 @@ internal fun MarketScreen(
     val scope = rememberCoroutineScope()
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    // Counts every message said, so the same words said twice still get their full time on screen: keyed on the text
+    // alone, a second "Keyd updated" inherited what was left of the first one's timer.
+    var said by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     // Re-read after every change, so the list always shows what's really installed. Reading means parsing the
     // bundled index and every cached source list, which is far too much to do while a frame is being drawn - so it
     // happens off the main thread and the screen fills in when it's done.
@@ -155,12 +158,12 @@ internal fun MarketScreen(
      * Says something in the banner. Undo belongs to the install it came from, so any other message takes it away:
      * an Undo left over from an earlier install would remove a package the user is happy with.
      */
-    fun say(text: String?) { message = text; undo = null }
+    fun say(text: String?) { message = text; undo = null; said++ }
 
     /** What the banner says about a finished install, and whether it can still be undone. */
     fun announce(name: String, result: InstallResult) {
         when (result) {
-            is InstallResult.Installed -> { message = context.getString(R.string.text_1_s_is_on, result.installed.name); undo = result }
+            is InstallResult.Installed -> { message = context.getString(R.string.text_1_s_is_on, result.installed.name); undo = result; said++ }
             is InstallResult.NeedsNewerFolio -> say(context.getString(R.string.text_1_s_needs_a_newer_folio, name))
             is InstallResult.Failed -> say(result.message)
         }
@@ -446,7 +449,7 @@ internal fun MarketScreen(
             // it's dismissed or replaced, because dismissing it is what ends the chance to undo. The time is
             // Android's recommended one, which is longer for someone using TalkBack or a longer timeout setting.
             val a11y = remember { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java) }
-            LaunchedEffect(message, undo) {
+            LaunchedEffect(message, undo, said) {
                 if (message != null && undo == null) {
                     val wait = a11y?.getRecommendedTimeoutMillis(
                         MESSAGE_MILLIS, android.view.accessibility.AccessibilityManager.FLAG_CONTENT_TEXT,
