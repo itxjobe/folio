@@ -135,11 +135,14 @@ class MoreRowsTest {
     }
 
     @Test fun `accessible moves cover every direction and only real pages`() {
-        val first = homeMoveOffsets(0).toMap()
+        fun labels(page: Int) = homeMoveOffsets(page).associate { EnglishStrings.get(it.label) to it.offset }
+        val first = labels(0)
         org.junit.Assert.assertEquals(-1, first["Move Left"]); org.junit.Assert.assertEquals(GRID_COLUMNS, first["Move Down"])
         org.junit.Assert.assertEquals(HOME_CELLS, first["Move to Next Page"])
         org.junit.Assert.assertFalse("Move to Previous Page" in first)
-        org.junit.Assert.assertTrue("Move to Previous Page" in homeMoveOffsets(2).toMap())
-        org.junit.Assert.assertFalse(homeMoveOffsets(-1).any { "Page" in it.first })
+        org.junit.Assert.assertTrue("Move to Previous Page" in labels(2))
+        org.junit.Assert.assertFalse(labels(-1).keys.any { "Page" in it })
+        // TalkBack says where it went in a sentence of its own, not "Move Left" with the verb cut off.
+        org.junit.Assert.assertEquals("Moved left", EnglishStrings.get(homeMoveOffsets(0).first().moved))
     }
 }

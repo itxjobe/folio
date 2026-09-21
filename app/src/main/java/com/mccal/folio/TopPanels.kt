@@ -176,7 +176,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.notification_center), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            GlassIconButton(Icons.Rounded.Tune, "Android notifications") { onClose(); onSystem() }
+            GlassIconButton(Icons.Rounded.Tune, stringResource(R.string.android_notifications)) { onClose(); onSystem() }
             if (items.any { it.clearable }) {
                 Spacer(Modifier.width(8.dp))
                 // Like iPhone: the × turns into "Clear" and a second tap clears everything.
@@ -184,7 +184,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                 LaunchedEffect(confirmClear) { if (confirmClear) { kotlinx.coroutines.delay(3_000); confirmClear = false } }
                 androidx.compose.animation.AnimatedContent(confirmClear, label = "clear-all") { confirm ->
                     if (confirm) PanelPill(stringResource(R.string.clear)) { confirmClear = false; IslandListenerService.dismissAll() }
-                    else GlassIconButton(Icons.Rounded.Close, "Clear all") { confirmClear = true }
+                    else GlassIconButton(Icons.Rounded.Close, stringResource(R.string.clear_all)) { confirmClear = true }
                 }
             }
         }
@@ -202,7 +202,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                     val selected = filterApp == first.packageName
                     Box(Modifier.size(48.dp).clip(RoundedCornerShape(13.dp))
                         .background(if (selected) Color.White.copy(alpha = .3f) else Color.Transparent)
-                        .clickable(onClickLabel = "Show ${first.appLabel} notifications") { filterApp = if (selected) null else first.packageName }
+                        .clickable(onClickLabel = stringResource(R.string.show_notifications, first.appLabel)) { filterApp = if (selected) null else first.packageName }
                         .padding(5.dp)) {
                         first.icon?.let { Image(it.asImageBitmap(), first.appLabel, Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp))
                             .graphicsLayer { alpha = if (filterApp == null || selected) 1f else .45f }) }
@@ -564,9 +564,9 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
             // iOS 18 header: edit on the left, power on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (edit.active) PanelPill(stringResource(R.string.done)) { edit.stop() }
-                else GlassIconButton(Icons.Rounded.Add, "Edit controls") { edit.start() }
+                else GlassIconButton(Icons.Rounded.Add, stringResource(R.string.edit_controls)) { edit.start() }
                 Spacer(Modifier.weight(1f))
-                GlassIconButton(Icons.Rounded.PowerSettingsNew, "Power menu") {
+                GlassIconButton(Icons.Rounded.PowerSettingsNew, stringResource(R.string.power_menu)) {
                     onClose(); if (!SystemShadeAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)) onSystem()
                 }
             }
@@ -648,7 +648,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                         }
                     }
                 }
-                TallSlider(if (controls.brightness < .35f) Icons.Rounded.BrightnessLow else Icons.Rounded.LightMode, "Brightness", controls.brightness, cell, span(2),
+                TallSlider(if (controls.brightness < .35f) Icons.Rounded.BrightnessLow else Icons.Rounded.LightMode, stringResource(R.string.brightness), controls.brightness, cell, span(2),
                     onStart = { if (!android.provider.Settings.System.canWrite(context)) open(controls.writeSettingsIntent()) }) { value ->
                     controls.changeBrightness(value) }
                 TallSlider(when {
@@ -746,10 +746,10 @@ private fun MediaModule(media: IslandActivity.Media?, modifier: Modifier, cell: 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 val t = media?.controller?.transportControls
                 val tint = Color.White.copy(alpha = if (t != null) 1f else .35f)
-                Icon(Icons.Rounded.FastRewind, "Previous", tint = tint, modifier = Modifier.size(cell * .34f).clip(CircleShape).clickable(t != null) { t?.skipToPrevious() })
-                Icon(if (media?.playing == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Play or pause", tint = tint,
+                Icon(Icons.Rounded.FastRewind, stringResource(R.string.previous), tint = tint, modifier = Modifier.size(cell * .34f).clip(CircleShape).clickable(t != null) { t?.skipToPrevious() })
+                Icon(if (media?.playing == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, stringResource(R.string.play_or_pause), tint = tint,
                     modifier = Modifier.size(cell * .42f).clip(CircleShape).clickable(t != null) { if (media?.playing == true) t?.pause() else t?.play() })
-                Icon(Icons.Rounded.FastForward, "Next", tint = tint, modifier = Modifier.size(cell * .34f).clip(CircleShape).clickable(t != null) { t?.skipToNext() })
+                Icon(Icons.Rounded.FastForward, stringResource(R.string.next), tint = tint, modifier = Modifier.size(cell * .34f).clip(CircleShape).clickable(t != null) { t?.skipToNext() })
             }
         }
     }

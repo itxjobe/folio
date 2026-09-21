@@ -135,6 +135,7 @@ fun LauncherScreen(
     onShowWelcome: () -> Unit = {},
     onShowWhatsNew: () -> Unit = {},
 ) {
+    val cancelLabel = stringResource(R.string.cancel)
     var sheet by rememberSaveable { mutableStateOf("") }
     var dockSlot by rememberSaveable { mutableIntStateOf(0) }
     var widgetSession by remember { mutableStateOf<WidgetPickerSession?>(null) }
@@ -830,7 +831,7 @@ fun LauncherScreen(
                     // Only when there is a page to the left of Home: with Today View and Discover both off, the
                     // button led nowhere (reported on r/GalaxyFold, 18 Sep 2026).
                     if (!drag.active && (firstHome > 0 || discoverMode)) IconButton(onClick = openDiscover, Modifier.size(32.dp).testTag("discover-page-link")) {
-                        Icon(Icons.Rounded.Explore, "Discover", tint = Color.White.copy(alpha = .65f), modifier = Modifier.size(17.dp))
+                        Icon(Icons.Rounded.Explore, stringResource(R.string.discover), tint = Color.White.copy(alpha = .65f), modifier = Modifier.size(17.dp))
                     }
                     // iOS: a "Search" capsule where the page dots are; the dots come back while paging or editing.
                     // iOS: drag sideways along the Search pill or the dots to scrub through Home pages, a tick per page.
@@ -855,7 +856,7 @@ fun LauncherScreen(
                                     scope.launch { pager.scrollToPage(page) }
                                 }
                             }
-                        }.semantics { contentDescription = "Page scrubber" },
+                        }.description(R.string.page_scrubber),
                         transitionSpec = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) togetherWith
                             androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) },
                         contentAlignment = Alignment.Center) { pill ->
@@ -863,8 +864,9 @@ fun LauncherScreen(
                         else Row(Modifier.height(30.dp).background(if (scrubbing) Color.White.copy(alpha = .18f) else Color.Transparent, CircleShape)
                             .padding(horizontal = if (scrubbing) 6.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (visibleHomePages <= 6) repeat(visibleHomePages) { index ->
+                            val dotLabel = if (index == homePages) stringResource(R.string.new_home_page) else stringResource(R.string.home_page, index + 1)
                             Box(Modifier.size(28.dp).clip(CircleShape).clickable { scope.launch { pager.animateScrollToPage(index) } }
-                                .semantics { contentDescription = if (index == homePages) "New home page" else "Home page ${index + 1}" }, contentAlignment = Alignment.Center) {
+                                .semantics { contentDescription = dotLabel }, contentAlignment = Alignment.Center) {
                                 if (index == homePages) Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(14.dp))
                                 else Box(Modifier.size(if (index == pager.currentPage) 6.dp else 4.dp).background(if (index == pager.currentPage) LocalHomeInk.current.primary else LocalHomeInk.current.faint, CircleShape))
                             }
@@ -872,7 +874,7 @@ fun LauncherScreen(
                         }
                     }
                     IconButton(onClick = openLibrary, Modifier.size(32.dp).testTag("library-page-link")) {
-                        Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, "All apps page", tint = Color.White.copy(alpha = if (pager.currentPage == homePages) 1f else .6f), modifier = Modifier.size(17.dp))
+                        Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.all_apps_page), tint = Color.White.copy(alpha = if (pager.currentPage == homePages) 1f else .6f), modifier = Modifier.size(17.dp))
                     }
                 }
             }
@@ -891,7 +893,7 @@ fun LauncherScreen(
                     horizontalArrangement = if (geometry.expanded) Arrangement.spacedBy(8.dp, Alignment.End) else Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically) {
                     val editPage = pager.currentPage.coerceIn(0, homePages - 1)
-                    JigglePill("", Icons.Rounded.Add, description = "Add widget") {
+                    JigglePill("", Icons.Rounded.Add, description = stringResource(R.string.add_widget)) {
                         picker.slot = model.nextWidgetSlot(); picker.targetIndex = homeCellIndex(editPage, 0); picker.anyApp(); picker.profileSerial = null; sheet = "widgets"
                     }
                     JigglePill(stringResource(R.string.edit), modifier = Modifier.onGloballyPositioned { editPillBounds = it.boundsInWindow().roundToIntRect() }) {
@@ -906,10 +908,10 @@ fun LauncherScreen(
                 .width(preset.dockWidth.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val controlSize = dockIconSize(geometry.iconSize).dp
-                if (pager.currentPage == -1) CircleControl(Icons.Rounded.ArrowForward, "Back to home", "discover-home", controlSize) { scope.launch { pager.animateScrollToPage(0) } }
+                if (pager.currentPage == -1) CircleControl(Icons.Rounded.ArrowForward, stringResource(R.string.back_to_home), "discover-home", controlSize) { scope.launch { pager.animateScrollToPage(0) } }
                 val searchBounds = remember { android.graphics.Rect() }
                 if (!state.searchPill || pager.currentPage !in 0 until homePages) Box(Modifier.onGloballyPositioned { searchBounds.set(it.boundsInWindow().toAndroidBounds()) }) {
-                    CircleControl(Icons.Rounded.Search, if (state.googleSearch) "Search Google" else "Search apps", "search", controlSize) {
+                    CircleControl(Icons.Rounded.Search, if (state.googleSearch) stringResource(R.string.search_google) else stringResource(R.string.search_apps), "search", controlSize) {
                         if (!state.googleSearch || !onGoogleSearch(searchBounds)) launcherActivity.openSpotlight()
                     }
                 }
@@ -1214,14 +1216,14 @@ fun LauncherScreen(
                                 val page = targetPage - 1
                                 widgetSession = session.copy(targetIndex = homeCellIndex(page, local))
                                 scope.launch { pager.animateScrollToPage(page.coerceAtLeast(0)) }
-                            }) { Icon(Icons.Rounded.ChevronLeft, "Previous home page") }
+                            }) { Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.previous_home_page)) }
                             Text("${session.span.width} × ${session.span.height}", color = Ink)
                             if (!session.dragging && session.candidate == null) IconButton(enabled = targetPage < homePages, onClick = {
                                 val local = homeCellLocal(session.targetIndex ?: 0)
                                 val page = (targetPage + 1).coerceAtMost(homePages)
                                 widgetSession = session.copy(targetIndex = homeCellIndex(page, local))
                                 scope.launch { pager.animateScrollToPage(page.coerceAtLeast(0)) }
-                            }) { Icon(Icons.Rounded.ChevronRight, "Next home page") }
+                            }) { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.next_home_page)) }
                             if (!session.dragging) TextButton(enabled = widgetDraft != null, onClick = {
                                 widgetDraft?.let { draft ->
                                     val contentSize = specialAnchor?.let { bounds -> with(placementDensity) {
@@ -1393,7 +1395,7 @@ fun LauncherScreen(
                                     resize.height = (startHeight + (dy / resize.pitchY).roundToInt()).coerceIn(minH, maxH)
                             })
                         }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.OpenInFull, "Drag to resize widget", tint = Ink, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Rounded.OpenInFull, stringResource(R.string.drag_to_resize_widget), tint = Ink, modifier = Modifier.size(22.dp))
                     }
                     Row(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)
                         .background(Glass.copy(alpha = .96f), RoundedCornerShape(20.dp))) {
@@ -1545,9 +1547,9 @@ fun LauncherScreen(
             AlertDialog(onDismissRequest = {}, title = { Text(stringResource(R.string.finish_widget_setup)) },
                 text = { Text(stringResource(R.string.the_widget_is_waiting_at_its_chosen_spot)) },
                 confirmButton = { TextButton(onClick = widgets::finishPendingSetup,
-                    modifier = Modifier.semantics { contentDescription = "Continue widget setup" }) { Text(stringResource(R.string.finish_setup)) } },
+                    modifier = Modifier.description(R.string.continue_widget_setup)) { Text(stringResource(R.string.finish_setup)) } },
                 dismissButton = { TextButton(onClick = { leaveTemporaryWidgetPage(); widgets.cancelPendingSetup() },
-                    modifier = Modifier.semantics { contentDescription = "Cancel widget setup" }) { Text(stringResource(R.string.cancel)) } })
+                    modifier = Modifier.description(R.string.cancel_widget_setup)) { Text(cancelLabel) } })
         }
         widgets.reconfigureWidgetId?.let {
             AlertDialog(onDismissRequest = {}, title = { Text(stringResource(R.string.widget_settings)) },
@@ -1586,7 +1588,7 @@ private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
             modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onUseAsHome)
                 .heightIn(min = 48.dp).wrapContentHeight().padding(horizontal = 8.dp).testTag("preview-use-as-home"))
         IconButton(onClick = onExit, Modifier.size(48.dp).testTag("preview-exit")) {
-            Icon(Icons.Rounded.Close, "Exit Preview", tint = ink.secondary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Rounded.Close, stringResource(R.string.exit_preview), tint = ink.secondary, modifier = Modifier.size(18.dp))
         }
     }
 }

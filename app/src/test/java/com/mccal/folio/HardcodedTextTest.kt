@@ -22,6 +22,8 @@ class HardcodedTextTest {
     private val templated = Regex(""""((?:[^"\\$]|\$\{[^{}"]*\}|\$\w+)*\$(?:[^"\\$]|\$\{[^{}"]*\}|\$\w+)*)"""")
     private val template = Regex("""\$\{[^{}"]*\}|\$\w+""")
     private val words = Regex("""\s[a-z]{3,}""")
+    /** Trace and log text such as "progress=$progress reason=…": key=value pairs are for developers, not people. */
+    private val debugLine = Regex("""\w=\$""")
     private val notText = Regex("""Log\.|TAG|const val|Regex|require\(|error\(|check\(|throw |Exception\(|\.put(Extra|String|Boolean|Int)|getString\(|optString|prefs|key =|Intent\(|action|@Preview|println|\.startsWith|\.equals|when \(|".*" ->|[Tt]race|section\(|json|JSON""")
 
     /** Files whose text is read by McCal, not shown to people: it goes into crash logs and bug reports. */
@@ -33,7 +35,7 @@ class HardcodedTextTest {
             if (s.startsWith("//") || s.startsWith("*") || s.startsWith("/*") || s.endsWith("// english-only") ||
                 notText.containsMatchIn(line)) emptyList()
             else (phrase.findAll(line).map { it.groupValues[1] }.filter { ' ' in it || it.length >= 4 } +
-                templated.findAll(line).map { it.groupValues[1] }.filter { !it.first().isUpperCase() && words.containsMatchIn(it.replace(template, "#")) })
+                templated.findAll(line).map { it.groupValues[1] }.filter { !it.first().isUpperCase() && !debugLine.containsMatchIn(it) && words.containsMatchIn(it.replace(template, "#")) })
                 .map { "${file.name}:${i + 1} $it" }.toList()
         }
     }.toList()
@@ -54,5 +56,5 @@ class HardcodedTextTest {
         assertTrue("English in the manifest: $literal. Use @string/ so Android shows it translated.", literal.isEmpty())
     }
 
-    private companion object { const val LIMIT = 361 }
+    private companion object { const val LIMIT = 222 }
 }

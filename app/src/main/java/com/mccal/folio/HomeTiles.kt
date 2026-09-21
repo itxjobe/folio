@@ -2,6 +2,7 @@
 
 package com.mccal.folio
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import android.appwidget.AppWidgetProviderInfo
 import android.os.UserManager
@@ -110,6 +111,8 @@ internal fun DockAppColumn(
     /** Lay the dock out left to right (the bottom bar) instead of top to bottom (the side rail). */
     horizontal: Boolean = false,
 ) {
+    val chooseDockLabel = stringResource(R.string.choose_dock_app)
+    val usedRecentlyLabel = stringResource(R.string.used_recently)
     val draggedId = drag.source?.appId
     // One slot along the dock's axis; rowHeight is the pitch either way.
     fun Modifier.slot(index: Int) = if (horizontal) fillMaxHeight().width(rowHeight.dp).offset(x = (rowHeight * index).dp)
@@ -177,7 +180,7 @@ internal fun DockAppColumn(
                 .combinedClickable(interactionSource = interactions[index], indication = LocalIndication.current, role = Role.Button, onClick = {
                     if (savedApp != null) { if (!edit.active) onLaunch(savedApp, launchBounds[index]) } else onChoose(index)
                 }, onLongClick = null)
-                .semantics { onLongClick("Choose dock app") { onChoose(index); true } })
+                .semantics { onLongClick(chooseDockLabel) { onChoose(index); true } })
         }
 
         val ids = (savedDock + previewDock).filterNotNull().distinct()
@@ -211,13 +214,13 @@ internal fun DockAppColumn(
                             transformOrigin = if (horizontal) androidx.compose.ui.graphics.TransformOrigin(.5f, 1f)
                                 else androidx.compose.ui.graphics.TransformOrigin(if (leftHanded) 0f else 1f, .5f)
                         }, shape = RoundedCornerShape(11.dp))
-                        if (edit.active && savedIndex >= 0) JiggleRemoveButton("Remove ${app.label} from dock", inset = 6.dp) { edit.onRemove(DropTarget.Dock(savedIndex)) }
+                        if (edit.active && savedIndex >= 0) JiggleRemoveButton(stringResource(R.string.remove_from_dock, app.label), inset = 6.dp) { edit.onRemove(DropTarget.Dock(savedIndex)) }
                     }
                     // Recent-app dot (Beta): below the icon in a horizontal dock, on the screen side of a side dock.
                     if (!edit.active && app.packageName in LocalRecentPackages.current) Box(Modifier
                         .align(if (horizontal) Alignment.BottomCenter else if (leftHanded) Alignment.CenterEnd else Alignment.CenterStart)
                         .size(5.dp).background(Color.White.copy(alpha = .8f), CircleShape)
-                        .semantics { contentDescription = "Used recently" })
+                        .semantics { contentDescription = usedRecentlyLabel })
                 }
             }
         }
@@ -231,9 +234,11 @@ internal fun <T> List<T>.slicePage(range: IntRange): List<T> =
 internal fun FolderTile(folder: FolderEntry, apps: Map<String, AppEntry>, size: Float, labels: Boolean,
     drag: HomeDragState, page: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val counts0 = LocalBadgeCounts.current
+    val unread = folder.appIds.mapNotNull { apps[it]?.packageName }.distinct().sumOf { counts0[it] ?: 0 }
+    val folderApps = pluralStringResource(R.plurals.folder_apps, folder.appIds.size, folder.title, folder.appIds.size)
+    val folderLabel = if (unread > 0) pluralStringResource(R.plurals.folder_unread, unread, folderApps, unread) else folderApps
     Column(modifier.clickable(onClick = onClick).semantics(mergeDescendants = true) {
-        val unread = folder.appIds.mapNotNull { apps[it]?.packageName }.distinct().sumOf { counts0[it] ?: 0 }
-        contentDescription = "Folder ${folder.title}, ${folder.appIds.size} apps" + if (unread > 0) ", $unread notifications" else ""
+        contentDescription = folderLabel
     }, horizontalAlignment = Alignment.CenterHorizontally) {
         val tint = LocalFolderColors.current[folder.id]?.let { Color(it) }
         val bounds = remember { android.graphics.Rect() }
@@ -267,6 +272,7 @@ internal fun FolderTile(folder: FolderEntry, apps: Map<String, AppEntry>, size: 
 @Composable
 internal fun AppTile(app: AppEntry, size: Float, labels: Boolean, modifier: Modifier = Modifier, onClick: (android.graphics.Rect) -> Unit, onLongClick: () -> Unit,
     onRemove: (() -> Unit)? = null) {
+    val appOptionsLabel = stringResource(R.string.app_options)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .88f else 1f,
@@ -279,7 +285,7 @@ internal fun AppTile(app: AppEntry, size: Float, labels: Boolean, modifier: Modi
         .iconSwipes(openPanel?.let { { it(app) } }, if (app.id in LocalStackedApps.current) LocalIconStack.current?.let { { it(app) } } else null)
         .clickable(interactionSource = interaction, indication = null,
             role = Role.Button, onClick = { onClick(bounds) })
-        .semantics { onLongClick("App options") { onLongClick(); true } }.padding(horizontal = 2.dp),
+        .semantics { onLongClick(appOptionsLabel) { onLongClick(); true } }.padding(horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
         // Bounds are read outside the wiggle layer so jiggling doesn't report a new position every frame.
         Box(Modifier.size(iconSize).onGloballyPositioned { bounds.set(it.boundsInWindow().toAndroidBounds()); IconBounds.update(app.id, bounds) }
@@ -287,7 +293,7 @@ internal fun AppTile(app: AppEntry, size: Float, labels: Boolean, modifier: Modi
             if (app.id in LocalStackedApps.current) StackPeek(iconSize)
             AppIcon(app, null, Modifier.fillMaxSize()
                 .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (pressed) .82f else 1f }, shape = RoundedCornerShape((size * .24f).dp))
-            if (onRemove != null) JiggleRemoveButton("Remove ${app.label} from Home", onRemove = onRemove)
+            if (onRemove != null) JiggleRemoveButton(stringResource(R.string.remove_from_home_2, app.label), onRemove = onRemove)
         }
         val ink = LocalHomeInk.current
         if (labels) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {

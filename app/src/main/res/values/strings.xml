@@ -1286,4 +1286,115 @@
     <string name="software_updates_channel">Software updates</string>
     <!-- Shown when opening a Folio package file. -->
     <string name="label_package_import">Folio Package</string>
+    <string name="layout_backup_could_not_be_prepared">Layout backup could not be prepared.</string>
+    <string name="layout_backup_could_not_be_saved">Layout backup could not be saved.</string>
+    <string name="this_layout_backup_is_no_longer_valid">This layout backup is no longer valid.</string>
+    <string name="layout_restored_widgets_are_ready_to_rec">Layout restored. Widgets are ready to reconnect.</string>
+    <string name="this_layout_is_already_active">This layout is already active.</string>
+    <string name="layout_backup_saved">Layout backup saved.</string>
+    <string name="layout_backup_could_not_be_read">Layout backup could not be read.</string>
+    <string name="this_layout_backup_is_invalid">This layout backup is invalid.</string>
+    <string name="the_pending_photo_selection_could_not_be">The pending photo selection could not be restored.</string>
+    <string name="the_pending_photo_preview_could_not_be_r">The pending photo preview could not be restored.</string>
+    <string name="the_photo_picker_is_unavailable">The photo picker is unavailable.</string>
+    <string name="using_folio_dunes">Using Folio dunes.</string>
+    <string name="launcher_background_updated">Launcher background updated.</string>
+    <string name="that_photo_could_not_be_saved">That photo could not be saved.</string>
+    <string name="that_photo_could_not_be_used">That photo could not be used.</string>
+    <string name="that_photo_preview_could_not_be_saved">That photo preview could not be saved.</string>
+    <string name="the_widget_host_returned_an_unexpected_b">The widget host returned an unexpected binding. Try again.</string>
+    <string name="finish_or_cancel_the_open_widget_setting">Finish or cancel the open widget settings first.</string>
+    <string name="this_widget_could_not_be_added_try_anoth">This widget could not be added. Try another widget.</string>
+    <string name="this_widget_can_no_longer_be_configured">This widget can no longer be configured.</string>
+    <string name="this_widget_could_not_open_its_settings">This widget could not open its settings.</string>
+    <string name="add_to_home_screen">Add to Home Screen</string>
+    <string name="shortcut">Shortcut</string>
+    <string name="open_folio_once_then_try_again">Open Folio once, then try again.</string>
+    <string name="the_shortcut_couldn_t_be_added">The shortcut couldn\'t be added.</string>
+    <string name="turn_off_to_add_to_home_screen">Turn off %1$s to add to Home Screen.</string>
+    <string name="there_s_no_room_on_home_for_this_widget">There\'s no room on Home for this widget.</string>
+    <string name="the_widget_couldn_t_be_added">The widget couldn\'t be added.</string>
+    <string name="close">Close</string>
+    <string name="doesn_t_fit_this_layout">Doesn’t fit this layout</string>
+    <string name="page_scrubber">Page scrubber</string>
+    <string name="new_home_page">New home page</string>
+    <string name="home_page">Home page %1$s</string>
+    <string name="all_apps_page">All apps page</string>
+    <string name="search_google">Search Google</string>
+    <string name="previous_home_page">Previous home page</string>
+    <string name="next_home_page">Next home page</string>
+    <string name="drag_to_resize_widget">Drag to resize widget</string>
+    <string name="continue_widget_setup">Continue widget setup</string>
+    <string name="cancel_widget_setup">Cancel widget setup</string>
+    <string name="exit_preview">Exit Preview</string>
+    <string name="silent_mode_on">Silent mode on</string>
+    <string name="silent_mode_off">Silent mode off</string>
+    <string name="do_not_disturb_on_2">Do Not Disturb on</string>
+    <string name="do_not_disturb_off_2">Do Not Disturb off</string>
+    <string name="incoming_call">Incoming call</string>
+    <string name="previous">Previous</string>
+    <string name="play_or_pause">Play or pause</string>
+    <string name="decline">Decline</string>
+    <string name="accept">Accept</string>
+    <string name="mute">Mute</string>
+    <string name="speaker">Speaker</string>
+    <string name="home_options">Home options</string>
+    <string name="move_left">Move Left</string>
+    <string name="move_right">Move Right</string>
+    <string name="move_up">Move Up</string>
+    <string name="move_down">Move Down</string>
+    <string name="move_to_next_page">Move to Next Page</string>
+    <string name="move_to_previous_page">Move to Previous Page</string>
+    <string name="clock_widget_tap_to_replace">Clock widget; tap to replace</string>
+    <string name="decrease_widget_width">Decrease widget width</string>
+    <string name="increase_widget_width">Increase widget width</string>
+    <string name="decrease_widget_height">Decrease widget height</string>
+    <string name="increase_widget_height">Increase widget height</string>
+    <string name="choose_dock_app">Choose dock app</string>
+    <string name="remove_from_dock">Remove %1$s from dock</string>
+    <string name="used_recently">Used recently</string>
+    <string name="app_options">App options</string>
+    <string name="remove_from_home_2">Remove %1$s from Home</string>
+    <string name="android_notifications">Android notifications</string>
+    <string name="clear_all">Clear all</string>
+    <string name="show_notifications">Show %1$s notifications</string>
+    <string name="edit_controls">Edit controls</string>
+    <string name="power_menu">Power menu</string>
+    <string name="brightness">Brightness</string>
+    <string name="work_apps_are_paused">Work apps are paused</string>
+    <string name="work_profile_is_unavailable">Work profile is unavailable</string>
+    <string name="loading_apps">Loading apps…</string>
+    <string name="remove_from_home_3">Remove %1$s from home</string>
+    <string name="pin_to_home">Pin %1$s to home</string>
+    <!-- What TalkBack says after moving a Home item with an accessibility action or Alt+arrow. -->
+    <string name="moved_left">Moved left</string>
+    <string name="moved_right">Moved right</string>
+    <string name="moved_up">Moved up</string>
+    <string name="moved_down">Moved down</string>
+    <string name="moved_to_next_page">Moved to Next Page</string>
+    <string name="moved_to_previous_page">Moved to Previous Page</string>
+    <!-- What TalkBack reads for the Dynamic Island. -->
+    <plurals name="island_charging_percent">
+        <item quantity="one">Charging, %1$d percent</item>
+        <item quantity="other">Charging, %1$d percent</item>
+    </plurals>
+    <string name="island_connected_to">Connected to %1$s</string>
+    <!-- An app's alert: app name, then who it's from. -->
+    <string name="island_alert">%1$s: %2$s</string>
+    <string name="island_alert_text">%1$s: %2$s: %3$s</string>
+    <string name="island_message">Message from %1$s</string>
+    <string name="island_message_text">Message from %1$s: %2$s</string>
+    <string name="island_live_details">%1$s. Tap for details</string>
+    <!-- What TalkBack reads for a folder on Home: its name and how many apps. -->
+    <plurals name="folder_apps">
+        <item quantity="one">Folder %1$s, %2$d app</item>
+        <item quantity="other">Folder %1$s, %2$d apps</item>
+    </plurals>
+    <!-- The folder description above, then how many notifications its apps have. -->
+    <plurals name="folder_unread">
+        <item quantity="one">%1$s, %2$d notification</item>
+        <item quantity="other">%1$s, %2$d notifications</item>
+    </plurals>
+    <!-- Name of the built-in widget in the widget gallery. -->
+    <string name="widget_panel_title">Widget Panel</string>
 </resources>

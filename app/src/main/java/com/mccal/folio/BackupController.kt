@@ -80,7 +80,7 @@ class BackupController(
     fun startExport(fileName: String = "folio-layout.json") {
         val state = model.state.value
         val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
-            errorMessage = it.message ?: "Layout backup could not be prepared."; return
+            errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_prepared); return
         }
         begin(OP_EXPORT, raw)
         try { createDocument.launch(fileName) }
@@ -91,13 +91,13 @@ class BackupController(
     fun saveToFolioFolder(name: String? = null) {
         val state = model.state.value
         val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
-            errorMessage = it.message ?: "Layout backup could not be prepared."; return
+            errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_prepared); return
         }
         val name = FolioFiles.fileName(name, "folio-layout")
         activity.lifecycleScope.launch {
             val saved = withContext(Dispatchers.IO) { FolioFiles.save(activity, name, "application/json", raw.toByteArray())?.let { FolioFiles.displayName(activity, it) ?: name } }
-            if (saved != null) successMessage = "Saved to ${FolioFiles.displayPath} as $saved."
-            else errorMessage = "Layout backup could not be saved."
+            if (saved != null) successMessage = activity.getString(R.string.saved_to_as, FolioFiles.displayPath, saved)
+            else errorMessage = activity.getString(R.string.layout_backup_could_not_be_saved)
         }
     }
 
@@ -130,7 +130,7 @@ class BackupController(
                 }
                 successMessage = restoredMessage(changed, imported.packages, restored)
                 clearTransaction(clearMessages = false)
-            }.onFailure { errorMessage = it.message ?: "This layout backup is no longer valid." }
+            }.onFailure { errorMessage = it.message ?: activity.getString(R.string.this_layout_backup_is_no_longer_valid) }
         }
         return true
     }
@@ -149,7 +149,7 @@ class BackupController(
 
     /** What the user is told afterwards: the layout first, then whatever happened to the packages it carried. */
     private fun restoredMessage(changed: Boolean, packages: String?, restored: PackageInstaller.Restore?): String {
-        val parts = mutableListOf(if (changed) "Layout restored. Widgets are ready to reconnect." else "This layout is already active.")
+        val parts = mutableListOf(if (changed) activity.getString(R.string.layout_restored_widgets_are_ready_to_rec) else activity.getString(R.string.this_layout_is_already_active))
         when {
             packages == null -> Unit
             !marketOpen -> parts += activity.getString(R.string.its_packages_were_left_out)
@@ -186,8 +186,8 @@ class BackupController(
             }
             result.rethrowCancellation()
             if (token != generation || operation != OP_EXPORT) return@launch
-            result.onSuccess { successMessage = "Layout backup saved." }
-                .onFailure { errorMessage = it.message ?: "Layout backup could not be saved." }
+            result.onSuccess { successMessage = activity.getString(R.string.layout_backup_saved) }
+                .onFailure { errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_saved) }
             clearTransaction(clearMessages = false)
         }
     }
@@ -203,7 +203,7 @@ class BackupController(
                 parsePreview(it, persist = false)
             }
                 .onFailure {
-                    errorMessage = it.message ?: "Layout backup could not be read."
+                    errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_read)
                     clearTransaction(clearMessages = false)
                 }
         }
@@ -228,7 +228,7 @@ class BackupController(
                 onExternalResultChanged(true)
             }.onFailure {
                 if (token != generation) return@onFailure
-                errorMessage = it.message ?: "This layout backup is invalid."
+                errorMessage = it.message ?: activity.getString(R.string.this_layout_backup_is_invalid)
                 clearTransaction(clearMessages = false)
             }
         }
@@ -253,7 +253,7 @@ class BackupController(
         if (placement.id < 0) return@mapNotNull null
         val info = widgets.manager.getAppWidgetInfo(placement.id) ?: error("Widget ${placement.slot} is unavailable")
         BackupWidgetDescriptor(placement.slot, info.provider.flattenToString(), userManager.getSerialNumberForUser(info.profile),
-            info.loadLabel(activity.packageManager).toString(), if (info.profile == android.os.Process.myUserHandle()) "Personal" else "Work",
+            info.loadLabel(activity.packageManager).toString(), if (info.profile == android.os.Process.myUserHandle()) activity.getString(R.string.personal) else activity.getString(R.string.work),
             isWork = info.profile != android.os.Process.myUserHandle())
     }
 
