@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="dune_wallpaper_description">Folio dunes, the launcher’s landscape, sized for your display.</string>
     <string name="shade_service_label">Folio gestures &amp; overlays</string>
     <string name="shade_service_description">Lets Folio open the system notifications and Quick Settings panels from Home gestures, and, only if you turn them on, show Folio’s dock handle and Dynamic Island over other apps, launch your dock apps and go Home. It does not read screen content or observe what you do in other apps.</string>
@@ -1171,15 +1171,30 @@
     <string name="settings_keywords_credits">credits thanks duolauncher jakesgoodapps license</string>
     <string name="folio_version_coming">Folio %1$s · Coming</string>
     <string name="folio_version_beta">Folio %1$s Beta</string>
-    <string name="rows_note_fixed">Fixed at %1$d rows on both screens.</string>
+    <plurals name="rows_note_fixed">
+        <item quantity="one">Fixed at %1$d row on both screens.</item>
+        <item quantity="other">Fixed at %1$d rows on both screens.</item>
+    </plurals>
     <string name="rows_note_unmeasured">Folio hasn\'t measured a screen yet, so it\'s showing four rows for now. Open Home once on each screen.</string>
     <string name="rows_note_cover_only">Measured so far: the cover screen fits %1$d. Open Home on the other screen and Folio will use the smaller of the two.</string>
     <string name="rows_note_inner_only">Measured so far: the inner screen fits %1$d. Open Home on the other screen and Folio will use the smaller of the two.</string>
-    <string name="rows_note_same">Both screens fit %1$d rows. Smaller icons or labels make room for another row.</string>
-    <string name="rows_note_same_max">Both screens fit %1$d rows, the most Folio shows.</string>
-    <string name="rows_note_different">The cover screen fits %1$d and the inner screen fits %2$d, so Folio shows %3$d on both. Smaller icons or labels make room for another row.</string>
-    <string name="count_installed">%1$d installed</string>
-    <string name="count_available">%1$d available</string>
+    <plurals name="rows_note_same">
+        <item quantity="one">Both screens fit %1$d row. Smaller icons or labels make room for another row.</item>
+        <item quantity="other">Both screens fit %1$d rows. Smaller icons or labels make room for another row.</item>
+    </plurals>
+    <plurals name="rows_note_same_max">
+        <item quantity="one">Both screens fit %1$d row, the most Folio shows.</item>
+        <item quantity="other">Both screens fit %1$d rows, the most Folio shows.</item>
+    </plurals>
+    <string name="rows_note_different" tools:ignore="PluralsCandidate">The cover screen fits %1$d and the inner screen fits %2$d, so Folio shows %3$d on both. Smaller icons or labels make room for another row.</string>
+    <plurals name="count_installed">
+        <item quantity="one">%1$d installed</item>
+        <item quantity="other">%1$d installed</item>
+    </plurals>
+    <plurals name="count_available">
+        <item quantity="one">%1$d available</item>
+        <item quantity="other">%1$d available</item>
+    </plurals>
     <string name="count_of_total">%1$d of %2$d</string>
     <string name="dp_value">%1$d dp</string>
     <plurals name="setup_steps_left_full">
@@ -1197,7 +1212,7 @@
         <item quantity="other">%1$d saved on this phone (crashes, freezes and restarts). Nothing is sent unless you share it.</item>
     </plurals>
     <string name="widgets_page_number">Widgets · Page %1$d</string>
-    <string name="widget_size_row">%1$d × %2$d widget · row %3$d</string>
+    <string name="widget_size_row" tools:ignore="PluralsCandidate">%1$d × %2$d widget · row %3$d</string>
     <string name="default_backup_name">Folio Layout %1$s</string>
     <string name="open_tweak">Open %1$s</string>
 
