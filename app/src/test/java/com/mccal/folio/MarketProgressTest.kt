@@ -25,27 +25,27 @@ class MarketProgressTest {
     @Test fun `no length from the source means no ring, and no invented percentage`() {
         val unknown = downloading(500, -1, 3_000)
         assertNull(unknown.fraction)
-        assertNull(unknown.words)
+        assertNull(unknown.wording)
     }
 
     @Test fun `the first second says how big it is, not how long it will take`() {
         // A rate measured over 400 ms of a mobile connection is a guess; "5.0 of 20.0 MB" is a fact.
         val early = downloading(5 * 1_048_576, 20 * 1_048_576, 400)
-        assertEquals("5.0 of 20.0 MB", early.words)
+        assertEquals(MarketProgress.Wording.Megabytes("5.0", "20.0"), early.wording)
     }
 
     @Test fun `the estimate is rounded to something worth reading`() {
         // Half of 20 MB in two seconds: ten more MB at that rate is about two seconds.
-        assertEquals("Nearly done", downloading(10_000_000, 20_000_000, 2_000).words)
+        assertEquals(MarketProgress.Wording.NearlyDone, downloading(10_000_000, 20_000_000, 2_000).wording)
         // A tenth in two seconds: eighteen seconds left, said as twenty.
-        assertEquals("About 20 seconds left", downloading(2_000_000, 20_000_000, 2_000).words)
+        assertEquals(MarketProgress.Wording.Seconds(20), downloading(2_000_000, 20_000_000, 2_000).wording)
         // A fiftieth in five seconds: four minutes, said as four minutes.
-        assertEquals("About 4 minutes left", downloading(400_000, 20_000_000, 5_000).words)
+        assertEquals(MarketProgress.Wording.Minutes(4), downloading(400_000, 20_000_000, 5_000).wording)
     }
 
     @Test fun `applying says so, because there are no bytes left to count`() {
         val applying = MarketProgress(MarketProgress.Phase.APPLYING)
         assertNull(applying.fraction)
-        assertEquals("Applying…", applying.words)
+        assertEquals(MarketProgress.Wording.Applying, applying.wording)
     }
 }

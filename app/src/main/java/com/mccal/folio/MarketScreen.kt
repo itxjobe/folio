@@ -60,6 +60,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -131,6 +132,9 @@ internal fun MarketScreen(
     val scope = rememberCoroutineScope()
     var undo by remember { mutableStateOf<InstallResult.Installed?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    // Counts every message said, so the same words said twice still get their full time on screen: keyed on the text
+    // alone, a second "Keyd updated" inherited what was left of the first one's timer.
+    var said by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     // Re-read after every change, so the list always shows what's really installed. Reading means parsing the
     // bundled index and every cached source list, which is far too much to do while a frame is being drawn - so it
     // happens off the main thread and the screen fills in when it's done.
@@ -154,12 +158,12 @@ internal fun MarketScreen(
      * Says something in the banner. Undo belongs to the install it came from, so any other message takes it away:
      * an Undo left over from an earlier install would remove a package the user is happy with.
      */
-    fun say(text: String?) { message = text; undo = null }
+    fun say(text: String?) { message = text; undo = null; said++ }
 
     /** What the banner says about a finished install, and whether it can still be undone. */
     fun announce(name: String, result: InstallResult) {
         when (result) {
-            is InstallResult.Installed -> { message = context.getString(R.string.text_1_s_is_on, result.installed.name); undo = result }
+            is InstallResult.Installed -> { message = context.getString(R.string.text_1_s_is_on, result.installed.name); undo = result; said++ }
             is InstallResult.NeedsNewerFolio -> say(context.getString(R.string.text_1_s_needs_a_newer_folio, name))
             is InstallResult.Failed -> say(result.message)
         }
@@ -173,7 +177,7 @@ internal fun MarketScreen(
         confirming = null
         // One at a time. Two installs at once would each write the list of what's installed from a copy read before
         // the other started, so one package would be applied to Home and forgotten, with no way left to remove it.
-        MarketWork.install(entry.id, entry.name) { session.get(entry) }
+        MarketWork.install(entry.id, entry.name, context.getString(R.string.folio_couldn_t_finish_that_install)) { session.get(entry) }
     }
 
     val appContext = context.applicationContext
@@ -441,6 +445,20 @@ internal fun MarketScreen(
                     }
                 }
             }
+            // A plain message goes away by itself, as an iOS banner does; it used to stay until tapped or replaced,
+            // so "Keyd updated" could sit over the page for as long as the store was open. One with Undo stays until
+            // it's dismissed or replaced, because dismissing it is what ends the chance to undo. The time is
+            // Android's recommended one, which is longer for someone using TalkBack or a longer timeout setting.
+            val a11y = remember { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java) }
+            LaunchedEffect(message, undo, said) {
+                if (message != null && undo == null) {
+                    val wait = a11y?.getRecommendedTimeoutMillis(
+                        MESSAGE_MILLIS, android.view.accessibility.AccessibilityManager.FLAG_CONTENT_TEXT,
+                    ) ?: MESSAGE_MILLIS
+                    kotlinx.coroutines.delay(wait.toLong())
+                    message = null
+                }
+            }
             message?.let { text ->
                 MarketMessage(
                     text = text,
@@ -498,7 +516,7 @@ internal fun MarketScreen(
                         ),
                         onGet = {
                             importing = null
-                            MarketWork.install(pkg.manifest.id, pkg.manifest.name.english) { session.installFile(bytes) }
+                            MarketWork.install(pkg.manifest.id, pkg.manifest.name.english, context.getString(R.string.folio_couldn_t_finish_that_install)) { session.installFile(bytes) }
                         },
                         onCancel = { importing = null },
                     )
@@ -570,6 +588,7 @@ internal fun MarketScreen(
                         val listing = entries.first { it.listingKey == key }
                         MarketExternalSheet(
                             manifest = manifest,
+                            signed = listing.source.kind != Source.Kind.LOCAL_DEV,
                             onInstallHere = if (
                                 MarketApkInstall.canInstall(listing.source, listing.entry, session.prefs.installApps, listing.revokedReason != null)
                             ) {
@@ -1217,6 +1236,9 @@ private fun MarketMessage(text: String, undo: (() -> Unit)?, onDismiss: () -> Un
     }
 }
 
+/** How long a plain message stays, before Android lengthens it for anyone who needs longer. */
+private const val MESSAGE_MILLIS = 4_000
+
 /** What Folio can do today, for the "Needs a newer Folio" check. Kept next to the screen that shows it. */
 internal val MARKET_CAPABILITIES: Set<Capability> = MarketHost(NoLauncher).capabilities
 
@@ -1347,21 +1369,36 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
  * a bar that sits at an invented percentage is worse than one that admits it doesn't know. [words] adds roughly how
  * long is left, which only fits on a package's page - see [MarketProgress] for why "roughly".
  */
+/** [MarketProgress.Wording] in the phone's language. */
+@Composable
+private fun marketProgressWords(wording: MarketProgress.Wording): String = when (wording) {
+    MarketProgress.Wording.Applying -> stringResource(R.string.progress_applying)
+    MarketProgress.Wording.NearlyDone -> stringResource(R.string.progress_nearly_done)
+    MarketProgress.Wording.AFewSeconds -> stringResource(R.string.progress_a_few_seconds_left)
+    is MarketProgress.Wording.Seconds ->
+        pluralStringResource(R.plurals.progress_about_seconds_left, wording.seconds.toInt(), wording.seconds.toInt())
+    is MarketProgress.Wording.Minutes ->
+        pluralStringResource(R.plurals.progress_about_minutes_left, wording.minutes, wording.minutes)
+    is MarketProgress.Wording.Megabytes -> stringResource(R.string.progress_megabytes, wording.soFar, wording.total)
+}
+
 @Composable
 private fun InstallProgress(progress: MarketProgress?, words: Boolean, name: String) {
     val fraction = progress?.fraction
-    val doing = if (progress?.phase == MarketProgress.Phase.APPLYING) "Applying" else "Installing"
+    val doing = stringResource(
+        if (progress?.phase == MarketProgress.Phase.APPLYING) R.string.applying_1_s else R.string.installing_1_s, name,
+    )
     Row(
         Modifier.padding(horizontal = 10.dp).semantics {
             // A list can have a ring in it with nothing else to read, so the ring says which package it belongs to.
-            contentDescription = "$doing $name"
+            contentDescription = doing
         },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Only on the page. In a row the line squeezes the package's name, which the lab's checks caught on a
         // small phone; the App Store shows a bare ring in a list for the same reason.
         if (words) {
-            progress?.words?.let {
+            progress?.wording?.let { marketProgressWords(it) }?.let {
                 // It wraps rather than being cut short: at 200% text "About 20 seconds left" is wider than the
                 // column, and half a sentence about how long is left is worse than two lines of it.
                 Text(

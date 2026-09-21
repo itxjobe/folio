@@ -40,11 +40,13 @@ class AutomaticRowsTest {
 
     @Test fun `Settings says where the number came from`() {
         val unmeasured = LauncherState()
-        assertTrue("hasn't measured" in automaticRowsNote(unmeasured))
-        assertTrue("cover" in automaticRowsNote(unmeasured.copy(homeFitCompact = 5)))
-        assertTrue("Both screens fit 5" in automaticRowsNote(unmeasured.copy(homeFitCompact = 5, homeFitExpanded = 5)))
-        val mixed = automaticRowsNote(unmeasured.copy(homeFitCompact = 5, homeFitExpanded = 4))
+        fun note(state: LauncherState) = automaticRowsNote(state, EnglishStrings.text)
+        assertTrue("hasn't measured" in note(unmeasured))
+        assertTrue("cover" in note(unmeasured.copy(homeFitCompact = 5)))
+        assertTrue("inner screen fits 6" in note(unmeasured.copy(homeFitExpanded = 6)))
+        assertTrue("Both screens fit 5" in note(unmeasured.copy(homeFitCompact = 5, homeFitExpanded = 5)))
+        val mixed = note(unmeasured.copy(homeFitCompact = 5, homeFitExpanded = 4))
         assertTrue("cover screen fits 5" in mixed && "inner screen fits 4" in mixed && "shows 4" in mixed)
-        assertTrue("Fixed at 4" in automaticRowsNote(unmeasured.copy(homeRows = 4, homeFitCompact = 6)))
+        assertTrue("Fixed at 4" in note(unmeasured.copy(homeRows = 4, homeFitCompact = 6)))
     }
 }

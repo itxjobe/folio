@@ -35,21 +35,35 @@ internal data class MarketProgress(
      * What to say underneath. Null once there's nothing useful to add - a ring that's nearly full says it better
      * than words do.
      */
-    val words: String?
+    val wording: Wording?
         get() {
-            if (phase == Phase.APPLYING) return "Applying…"
+            if (phase == Phase.APPLYING) return Wording.Applying
             val remaining = remainingSeconds ?: return sizeSoFar
             return when {
-                remaining <= 2 -> "Nearly done"
-                remaining < 10 -> "A few seconds left"
-                remaining < 90 -> "About ${((remaining + 5) / 10) * 10} seconds left"
-                else -> "About ${(remaining + 30) / 60} minute${if (remaining >= 90) "s" else ""} left"
+                remaining <= 2 -> Wording.NearlyDone
+                remaining < 10 -> Wording.AFewSeconds
+                remaining < 90 -> Wording.Seconds(((remaining + 5) / 10) * 10)
+                else -> Wording.Minutes(((remaining + 30) / 60).toInt())
             }
         }
 
     /** Megabytes, while there's no estimate worth making yet. */
-    private val sizeSoFar: String?
-        get() = if (total <= 0) null else "${mb(bytes)} of ${mb(total)} MB"
+    private val sizeSoFar: Wording?
+        get() = if (total <= 0) null else Wording.Megabytes(mb(bytes), mb(total))
+
+    /**
+     * What [wording] says, before it is words. Kept apart from the strings so this class stays plain Kotlin that a
+     * test can run without Android, and so every language gets its own sentence - and its own plural rules, which
+     * "minute${"$"}{if (n > 1) "s" else ""}" only ever got right in English.
+     */
+    sealed interface Wording {
+        data object Applying : Wording
+        data object NearlyDone : Wording
+        data object AFewSeconds : Wording
+        data class Seconds(val seconds: Long) : Wording
+        data class Minutes(val minutes: Int) : Wording
+        data class Megabytes(val soFar: String, val total: String) : Wording
+    }
 
     /**
      * Seconds left at the rate so far, or null for the first second - a rate measured over a moment of a mobile
