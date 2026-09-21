@@ -186,4 +186,10 @@ class SupporterTest {
             remembered < checking,
         )
     }
+
+    @Test fun `the supporter source's key is a key Folio can use`() {
+        // A typo here doesn't fail loudly: SourceKey.parse returns null, addSupporterSource quietly does nothing, and
+        // every supporter redeems a code and gets no source.
+        org.junit.Assert.assertNotNull(com.mccal.folio.market.SourceKey.parse(SUPPORTER_SOURCE_KEY))
+    }
 }

@@ -793,7 +793,10 @@
     <string name="folio_shows_a_source_s_key_fingerprint">Folio shows a source\'s key fingerprint before you trust it, and stops using a source that changes its key until you confirm the new one. It only ever reads static files, and only when you ask or when a background refresh is due.</string>
     <string name="refreshing">Refreshing…</string>
     <string name="unsigned_served_from_this_phone">Unsigned · served from this phone</string>
-    <string name="n_packages">%1$d packages</string>
+    <plurals name="n_packages">
+        <item quantity="one">%1$d package</item>
+        <item quantity="other">%1$d packages</item>
+    </plurals>
     <string name="not_read_yet">Not read yet</string>
     <string name="refresh">Refresh</string>
     <string name="add_this_source">Add this source?</string>
@@ -900,6 +903,8 @@
     <string name="android_didn_t_install_it_1_s">Android didn\'t install it: %1$s</string>
     <string name="android_didn_t_install_that_app">Android didn\'t install that app.</string>
     <string name="install_with_folio">Install with Folio</string>
+    <string name="an_app_of_its_own">An app of its own</string>
+    <string name="folio_can_t_see_inside_an_app">Folio can\'t see inside an app, so it makes no promises about what this one can reach. Android does: its permissions are listed in Android\'s settings for the app, and its source is who vouches for it.</string>
     <string name="folio_downloads_it_and_android_asks">Folio downloads it and Android asks before installing</string>
     <string name="android_is_installing_1_s">Android is installing %1$s</string>
     <string name="install_it_with_folio_or_get_it_from">Install it with Folio, or get it from a store you already use.</string>

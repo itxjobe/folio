@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Storefront
+import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Public
@@ -994,6 +995,18 @@ private fun MarketPackagePage(
     val pkg by produceState<com.mccal.folio.market.FolioPackage?>(null, entry.id, entry.version) {
         value = withContext(session.io) { session.read(entry.id) }
     }
+    // A package from a source keeps its page on the source, named by the manifest's `depiction`. It used to be read
+    // only from a package already on the phone, so nothing from a source ever showed a screenshot, and an app -
+    // which is never a package on the phone - never could. It is only words and pictures, drawn from the same closed
+    // set of blocks as Folio's own; what the safety sheet says still comes from the signed index alone.
+    val sourcePage by produceState<com.mccal.folio.market.Depiction?>(null, source.url, entry.id, entry.version) {
+        val path = entry.manifest?.depiction
+        value = if (source.kind == Source.Kind.BUILT_IN || path == null) null else withContext(session.io) {
+            session.sources.fetch(source, path, com.mccal.folio.market.Depiction.MAX_CHARS) { _, _ -> }
+                ?.decodeToString()
+                ?.let { (com.mccal.folio.market.Depiction.parse(it) as? com.mccal.folio.market.ParseResult.Ok)?.value }
+        }
+    }
     val name = entry.manifest?.name?.english ?: entry.id
     val backLabel = stringResource(R.string.back)
     val external = MarketExternalApp.isExternal(entry.manifest)
@@ -1001,7 +1014,7 @@ private fun MarketPackagePage(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         if (showBack) {
             Row(Modifier.fillMaxWidth().clickable(onClickLabel = backLabel, onClick = onBack).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.ChevronLeft, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(18.dp))
                 Text(backLabel, color = Color(0xFF0A84FF), fontSize = 16.sp)
             }
         }
@@ -1068,7 +1081,7 @@ private fun MarketPackagePage(
         }
 
         // The page the author wrote: Folio draws each block itself, and skips any it doesn't know.
-        val blocks = pkg?.depiction?.blocks.orEmpty()
+        val blocks = (pkg?.depiction ?: sourcePage)?.blocks.orEmpty()
         if (blocks.none { it is DepictionBlock.Hero || it is DepictionBlock.Screenshots }) NoScreenshots()
         blocks.forEach { block ->
             when (block) {
@@ -1077,7 +1090,7 @@ private fun MarketPackagePage(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    block.images.forEach { MarketImage(session, source, it, Modifier.width(150.dp).height(260.dp)) }
+                    block.images.forEach { MarketScreenshot(session, source, it, height = 260.dp) }
                 }
                 // The subset format-v1 promises authors: paragraphs, bold, italic, lists and links, nothing else.
                 is DepictionBlock.Markdown -> Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1100,7 +1113,19 @@ private fun MarketPackagePage(
             }
         }
 
-        val safety = entry.manifest?.let { PackageSafety.of(it) }
+        // What a package can't reach is worked out from the Folio permissions it asks for. An app of its own asks
+        // Folio for nothing and gets everything Android grants it - a keyboard sees what you type - so the list
+        // would be a promise Folio has no way to keep. It says what is true instead.
+        if (external) {
+            SheetGroupLabel(stringResource(R.string.an_app_of_its_own))
+            SheetGroup(Modifier.padding(bottom = 12.dp)) {
+                Text(
+                    stringResource(R.string.folio_can_t_see_inside_an_app),
+                    color = Color.White.copy(alpha = .7f), fontSize = 14.sp, modifier = Modifier.padding(14.dp),
+                )
+            }
+        }
+        val safety = entry.manifest?.takeUnless { external }?.let { PackageSafety.of(it) }
         safety?.let {
             SheetGroupLabel(stringResource(R.string.what_it_can_t_reach))
             SheetGroup(Modifier.padding(bottom = 12.dp)) {
@@ -1156,7 +1181,10 @@ private fun MarketPackagePage(
             IosActionRow(stringResource(R.string.report_a_package), destructive = true) { onReport(entry) }
         }
 
-        // The privacy label comes from the manifest's permissions, never from anything the author wrote.
+        // The privacy label comes from the manifest's permissions, never from anything the author wrote - which is
+        // exactly why an app doesn't get one: its manifest asks Folio for nothing, and "No data collected" under a
+        // keyboard would be Folio vouching for something it can't see.
+        if (external) return@Column
         SheetGroupLabel(stringResource(if (entry.manifest?.permissions.isNullOrEmpty()) R.string.no_data_collected else R.string.what_this_package_changes))
         SheetGroup(Modifier.padding(bottom = 24.dp)) {
             val lines = entry.manifest?.permissions.orEmpty().mapNotNull(PackagePermission::label)
@@ -1238,6 +1266,39 @@ private fun MarketImage(session: MarketSession, source: Source, path: String, mo
 }
 
 /**
+ * One screenshot, at its own shape. They used to be cropped into a fixed 150 by 260 frame, which only suits a
+ * screenshot of a whole phone screen: a keyboard is wider than it is tall, and cropping it lost the keys at both
+ * edges. The height is fixed so a row of them lines up, and the width follows the picture, as App Store listings do.
+ */
+@Composable
+private fun MarketScreenshot(session: MarketSession, source: Source, path: String, height: androidx.compose.ui.unit.Dp) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val url = remember(source.url, path) { MarketImages.urlFor(source, path) }
+    val bundled = remember(path, url) { if (url != null) null else MarketImages.bundled(session.source::asset, path) }
+    val painter = when {
+        bundled != null -> remember(bundled) { androidx.compose.ui.graphics.painter.BitmapPainter(bundled) }
+        url != null -> coil3.compose.rememberAsyncImagePainter(url, imageLoader = MarketImages.loader(context))
+        else -> null
+    }
+    val size = painter?.intrinsicSize
+    // Until the picture arrives there is no shape to follow, so it holds a phone-shaped space rather than none.
+    val ratio = if (size != null && size != androidx.compose.ui.geometry.Size.Unspecified && size.width > 0f && size.height > 0f) size.width / size.height else 150f / 260f
+    Box(
+        Modifier.padding(bottom = 10.dp).height(height).then(Modifier.width(height * ratio))
+            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .06f)),
+    ) {
+        painter?.let {
+            androidx.compose.foundation.Image(
+                painter = it,
+                contentDescription = null, // the page's text says what it is; the picture repeats it
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+/**
  * A package's icon: the one it ships if it has one, and otherwise a tile in its section's colour with its first
  * letter. Every row has one either way, so the list doesn't change shape depending on who published what.
  */
@@ -1251,6 +1312,12 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
         if (icon == null || url != null) null else MarketImages.bundled(session.source::asset, icon)
     }
     val tint = sectionColor(entry.entry.manifest?.section)
+    val letter: @Composable () -> Unit = {
+        Text(
+            entry.name.take(1).uppercase(), color = Color.White,
+            fontSize = (size.value * .42f).sp, fontWeight = FontWeight.SemiBold,
+        )
+    }
     Box(
         Modifier.size(size).clip(RoundedCornerShape(size / 4.5f)).background(tint),
         contentAlignment = Alignment.Center,
@@ -1260,14 +1327,14 @@ private fun PackageIcon(session: MarketSession, entry: MarketEntry, size: androi
                 bitmap = bundled, contentDescription = null,
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
             )
-            url != null -> coil3.compose.AsyncImage(
+            // The letter while it loads and if it never does: an icon that failed used to leave a blank square.
+            url != null -> coil3.compose.SubcomposeAsyncImage(
                 model = url, imageLoader = MarketImages.loader(context), contentDescription = null,
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                loading = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { letter() } },
+                error = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { letter() } },
             )
-            else -> Text(
-                entry.name.take(1).uppercase(), color = Color.White,
-                fontSize = (size.value * .42f).sp, fontWeight = FontWeight.SemiBold,
-            )
+            else -> letter()
         }
     }
 }

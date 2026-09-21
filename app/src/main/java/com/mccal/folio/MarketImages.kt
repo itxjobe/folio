@@ -62,7 +62,14 @@ internal object MarketImages {
     }
 
     private fun build(context: Context): ImageLoader = ImageLoader.Builder(context)
-        .components { add(SourceImageFetcher.Factory(UrlHttpClient())) }
+        // Folio Dev reads a source served off the phone over plain http, so it has to see that source's pictures too:
+        // with the default client every icon on a Local Dev source came up blank, which is exactly what an author
+        // previewing their listing is there to check. The release build still refuses anything but https.
+        .components {
+            add(SourceImageFetcher.Factory(
+                UrlHttpClient(allowLocalhost = com.mccal.folio.market.MarketFeature.isDevBuild(context.packageName)),
+            ))
+        }
         .memoryCache { MemoryCache.Builder().maxSizePercent(context, .1).build() }
         .diskCache {
             DiskCache.Builder()

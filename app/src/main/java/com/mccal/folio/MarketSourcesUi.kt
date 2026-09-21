@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,7 +107,7 @@ private fun sourceDetail(status: SourceStatus): String = when {
     // A source nobody typed in says where it came from, or it looks like something that appeared on its own.
     status.source.kind == Source.Kind.SUPPORTER && status.snapshot == null ->
         stringResource(R.string.added_with_your_supporter_code)
-    status.snapshot != null -> stringResource(R.string.n_packages, status.packages.size)
+    status.snapshot != null -> pluralStringResource(R.plurals.n_packages, status.packages.size, status.packages.size)
     else -> stringResource(R.string.not_read_yet)
 }
 
@@ -220,7 +221,7 @@ internal fun MarketSourcePage(
         SheetGroupLabel(stringResource(R.string.information))
         SheetGroup(Modifier.padding(bottom = 12.dp)) {
             Column(Modifier.padding(14.dp)) {
-                Text(stringResource(R.string.n_packages, packageCount), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Text(pluralStringResource(R.plurals.n_packages, packageCount, packageCount), color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
                 Text(
                     when {
                         builtIn -> stringResource(R.string.it_updates_with_folio_and_uses_no)

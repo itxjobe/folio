@@ -199,13 +199,15 @@ internal const val DEFAULT_LOCAL_SOURCE = "http://localhost:8787/"
  * nobody to ask. With the key already known there is nothing to confirm, and a host answering with a different
  * key fails the signature like any other.
  *
- * **The key is empty until McCal makes one**, and an empty key means the source is never added - the same rule as
- * `BetaKeys.SUPPORTER`. A placeholder would let anyone publish as Folio's supporter source, which is worse than
- * the feature not working yet.
+ * An empty key would mean the source is never added - the same rule as `BetaKeys.SUPPORTER` - and it stayed empty
+ * until the real key existed, because a placeholder would let anyone publish as Folio's supporter source.
  */
 internal const val SUPPORTER_SOURCE = "https://mccal-codes.github.io/folio-keyd/"
 
-internal const val SUPPORTER_SOURCE_KEY = ""
+// The source's public key (2026-09-21). The private half signs the source in folio-keyd's publishing workflow and
+// is nowhere else in any repository.
+internal const val SUPPORTER_SOURCE_KEY =
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOn02K6Fhi4Gto1Kb/q7I/iBZd4C0jqD/Y9yI9TyvRXBUy0qx3PqntQIUcFbw2bicxQOgdCLGS1rPevg+ninbOA=="
 
 /**
  * Whether this phone sees the Market: Folio Dev or a supporter's code. Everything the Market hands out is also in
