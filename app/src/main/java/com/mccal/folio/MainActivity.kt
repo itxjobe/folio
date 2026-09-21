@@ -131,6 +131,24 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.material3.Text(getString(R.string.restart_normally)) } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { safeAcknowledged.value = true }) {
                     androidx.compose.material3.Text(getString(R.string.continue_in_safe_mode)) } })
+            // After a crash or a freeze, offer to report it once, on the next launch. Safe Mode already has its own
+            // alert for repeated crashes, so this waits until that one is answered rather than stacking on top of it.
+            val unreported = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<java.io.File?>(null) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                unreported.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Diagnostics.unaskedFailure(this@MainActivity) }
+            }
+            val reportScope = androidx.compose.runtime.rememberCoroutineScope()
+            if (unreported.value != null && (!safeMode.value || safeAcknowledged.value)) AlertDialog(
+                onDismissRequest = { Diagnostics.markAsked(this@MainActivity); unreported.value = null },
+                title = { androidx.compose.material3.Text(stringResource(R.string.folio_closed_unexpectedly)) },
+                text = { androidx.compose.material3.Text(stringResource(R.string.send_a_report_to_help_fix_it)) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                    Diagnostics.markAsked(this@MainActivity); unreported.value = null
+                    reportScope.launch { runCatching { startActivity(Diagnostics.reportIntent(this@MainActivity, email = true)) } }
+                }) { androidx.compose.material3.Text(stringResource(R.string.send_report)) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = {
+                    Diagnostics.markAsked(this@MainActivity); unreported.value = null
+                }) { androidx.compose.material3.Text(stringResource(R.string.not_now)) } })
             val deviceStatus = ScreenshotMode.status(status.state.collectAsStateWithLifecycle().value, ScreenshotMode.on.collectAsStateWithLifecycle().value)
             // Folio shows its own status in the rail, so hide Android's status bar on Home (it
             // stays in apps, and a swipe from the very top edge reveals it briefly).

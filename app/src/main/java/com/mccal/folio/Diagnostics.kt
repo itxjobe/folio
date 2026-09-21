@@ -2,7 +2,9 @@ package com.mccal.folio
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
+import android.content.ClipData
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import java.io.File
@@ -10,6 +12,8 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * What happened before a problem, kept only on the phone (shared only if you choose to): Android's own record of why
@@ -165,13 +169,64 @@ internal object Diagnostics {
         process.inputStream.bufferedReader().use { it.readText() }.also { process.destroy() }
     }.getOrDefault("(log unavailable)")
 
-    fun shareIntent(context: Context): android.content.Intent = android.content.Intent.createChooser(
-        android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
-            .putExtra(android.content.Intent.EXTRA_SUBJECT, "Folio diagnostics")
-            .putExtra(android.content.Intent.EXTRA_TEXT, bundle(context)), "Share diagnostics")
+    /**
+     * The bundle, built where it can take its time. It runs logcat and reads report files, and doing that on the
+     * main thread from a tap is what froze Folio on a slow phone, usually just when it was already misbehaving.
+     */
+    suspend fun bundleOffMain(context: Context): String = withContext(Dispatchers.IO) { bundle(context) }
 
-    fun copy(context: Context) {
+    /** Where an emailed report goes: no GitHub account needed, and nothing passes through a server of Folio's. */
+    const val SUPPORT_EMAIL = "contact@mcc-cal.com"
+
+    /**
+     * The report as a file, handed to whatever app the person picks. An email app attaches it, so it arrives as one
+     * readable file instead of pages of pasted text, and they can open it before anything is sent. [email] addresses
+     * it to [SUPPORT_EMAIL]; without it, the share sheet leaves the choice of where entirely to them.
+     */
+    suspend fun reportIntent(context: Context, email: Boolean): Intent = withContext(Dispatchers.IO) {
+        // Only ever the newest one: an old report left in the cache is no use and not worth keeping around.
+        val dir = File(context.cacheDir, "reports").apply { deleteRecursively(); mkdirs() }
+        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm"))
+        val file = File(dir, "folio-report-$stamp.txt").apply { writeText(bundle(context)) }
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.reports", file)
+        val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.folio_bug_report_1, version))
+            .putExtra(Intent.EXTRA_TEXT, context.getString(R.string.report_email_body))
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // The chooser only passes read access on if the file is also in clipData.
+        send.clipData = ClipData.newRawUri("", uri)
+        if (email) send.putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+        Intent.createChooser(send, context.getString(if (email) R.string.email_a_report else R.string.share_diagnostics))
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    suspend fun copy(context: Context) {
+        val text = bundleOffMain(context)
         context.getSystemService(android.content.ClipboardManager::class.java)
-            ?.setPrimaryClip(android.content.ClipData.newPlainText("Folio diagnostics", bundle(context)))
+            ?.setPrimaryClip(ClipData.newPlainText("Folio diagnostics", text))
+    }
+
+    /** Crashes and freezes are worth asking about; a restart on its own usually isn't. */
+    private val ASK_KINDS = setOf("crash", "exit")
+    private const val ASKED = "report_asked_through"
+
+    /**
+     * The newest crash or freeze nobody has been asked about yet, or null. The first time this runs it only notes
+     * the time, so someone updating Folio isn't greeted by a report from weeks ago: only what goes wrong from here on
+     * is offered.
+     */
+    fun unaskedFailure(context: Context): File? {
+        val prefs = context.getSharedPreferences(PREFS, 0)
+        if (!prefs.contains(ASKED)) { prefs.edit().putLong(ASKED, System.currentTimeMillis()).apply(); return null }
+        val asked = prefs.getLong(ASKED, 0L)
+        return CrashLog.reports(context).firstOrNull { it.name.substringBefore('-') in ASK_KINDS }
+            ?.takeIf { it.lastModified() > asked }
+    }
+
+    /** Asked, whatever the answer: the same report is never offered twice. */
+    fun markAsked(context: Context) {
+        context.getSharedPreferences(PREFS, 0).edit().putLong(ASKED, System.currentTimeMillis()).apply()
     }
 }
