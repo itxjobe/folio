@@ -24,6 +24,9 @@ Folio shows the newest section on the phone after an update, and every version u
 - **A source is a place you go into:** tapping one opens its page, the way tapping a repo does in Cydia and Sileo, with its address, when it was signed, Refresh and Remove, and every package it offers. A package's page names the source that lists it, and that leads back there.
 - **Three columns in Settings:** the list, the page, and whatever you opened from it, so tapping a tweak no longer replaces the list you tapped it in.
 
+- **Report a bug by email:** Settings › Help › Report a Bug opens your mail app with Folio's details attached as a file, so it needs no GitHub account, and you can read everything before you send it. GitHub is still there if you have an account.
+- **A crash offers to send a report:** after Folio closes unexpectedly or freezes, the next launch asks once whether to send one. It never asks twice about the same report.
+
 ### Changed
 - Settings shows two columns from 700 dp in either orientation, not only in landscape, and three from 920 dp. Half folded the divider stays on the crease.
 - A settings row title wraps to a second line in a narrow window or at a large text size instead of being cut short, and its value moves underneath when there isn't room beside it.
