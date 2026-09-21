@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("androidx.baselineprofile")
 }
 
 val releaseSigningVariables = listOf(
@@ -66,6 +67,27 @@ val indexFolioSource = tasks.register("indexFolioSource") {
     }
 }
 tasks.named("preBuild") { dependsOn(indexFolioSource) }
+/**
+ * The profile is recorded from the "fast" build ("Folio Dev", debug-signed) because the release APK can't be
+ * installed over the signed Folio on a test phone, and merged into main so the release build ships it.
+ */
+baselineProfile {
+    mergeIntoMain = true
+}
+
+/**
+ * The two build types the baseline profile plugin adds get their own application id so they install beside the
+ * real Folio instead of trying to replace it: the phone used for recording runs a release-signed Folio, which a
+ * locally signed build of the same id can't update. A profile is a list of classes and methods, so recording it
+ * under another id changes nothing about what ends up in the release APK.
+ */
+androidComponents {
+    onVariants { variant ->
+        if (variant.buildType == "nonMinifiedRelease" || variant.buildType == "benchmarkRelease") {
+            variant.applicationId.set("com.mccal.folio.profile")
+        }
+    }
+}
 
 android {
     namespace = "com.mccal.folio"
@@ -138,6 +160,7 @@ android {
 }
 dependencies {
     implementation(project(":market"))
+    baselineProfile(project(":baselineprofile"))
     implementation("androidx.window:window:1.5.1")
     // Installs the baseline profiles that Compose and AndroidX ship, so hot paths are compiled ahead of time.
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

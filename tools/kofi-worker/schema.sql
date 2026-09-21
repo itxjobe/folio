@@ -15,9 +15,16 @@ CREATE TABLE IF NOT EXISTS handled (
   emailed    INTEGER NOT NULL DEFAULT 0
 );
 
--- Payments that earned a code when the pool was empty: mint more, then send these by hand.
+-- Payments that needed a hand: the pool was empty, or the money arrived in a currency no rate could
+-- price (`unpriced EUR`). Mint more, or price it and send the code by hand.
 CREATE TABLE IF NOT EXISTS problems (
   message_id TEXT PRIMARY KEY,
   pool       TEXT NOT NULL,
   at         TEXT NOT NULL
+);
+
+-- The day a months-code was first used for a beta download, so its window runs from the same day here as on the phone.
+CREATE TABLE IF NOT EXISTS beta_seen (
+  serial     INTEGER PRIMARY KEY,
+  first_seen TEXT NOT NULL          -- YYYY-MM-DD, UTC
 );

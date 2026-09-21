@@ -27,7 +27,7 @@ Folio keeps working.
 ## What Folio never does
 
 - **No ads, no analytics, no tracking, no accounts.** Nothing about you leaves the phone.
-- **Network only when you ask.** Update checks, the roadmap, and the sources you add — nothing else. Requests carry a
+- **Network only when you ask.** Update checks, the roadmap, and the sources you add, nothing else. Requests carry a
   plain `User-Agent: Folio` and no identifiers, and everything is HTTPS ([`network_security_config.xml`](app/src/main/res/xml/network_security_config.xml)).
 - **Contacts, calendar and notifications stay on the phone.** They're read to draw a screen and never uploaded.
 - **Market packages get no Android permissions.** A package is data: it configures things Folio already does, and its
@@ -39,11 +39,13 @@ Folio keeps working.
 Every release lists the APK's SHA-256. To check the file you downloaded:
 
 ```bash
-shasum -a 256 folio-0.7.0.apk
+shasum -a 256 Folio-0.7.0-beta.1.apk
 ```
 
 Releases also link a [VirusTotal](https://www.virustotal.com/) scan of that exact APK, so you don't have to take the
-checksum on faith, and the build comes from a tagged GitHub Actions run whose provenance you can inspect.
+checksum on faith. Every release carries the certificate it was signed with (`signing-certificate.txt`), so you can
+check it's the same key that signed the last one. Android won't let a build signed by anyone else update the
+Folio you already have.
 
 An unsigned or sideloaded launcher deserves suspicion. If anything here doesn't match what you see in the code, please
-[open an issue](https://github.com/McCal-Codes/folio/issues/new) — that's a bug worth fixing.
+[open an issue](https://github.com/McCal-Codes/folio/issues/new). That's a bug worth fixing.

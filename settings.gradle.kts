@@ -6,7 +6,9 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "Folio"
-include(":app", ":market")
+include(":app")
+include(":market")
+include(":baselineprofile")
 
 // Optional isolated experiment; excluded from ordinary launcher builds.
 if (providers.gradleProperty("duoProbe").isPresent) include(":discover-probe")

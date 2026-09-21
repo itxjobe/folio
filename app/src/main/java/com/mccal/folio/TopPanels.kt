@@ -2,6 +2,7 @@
 
 package com.mccal.folio
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import android.app.NotificationManager
 import android.content.Context
@@ -313,7 +314,7 @@ private fun NotificationCard(item: NotificationItem, modifier: Modifier, extraCo
                 }
                 item.text?.let { Text(it.lines().filter(String::isNotBlank).joinToString(" "), color = Color.White.copy(alpha = .88f),
                     fontSize = 14.sp, maxLines = if (extraCount > 0) 2 else 4, overflow = TextOverflow.Ellipsis, lineHeight = 18.sp) }
-                if (extraCount > 0) Text(stringResource(R.string.more_from_1_2, extraCount, item.appLabel),
+                if (extraCount > 0) Text(pluralStringResource(R.plurals.more_from_app, extraCount, extraCount, item.appLabel),
                     color = FolioGlass.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
                 if (extraCount == 0 && (item.canReply || item.canMarkRead)) {
                     var replying by remember(item.key) { mutableStateOf(false) }
@@ -417,24 +418,24 @@ private fun NotificationOptions(item: NotificationItem, bounds: android.graphics
                             transformOrigin = TransformOrigin(0f, if (below) 0f else 1f) }
                         .clip(RoundedCornerShape(16.dp)).background(Color(0xFF2A2A2E).copy(alpha = .97f)).border(FolioGlass.edge, RoundedCornerShape(16.dp))
                         .clickable(remember { MutableInteractionSource() }, null) {}) {
-                        MenuRow("Open", Icons.Rounded.OpenInNew) { act { IslandListenerService.openNotification(context, item) } }
+                        MenuRow(stringResource(R.string.open), Icons.Rounded.OpenInNew) { act { IslandListenerService.openNotification(context, item) } }
                         if (item.clearable) {
                             MenuDivider()
-                            MenuRow("Snooze for 1 Hour", Icons.Rounded.Snooze) { act { IslandListenerService.snooze(item.key, 60 * 60_000L) } }
+                            MenuRow(stringResource(R.string.snooze_for_1_hour), Icons.Rounded.Snooze) { act { IslandListenerService.snooze(item.key, 60 * 60_000L) } }
                             MenuDivider()
-                            MenuRow("Snooze Until Tomorrow", Icons.Rounded.Bedtime) { act {
+                            MenuRow(stringResource(R.string.snooze_until_tomorrow), Icons.Rounded.Bedtime) { act {
                                 val morning = java.time.LocalDate.now().plusDays(1).atTime(8, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                                 IslandListenerService.snooze(item.key, (morning - System.currentTimeMillis()).coerceAtLeast(60_000L))
                             } }
                         }
                         MenuDivider()
-                        MenuRow("Notification Settings", Icons.Rounded.Tune) { act {
+                        MenuRow(stringResource(R.string.notification_settings), Icons.Rounded.Tune) { act {
                             val intent = item.channelId?.let { MessageChannel(item.packageName, item.appLabel, it, null, 0).settingsIntent() }
                                 ?: Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, item.packageName)
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             runCatching { context.startActivity(intent) }
                         } }
-                        if (item.clearable) { MenuDivider(); MenuRow("Clear", Icons.Rounded.Close, destructive = true) { act { IslandListenerService.dismiss(item.key) } } }
+                        if (item.clearable) { MenuDivider(); MenuRow(stringResource(R.string.clear), Icons.Rounded.Close, destructive = true) { act { IslandListenerService.dismiss(item.key) } } }
                     }
                 }
                 card(); menu()
@@ -443,15 +444,22 @@ private fun NotificationOptions(item: NotificationItem, bounds: android.graphics
     }
 }
 
+@Composable
 private fun relativeTime(time: Long): String {
-    val minutes = (System.currentTimeMillis() - time) / 60_000
+    val minutes = relativeMinutes(time, System.currentTimeMillis())
     return when {
-        minutes < 1 -> "now"
-        minutes < 60 -> "${minutes}m ago"
-        minutes < 24 * 60 -> "${minutes / 60}h ago"
-        else -> "${minutes / (24 * 60)}d ago"
+        minutes < 1 -> stringResource(R.string.time_now)
+        minutes < 60 -> pluralStringResource(R.plurals.minutes_ago, minutes.toInt(), minutes)
+        minutes < 24 * 60 -> (minutes / 60).let { pluralStringResource(R.plurals.hours_ago, it.toInt(), it) }
+        else -> (minutes / (24 * 60)).let { pluralStringResource(R.plurals.days_ago, it.toInt(), it) }
     }
 }
+
+/**
+ * How long ago a notification was posted, in whole minutes, never negative: a phone whose clock has just been
+ * corrected can hand back a notification posted in the future, and "-3m ago" is not a thing to show anybody.
+ */
+internal fun relativeMinutes(time: Long, now: Long): Long = ((now - time) / 60_000).coerceAtLeast(0L)
 
 // ---------------------------------------------------------------------------------------------
 // Control Center: a strict 4-column grid; every module is a whole number of cells.

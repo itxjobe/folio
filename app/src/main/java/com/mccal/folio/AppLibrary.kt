@@ -2,6 +2,7 @@
 
 package com.mccal.folio
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -75,7 +76,10 @@ internal fun AppLibrary(
     }
     // Hidden apps stay out of the App Library entirely, like iOS; they're listed (after unlocking) in Settings.
     val visibleApps = remember(state.apps, query, showWork, workSwitch, hasWork, state.hiddenApps, editing) {
-        state.apps.filter { (if (workSwitch) it.isWork == showWork else !(hasWork && it.isWork)) && it.label.contains(query.trim(), true) &&
+        val text = query.trim()
+        // A renamed app answers to both names here, the same as in Spotlight.
+        state.apps.filter { (if (workSwitch) it.isWork == showWork else !(hasWork && it.isWork)) &&
+            (it.label.contains(text, true) || it.systemLabel.contains(text, true)) &&
             (editing || it.id !in state.hiddenApps) }
     }
     // iOS-style App Library: category tiles while browsing; the A–Z list for search, hidden and editing.
@@ -115,7 +119,7 @@ internal fun AppLibrary(
             // iOS App Library has no title bar, just its search field; choosing Home apps keeps a title and count.
             if (editing) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.choose_home_apps_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.pinned_1, pinned.size), color = ink, fontSize = 12.sp)
+                Text(pluralStringResource(R.plurals.pinned, pinned.size, pinned.size), color = ink, fontSize = 12.sp)
             }
             if (workSwitch) Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IosChip(selected = !showWork, onClick = { showWork = false }, label = { Text(stringResource(R.string.personal)) })

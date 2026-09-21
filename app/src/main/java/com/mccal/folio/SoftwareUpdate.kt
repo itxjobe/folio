@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -26,23 +27,25 @@ import java.security.MessageDigest
 internal object SoftwareUpdate {
     private const val LATEST = "https://api.github.com/repos/McCal-Codes/folio/releases/latest"
 
-    /**
-     * Where betas come from: a repository of its own, holding releases and no code.
+    /*
+     * Where betas come from: McCal-Codes/folio-beta, a repository of releases and no code, kept private (McCal's
+     * choice, 2026-09-19). GitHub answers 404 to an app asking with no token, so Folio never reads it directly: the
+     * supporter worker does, after checking the supporter code (see BETA_BROKER and tools/kofi-worker/beta.js).
      *
-     * It has to be **public**. Folio reads GitHub's plain releases API with no credentials at all - that is what
-     * keeps a source from telling one user from another (T13), and a token shipped inside an MIT app is a token
-     * everyone has. Private would mean an account system or a server, and Folio has neither.
-     *
-     * Public is safe here, because the APK is not what is gated: the Market inside it needs a supporter's code, and
-     * an update only installs if it is signed with the same key as the copy already on the phone ([sameSigner]). A
-     * stranger's build cannot become an update, and a stranger's download cannot become the store.
-     *
-     * A beta must therefore be signed with the release keystore. One signed with anything else installs on nothing.
+     * What protects the phone is unchanged either way: an update installs only if it is signed with the same key as
+     * the copy already there ([sameSigner]), so a beta must be signed with the release keystore, and one signed with
+     * anything else installs on nothing.
      */
-    private const val BETA_RECENT = "https://api.github.com/repos/McCal-Codes/folio-beta/releases?per_page=15"
 
     // GitHub's "latest" skips pre-releases, so the beta channel reads the recent list and takes the newest.
     private const val RECENT = "https://api.github.com/repos/McCal-Codes/folio/releases?per_page=15"
+    /**
+     * Supporters' betas live in a private repository, which GitHub won't show to an app with no credentials. This
+     * worker is asked instead: it checks the supporter code's signature — the same check Folio makes offline — and
+     * only then reads the private releases with its own token. Empty until the worker is deployed, and then Beta
+     * Updates simply reads the public pre-releases as before.
+     */
+    internal const val BETA_BROKER = ""
     private const val PREFS = "software_update"
     // Legacy switches (0.5.1–0.6.0), read once to carry a choice over to [Mode].
     private const val AUTO = "auto"
@@ -94,14 +97,32 @@ internal object SoftwareUpdate {
 
     fun supported(context: Context) = context.packageName == FOLIO_CLASSES
 
-    /** The chosen mode. Earlier versions stored separate switches; a choice made there carries over. */
+    /**
+     * The chosen mode. Earlier versions stored separate switches; a choice made there carries over. Where there was
+     * no choice at all, a fresh install starts on Automatic — that is what Folio offers now — but an update to a
+     * phone that was already running Folio does not: on 0.6.0 both switches were off until someone turned them on,
+     * and "left it off" and "never saw it" must not be read the same way. Folio installing itself is a thing people
+     * say yes to, so an upgrade stays on Manual until they do, in Settings › Software Update.
+     *
+     * The answer is written down the first time it is asked for, so a later update can't change it again.
+     */
     fun mode(context: Context): Mode {
         val prefs = context.getSharedPreferences(PREFS, 0)
         prefs.getString(MODE, null)?.let { saved -> Mode.entries.firstOrNull { it.name == saved }?.let { return it } }
-        return modeFromLegacy(prefs.takeIf { it.contains(AUTO) }?.getBoolean(AUTO, false), prefs.getBoolean(AUTO_INSTALL, false))
+        val chosen = modeFromLegacy(prefs.takeIf { it.contains(AUTO) }?.getBoolean(AUTO, false),
+            prefs.getBoolean(AUTO_INSTALL, false), upgraded(context))
+        prefs.edit().putString(MODE, chosen.name).apply()
+        return chosen
     }
-    internal fun modeFromLegacy(autoCheck: Boolean?, autoInstall: Boolean): Mode = when {
-        autoCheck == null -> Mode.AUTOMATIC
+
+    /** True when this build arrived over an earlier one, rather than being installed for the first time. */
+    private fun upgraded(context: Context): Boolean = runCatching {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.lastUpdateTime > info.firstInstallTime
+    }.getOrDefault(true)  // unknown: treat it as an upgrade, the answer that asks before acting
+
+    internal fun modeFromLegacy(autoCheck: Boolean?, autoInstall: Boolean, upgraded: Boolean = false): Mode = when {
+        autoCheck == null -> if (upgraded) Mode.MANUAL else Mode.AUTOMATIC
         !autoCheck -> Mode.MANUAL
         autoInstall -> Mode.AUTOMATIC
         else -> Mode.NOTIFY
@@ -114,6 +135,16 @@ internal object SoftwareUpdate {
 
     /** Like iOS Beta Updates: also offer GitHub pre-releases. Leaving keeps the installed beta until a newer public release. */
     fun beta(context: Context) = context.getSharedPreferences(PREFS, 0).getBoolean(BETA, false)
+
+    /**
+     * Where to actually look for an update. Normally the switch above decides; a development build can point this at
+     * one channel or the other without touching the switch, so the update path can be walked as a stranger sees it.
+     */
+    internal fun betaChannel(context: Context): Boolean = when (Dev.channel(context)) {
+        Dev.Channel.STABLE -> false
+        Dev.Channel.BETA -> true
+        Dev.Channel.DEFAULT -> beta(context)
+    }
     fun setBeta(context: Context, on: Boolean) {
         context.getSharedPreferences(PREFS, 0).edit().putBoolean(BETA, on).apply()
         status.value = Status.Idle
@@ -163,7 +194,8 @@ internal object SoftwareUpdate {
         val now = installedVersion(context)
         if (!isNewer(now, from)) return
         prefs.edit().remove(AUTO_UPDATED_FROM).apply()
-        File(context.cacheDir, "updates").deleteRecursively()
+        updatesDir(context).deleteRecursively()
+        File(context.cacheDir, "updates").deleteRecursively()  // where 0.6.0 and earlier downloaded
         if (!canPostNotifications(context)) return
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
         createChannel(context, manager)
@@ -205,6 +237,18 @@ internal object SoftwareUpdate {
         return false
     }
 
+    /**
+     * Where to ask for betas, and what to send: the broker's address and the code, or null when there's no broker
+     * deployed or no code that carries beta access.
+     */
+    internal fun betaSource(broker: String, code: String?): Pair<String, String>? {
+        val address = broker.trim().trimEnd('/')
+        val credential = code?.trim().orEmpty()
+        if (address.isEmpty() || credential.isEmpty()) return null
+        if (!address.startsWith("https://")) return null  // a code is a credential; it doesn't travel in the clear
+        return "$address/beta/releases" to credential
+    }
+
     /** A published release with an APK, or null. */
     private fun releaseOf(json: JSONObject): Release? {
         val assets = json.optJSONArray("assets") ?: return null
@@ -222,6 +266,9 @@ internal object SoftwareUpdate {
         if (!supported(context) || mode(context) == Mode.MANUAL) return
         val prefs = context.getSharedPreferences(PREFS, 0)
         if (System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0) < DAY_MS) return
+        // Stamped here rather than inside check(): opening Settings › Software Update used to spend the day's
+        // check on a look, and the download that Automatic owes you never ran.
+        prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         check(context)
         val available = (status.value as? Status.Available)?.release ?: return
         if (mode(context) == Mode.AUTOMATIC) { if (download(context, available)) SoftwareUpdateJob.scheduleInstall(context, tonight = false) }
@@ -251,17 +298,21 @@ internal object SoftwareUpdate {
     private suspend fun check(context: Context) {
         if (!supported(context)) return
         status.value = Status.Checking
-        context.getSharedPreferences(PREFS, 0).edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
         status.value = withContext(Dispatchers.IO) {
             runCatching {
-                // On the beta channel, the beta repository and the public one together: a supporter shouldn't be
-                // stranded on an old beta when a newer stable release goes out, and shouldn't miss a beta either.
-                val candidates = if (beta(context)) {
-                    val betas = runCatching { org.json.JSONArray(get(BETA_RECENT)) }.getOrNull()
-                    val public = runCatching { org.json.JSONArray(get(RECENT)) }.getOrNull()
-                    // One of the two may fail (an empty repository answers 404); both failing is a failed check.
+                val list = { text: String -> org.json.JSONArray(text).let { a -> (0 until a.length()).map(a::getJSONObject) } }
+                // On the beta channel, betas and the public releases together: a supporter shouldn't be stranded on
+                // an old beta when a newer stable release goes out, and shouldn't miss a beta either. Betas come
+                // through the broker, since the beta repository is private; until it's deployed there are none to
+                // read, and the public releases carry on alone.
+                val candidates = if (betaChannel(context)) {
+                    val brokered = betaSource(BETA_BROKER, Supporter.storedText(context)
+                        ?.takeIf { Supporter.has(context, BetaCodes.SCOPE_BETA) })
+                    val betas = brokered?.let { runCatching { list(get(it.first, it.second)) }.getOrNull() }
+                    val public = runCatching { list(get(RECENT)) }.getOrNull()
+                    // Either may fail on its own; both failing is a failed check.
                     if (betas == null && public == null) error(context.getString(R.string.no_release_has_an_apk))
-                    listOfNotNull(betas, public).flatMap { list -> (0 until list.length()).map(list::getJSONObject) }
+                    betas.orEmpty() + public.orEmpty()
                 } else {
                     listOf(JSONObject(get(LATEST)))
                 }
@@ -332,10 +383,12 @@ internal object SoftwareUpdate {
         SoftwareUpdateJob.cancelInstall(context)
     }
 
-    private fun get(url: String): String {
+    private fun get(url: String, code: String? = null): String {
         val c = URL(url).openConnection() as HttpURLConnection
         c.setRequestProperty("Accept", "application/vnd.github+json")
         c.setRequestProperty("User-Agent", "Folio")
+        // The supporter code is the only credential the broker wants, and it goes in a header rather than the address.
+        if (code != null) c.setRequestProperty("Authorization", "Bearer $code")
         c.connectTimeout = 10_000; c.readTimeout = 15_000
         return c.inputStream.bufferedReader().use { it.readText() }.also { c.disconnect() }
     }
@@ -433,7 +486,15 @@ class SoftwareUpdateJob : android.app.job.JobService() {
         return true
     }
 
-    override fun onStopJob(params: android.app.job.JobParameters) = true
+    /**
+      * Android wants the job back. Whatever it started has to stop with it: an abandoned download went on holding
+      * [SoftwareUpdate.busy], so the rescheduled job found it taken, did nothing, and reported success — and the
+      * daily check was over for the life of the process.
+      */
+    override fun onStopJob(params: android.app.job.JobParameters): Boolean {
+        scope.coroutineContext.cancelChildren()
+        return true
+    }
 
     companion object {
         private const val CHECK = 4102

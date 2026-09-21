@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.BreakIterator
 import java.text.Collator
 
 data class AppEntry(
@@ -35,6 +36,8 @@ data class AppEntry(
     val profileLabel: String = "Personal",
     val isWork: Boolean = false,
     val available: Boolean = true,
+    /** The name Android reports, kept so a custom name can be changed or cleared without reloading apps. */
+    val systemLabel: String = label,
 ) {
     val packageName: String get() = component.packageName
     /** A pinned shortcut (a website or app action someone added to Home) rather than an app. */
@@ -44,6 +47,47 @@ data class AppEntry(
 
 /** Pinned shortcuts live on Home as entries whose component names the owning app and "#shortcut:" plus the shortcut id. */
 const val SHORTCUT_CLASS_PREFIX = "#shortcut:"
+
+/** Custom names are capped so a renamed icon still reads as a label under it. */
+const val MAX_APP_NAME = 40
+
+/**
+ * The first [max] characters of a name, cut where a reader would see a character rather than where the string
+ * happens to have one. An emoji is two chars to Java and a family is eleven, so `take` alone can leave half of
+ * one behind at the cap, which draws as a hollow box.
+ *
+ * The JDK's character breaks predate emoji joined with U+200D, so a cut inside a family lands between its people;
+ * dropping a joiner left at the end turns that into the first of them standing alone, which at least reads.
+ */
+internal fun String.takeAppName(max: Int = MAX_APP_NAME): String {
+    if (length <= max) return this
+    val characters = BreakIterator.getCharacterInstance().also { it.setText(this) }
+    // A cluster longer than the whole cap (sixty combining marks on one letter) has no break to fall back to, so
+    // it is cut at the cap: a degenerate glyph stacked up the screen is worse than one cut mid-cluster.
+    val end = characters.preceding(max + 1).takeIf { it > 0 }
+        ?: characters.following(0).takeIf { it in 1..max } ?: minOf(max, length)
+    return substring(0, end).trimEnd(JOINER)
+}
+
+/** Zero-width joiner: the thread between the people in a family emoji, and between the parts of many others. */
+private const val JOINER = '\u200D'
+
+/** Sets the custom name for [id]; a blank name clears it, so the app goes back to the name Android reports. */
+fun editAppName(names: Map<String, String>, id: String, name: String): Map<String, String> {
+    val trimmed = name.trim().takeAppName()
+    return if (trimmed.isEmpty()) names - id else names + (id to trimmed)
+}
+
+/**
+ * Custom names over the labels Android reports. Every screen reads [AppEntry.label], so renaming once here
+ * covers Home, the dock, folders, the App Library and search.
+ */
+internal fun List<AppEntry>.withAppNames(names: Map<String, String>): List<AppEntry> {
+    if (names.isEmpty() && none { it.label != it.systemLabel }) return this
+    val collator = Collator.getInstance()
+    return map { app -> (names[app.id] ?: app.systemLabel).let { if (it == app.label) app else app.copy(label = it) } }
+        .sortedWith { a, b -> collator.compare(a.label, b.label) }
+}
 
 data class LauncherState(
     val apps: List<AppEntry> = emptyList(),
@@ -204,6 +248,8 @@ data class LauncherState(
     val folderColors: Map<String, Long> = emptyMap(),
     /** Icon Stacks: anchor app id → the apps that fan out when you swipe down on it. */
     val iconStacks: Map<String, List<String>> = emptyMap(),
+    /** Custom app names by app id; apps without an entry keep the name Android reports. */
+    val appNames: Map<String, String> = emptyMap(),
     /** Per-page looks by real Home page number (pages without an entry use Home's settings). */
     val pageStyles: Map<Int, PageStyle> = emptyMap(),
     val islandEverywhere: Boolean = false,
@@ -429,7 +475,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                         authoritativeProfiles.toSet(), removedProfileSerials)
                 }
                 mutable.update { old ->
-                    val entries = apps.entries
+                    val entries = apps.entries.withAppNames(old.appNames)
                     val profiles = apps.profiles
                     val dock = if (!prefs.getBoolean("initialized", false)) initialDock(entries) else old.dock
                     val installed = entries.map { it.id }
@@ -439,7 +485,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                     val availableIds = entries.mapTo(mutableSetOf(), AppEntry::id)
                     val authoritative = apps.authoritativeProfiles
                     val removedIds = removedAppIds(old.homeSlots.filterNotNull() + old.leadingSlots.filterNotNull() +
-                        old.dock.filterNotNull() + old.folders.flatMap { it.appIds } + old.iconStacks.keys + old.iconStacks.values.flatten(), availableIds,
+                        old.dock.filterNotNull() + old.folders.flatMap { it.appIds } + old.iconStacks.keys + old.iconStacks.values.flatten() +
+                        old.appNames.keys, availableIds,
                         authoritative, temporarilyUnavailable, removed, userManager.getSerialNumberForUser(Process.myUserHandle()),
                         apps.removedProfiles)
                     // iOS "Add to Home Screen": a newly downloaded app also goes to the first free spot on Home.
@@ -465,6 +512,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
                     old.copy(apps = entries, profiles = profiles, homeSlots = reconciled.slots, leadingSlots = reconciled.leadingSlots,
                         dock = reconciled.dock, folders = reconciled.folders,
                         iconStacks = IconStacks.prune(old.iconStacks, old.iconStacks.keys + old.iconStacks.values.flatten() - removedIds),
+                        appNames = old.appNames - removedIds,
                         canUndoEdit = old.canUndoEdit && old.layout == reconciled, loading = false,
                         error = if (statePayloadInvalid) old.error else null)
                 }
@@ -619,7 +667,10 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         saveLayoutSnapshot("Before restoring a backup")
         undoLayout = old.layout to preview.layout
         undoImportSettings = UndoImportSettings(old.compact, old.expanded, old.labels, old.googleSearch, old.verticalStatus)
-        mutable.value = old.copy(homeSlots = preview.layout.slots, leadingSlots = preview.layout.leadingSlots, dock = preview.layout.dock,
+        // A restored name replaces the one on this phone; names this backup says nothing about are left alone.
+        val names = old.appNames + preview.appNames
+        mutable.value = old.copy(appNames = names, apps = old.apps.withAppNames(names),
+            homeSlots = preview.layout.slots, leadingSlots = preview.layout.leadingSlots, dock = preview.layout.dock,
             widgetPlacements = preview.layout.widgetPlacements, folders = preview.layout.folders,
             widgetRestores = preview.layout.widgetRestores, compact = preview.compact, expanded = preview.expanded,
             widgetStacks = WidgetStacks.prune(old.widgetStacks, old.widgetPlacements.map { it.slot }.toSet()),
@@ -916,6 +967,11 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setFolioPanels(value: Boolean) = updateSettings(soon = false) { it.copy(folioPanels = value) }
     fun setIsland(value: Boolean) = updateSettings(soon = false) { it.copy(island = value) }
     fun setHidden(id: String, hidden: Boolean) = updateSettings(soon = false) { it.copy(hiddenApps = if (hidden) it.hiddenApps + id else it.hiddenApps - id) }
+    /** Renames one app everywhere it appears; a blank name puts the name Android reports back. */
+    fun renameApp(id: String, name: String) = updateSettings(soon = false) { s ->
+        val names = editAppName(s.appNames, id, name)
+        s.copy(appNames = names, apps = s.apps.withAppNames(names))
+    }
     fun setLeftHanded(value: Boolean) = updateSettings(soon = false) { it.copy(leftHanded = value) }
     fun setVerticalStatus(value: Boolean) { if (statePayloadInvalid) return; undoLayout = null; undoImportSettings = null; mutable.update { it.copy(verticalStatus = value, canUndoEdit = false) }; persist() }
     fun setGoogleSearch(value: Boolean) { if (statePayloadInvalid) return; undoLayout = null; undoImportSettings = null; mutable.update { it.copy(googleSearch = value, canUndoEdit = false) }; persist() }
@@ -985,7 +1041,11 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     /** Starts over with a default Home after a damaged save; the damaged copy stays as `state_damaged_backup`. */
     fun resetDamagedLayout() {
         if (!statePayloadInvalid) return
-        prefs.getString("state", null)?.let { prefs.edit().putString("state_damaged_backup", it).apply() }
+        // Once, like the schema backups beside it: a second damaged layout must not write over the first one,
+        // which may be the only copy of a Home someone spent an evening arranging.
+        if (!prefs.contains("state_damaged_backup")) {
+            prefs.getString("state", null)?.let { prefs.edit().putString("state_damaged_backup", it).apply() }
+        }
         statePayloadInvalid = false
         mutable.update { it.copy(error = null) }
         persist()
@@ -1046,6 +1106,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("todayWidgets", JSONArray().apply { s.todayWidgets.forEach { put(JSONObject().put("id", it.id).put("size", it.size.name)) } })
             .put("folderColors", JSONObject().apply { s.folderColors.forEach { (id, c) -> put(id, c) } })
             .put("iconStacks", JSONObject().apply { s.iconStacks.forEach { (id, apps) -> put(id, JSONArray(apps)) } })
+            .put("appNames", JSONObject().apply { s.appNames.forEach { (id, name) -> put(id, name) } })
             .put("pageStyles", JSONObject().apply { s.pageStyles.forEach { (page, style) -> put(page.toString(), JSONObject().put("scale", style.iconScale.toDouble())
                 .apply { style.labels?.let { put("labels", it) } }) } })
             .put(SettingKeys.DOCK_EVERYWHERE, s.dockEverywhere).put(SettingKeys.ISLAND_EVERYWHERE, s.islandEverywhere)
@@ -1309,6 +1370,11 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
             val style = o.optJSONObject(key) ?: return@mapNotNull null
             page to PageStyle(style.optDouble("scale", 1.0).toFloat().coerceIn(.7f, 1.3f), if (style.has("labels")) style.optBoolean("labels") else null)
         }.toMap() } ?: emptyMap(),
+        // Held to the same shape as a name typed into the rename field: settings written by an older build, or a
+        // file someone edited by hand, shouldn't be able to hang a paragraph under an icon.
+        appNames = j.optJSONObject("appNames")?.let { o -> o.keys().asSequence()
+            .associateWith { o.optString(it).trim().takeAppName() }
+            .filterValues(String::isNotBlank) } ?: emptyMap(),
         iconStacks = j.optJSONObject("iconStacks")?.let { o -> o.keys().asSequence().associateWith { key ->
             o.optJSONArray(key)?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } }.orEmpty()
         }.filterValues { it.isNotEmpty() } } ?: emptyMap(),

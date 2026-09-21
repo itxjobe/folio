@@ -7,9 +7,17 @@
  *
  * It answers 200 for anything it has already handled or deliberately ignores, so Ko-fi stops retrying, and 500 only
  * when something really failed and a retry might work.
+ *
+ * It also brokers the supporters' beta builds out of a private repository — see beta.js.
  */
+import { betaAsset, betaReleases, sameSecret } from './beta.js'
+
 export default {
   async fetch(request, env) {
+    // Supporters' beta builds: Folio asks here rather than GitHub, because that repository is private.
+    const url = new URL(request.url)
+    if (request.method === 'GET' && url.pathname === '/beta/releases') return betaReleases(request, env, url)
+    if (request.method === 'GET' && url.pathname.startsWith('/beta/asset/')) return betaAsset(request, env, url)
     if (request.method !== 'POST') return new Response('Folio supporter codes', { status: 200 })
 
     const payment = await readPayment(request, env)
@@ -21,7 +29,16 @@ export default {
     if (already) return new Response('already handled', { status: 200 })
 
     const pool = poolFor(data, env)
-    if (!pool) return new Response('nothing to send for this payment', { status: 200 })
+    if (!pool) {
+      // Earning nothing is usually the right answer and needs no fuss. A tip in a currency with no rate is the
+      // exception: somebody paid and no rule could price it, so write it down rather than drop it in silence.
+      const unpriced = unpricedCurrency(data, env)
+      if (unpriced) {
+        await env.DB.prepare('INSERT INTO problems (message_id, pool, at) VALUES (?, ?, ?)')
+          .bind(data.message_id, `unpriced ${unpriced}`, new Date().toISOString()).run()
+      }
+      return new Response('nothing to send for this payment', { status: 200 })
+    }
 
     const code = await claimCode(env, pool, data)
     if (!code) {
@@ -47,24 +64,27 @@ async function readPayment(request, env) {
     return { ok: false, why: 'not a Ko-fi payment', status: 400 }
   }
   if (!data?.message_id) return { ok: false, why: 'no message_id', status: 400 }
-  if (!sameSecret(data.verification_token ?? '', env.KOFI_TOKEN ?? '')) {
+  // No token configured means no way to tell Ko-fi from anybody else — and two empty strings compare equal, which
+  // would let every caller through and empty the pool. A worker deployed before `wrangler secret put KOFI_TOKEN`
+  // sits in exactly that state, so it refuses everything until the secret is there.
+  if (!env.KOFI_TOKEN) return { ok: false, why: 'no Ko-fi token configured', status: 503 }
+  if (!sameSecret(data.verification_token ?? '', env.KOFI_TOKEN)) {
     return { ok: false, why: 'wrong token', status: 401 }
   }
   return { ok: true, data }
-}
-
-/** Compare without giving away, by how fast it answers, how much of the token was right. */
-function sameSecret(a, b) {
-  if (typeof a !== 'string' || a.length !== b.length) return false
-  let same = 0
-  for (let i = 0; i < a.length; i++) same |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return same === 0
 }
 
 /**
  * Which pool of codes this payment earns. POOLS is JSON in the worker's settings, for example:
  *   {"tiers":{"Bronze":"beta","Gold":"all"},"shop":{"1a2b3c4d5e":"all"},"tipFrom":5,"tipPool":"beta"}
  * Anything not mentioned earns nothing, which is the safe default.
+ *
+ * A one-off payment can also buy time rather than one flat thank-you: `tipBands` names a pool per amount, so $5,
+ * $10 and $20 can hand out one, two and four months of access. The bands are read largest first, and `tipFrom` /
+ * `tipPool` still work on their own for a single threshold.
+ *   {"tipBands":[{"from":5,"pool":"months1"},{"from":10,"pool":"months2"},{"from":20,"pool":"months4"}]}
+ *
+ * Those numbers are money, so they only mean anything alongside a currency: see [tipValue].
  */
 function poolFor(data, env) {
   const rules = JSON.parse(env.POOLS ?? '{}')
@@ -77,10 +97,44 @@ function poolFor(data, env) {
   }
   if (data.type === 'Subscription') return rules.tiers?.[data.tier_name ?? ''] ?? rules.tiers?.['*'] ?? null
   if (data.type === 'Tip' || data.type === 'Donation') {
+    const paid = tipValue(rules, data)
+    if (paid === null) return null
+    const bands = [...(rules.tipBands ?? [])].sort((a, b) => Number(b.from) - Number(a.from))
+    // A band with no pool is half-written, not a rule to obey: skip it so the flat tipPool below is still reachable.
+    for (const band of bands) if (band.pool && paid >= Number(band.from)) return band.pool
     const from = Number(rules.tipFrom ?? Infinity)
-    return Number(data.amount ?? 0) >= from ? rules.tipPool ?? null : null
+    return paid >= from ? rules.tipPool ?? null : null
   }
   return null
+}
+
+/**
+ * What a one-off payment is worth in the currency the bands are written in, or null when there's no way to say.
+ *
+ * Ko-fi sends the amount in whatever the payer used, and 500 is 500 whether it's yen or dollars, so an amount read
+ * without its currency hands a four-month code to a 500 JPY tip worth about three dollars. `tipCurrency` names what
+ * `tipFrom` and `tipBands` are written in (US dollars unless it says otherwise) and `tipRates` gives a multiplier
+ * into it for each other currency taken:
+ *   {"tipCurrency":"USD","tipRates":{"EUR":1.08,"GBP":1.27}}
+ * A currency with no rate earns nothing rather than being read as dollars; [unpricedCurrency] makes sure that a
+ * payment lost that way is written down instead of quietly dropped. A payment that names no currency at all is
+ * taken at face value: Ko-fi always sends one, and the webhook is signed.
+ */
+function tipValue(rules, data) {
+  const paid = Number(data.amount ?? 0)
+  if (!Number.isFinite(paid)) return null
+  const paidIn = String(data.currency ?? '').toUpperCase()
+  const bands = String(rules.tipCurrency ?? 'USD').toUpperCase()
+  if (!paidIn || paidIn === bands) return paid
+  const rate = Number(rules.tipRates?.[paidIn])
+  return Number.isFinite(rate) && rate > 0 ? paid * rate : null
+}
+
+/** The currency of a one-off payment that earned nothing only because it couldn't be priced, for the record. */
+function unpricedCurrency(data, env) {
+  if (data.type !== 'Tip' && data.type !== 'Donation') return null
+  const rules = JSON.parse(env.POOLS ?? '{}')
+  return tipValue(rules, data) === null ? String(data.currency ?? '').toUpperCase() || 'unknown' : null
 }
 
 /**

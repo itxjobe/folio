@@ -17,7 +17,8 @@ discover-probe/
 *.p12
 *.pem
 *.key
-tools/kofi-worker/pool.sql
+pool.sql
+**/pool.sql
 tools/kofi-worker/.wrangler/
 tools/kofi-worker/node_modules/
 supporter-key.pem
@@ -25,3 +26,5 @@ supporter-codes*.txt
 
 # Jazzer's generated corpus (seeds live in market/src/test/resources)
 .cifuzz-corpus/
+# Claude Code's parallel-session worktrees, which live inside the repository.
+.claude/worktrees/

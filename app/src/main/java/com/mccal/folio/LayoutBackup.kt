@@ -36,6 +36,8 @@ data class LayoutImportPreview(
     val packages: String? = null,
     /** How many packages that is. Only the Market can count them, so [BackupController] fills this in. */
     val packageCount: Int = 0,
+    /** Names people typed themselves. They exist nowhere else on the phone, so a backup that left them out lost them. */
+    val appNames: Map<String, String> = emptyMap(),
 )
 
 fun layoutBackupScope(context: Context): String {
@@ -84,6 +86,8 @@ fun encodeLayoutBackup(
         .put("dock", JSONArray(state.dock)).put("folders", folders).put("widgets", widgets)
         .put("labels", state.labels).put("googleSearch", state.googleSearch).put("verticalStatus", state.verticalStatus)
         .put("compact", preset(state.compact)).put("expanded", preset(state.expanded))
+    // The names people typed themselves (since 0.6.5): they exist nowhere else on the phone.
+    root.put("appNames", JSONObject().apply { state.appNames.forEach { (id, name) -> put(id, name) } })
     // Added in 0.7.0, and deliberately not a new backup version: a Folio that has never heard of the Market reads
     // everything else in this file and ignores a key it doesn't know, so backups still travel backwards.
     packages?.let { root.put("packages", JSONObject(it)) }
@@ -220,12 +224,16 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
     // Added in 0.7.0; an older backup leaves the key out and carries no packages. Read but not understood here:
     // what is inside belongs to `:market`, and only the Market can say what to do with it.
     val packages = if (root.has("packages")) root.getJSONObject("packages").toString() else null
+    // Written since 0.6.5; a backup made before that simply has none, and the names already on the phone stay.
+    val appNames = root.optJSONObject("appNames")?.let { o ->
+        o.keys().asSequence().mapNotNull { id -> o.optString(id).takeIf { it.isNotBlank() }?.let { id to it.take(60) } }.toMap()
+    }.orEmpty()
     return LayoutImportPreview(layout, missing.toList(), profileIssues.toList(),
         appCount = (slots + leadingSlots).count { it != null && !isReservedFolderId(it) } +
             dock.count { it != null } + folders.sumOf { it.appIds.size },
         folderCount = folders.size, widgetCount = layout.widgetPlacements.size,
         compact = compact, expanded = expanded, labels = labels, googleSearch = googleSearch, verticalStatus = verticalStatus,
-        packages = packages)
+        packages = packages, appNames = appNames)
 }
 
 internal fun validBackupPlacement(value: WidgetPlacement): Boolean {

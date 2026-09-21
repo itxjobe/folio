@@ -87,11 +87,75 @@ test('a big enough tip earns the tip pool', async () => {
   assert.equal(DB.handled.get('m1').code, 'CODE-1')
 })
 
+test('a one-off payment lands in the band it paid for', async () => {
+  const BANDS = JSON.stringify({
+    tipBands: [{ from: 5, pool: 'months1' }, { from: 10, pool: 'months2' }, { from: 20, pool: 'months4' }],
+  })
+  const paid = async (amount) => {
+    const DB = database([{ code: 'M1', pool: 'months1' }, { code: 'M2', pool: 'months2' }, { code: 'M4', pool: 'months4' }])
+    await worker.fetch(payment({ amount }), { DB, KOFI_TOKEN: TOKEN, POOLS: BANDS })
+    return DB.handled.get('m1')?.pool ?? null
+  }
+  assert.equal(await paid('5.00'), 'months1')
+  assert.equal(await paid('10.00'), 'months2')
+  assert.equal(await paid('12.00'), 'months2')   // between bands: the one it cleared, not the next one up
+  assert.equal(await paid('20.00'), 'months4')
+  assert.equal(await paid('3.00'), null)         // under the first band, so nothing
+})
+
+test('a tip is read in the currency it was paid in, not as dollars', async () => {
+  const BANDS = JSON.stringify({
+    tipCurrency: 'USD',
+    tipRates: { EUR: 1.08 },
+    tipBands: [{ from: 5, pool: 'months1' }, { from: 20, pool: 'months4' }],
+  })
+  const paid = async (fields) => {
+    const DB = database([{ code: 'M1', pool: 'months1' }, { code: 'M4', pool: 'months4' }])
+    await worker.fetch(payment(fields), { DB, KOFI_TOKEN: TOKEN, POOLS: BANDS })
+    return { pool: DB.handled.get('m1')?.pool ?? null, problems: DB.problems }
+  }
+  // 500 yen is about three dollars: the four-month band is for people who paid four months' worth.
+  const yen = await paid({ amount: '500.00', currency: 'JPY' })
+  assert.equal(yen.pool, null)
+  assert.deepEqual(yen.problems, [{ message_id: 'm1', pool: 'unpriced JPY' }])   // paid, so not dropped in silence
+
+  // A currency with a rate is converted: 5 euros clears the five-dollar band, 4 doesn't.
+  assert.equal((await paid({ amount: '5.00', currency: 'EUR' })).pool, 'months1')
+  assert.equal((await paid({ amount: '4.00', currency: 'EUR' })).pool, null)
+
+  const dollars = await paid({ amount: '20.00', currency: 'USD' })
+  assert.equal(dollars.pool, 'months4')
+  assert.deepEqual(dollars.problems, [])
+})
+
+test('a half-written band leaves the flat tip pool reachable', async () => {
+  // The from:5 band has no pool yet. A $10 tip should still earn what tipPool says, not nothing at all.
+  const POOLS_HALF = JSON.stringify({ tipBands: [{ from: 20, pool: 'months4' }, { from: 5 }], tipFrom: 5, tipPool: 'beta' })
+  const DB = database([{ code: 'CODE-1', pool: 'beta' }])
+  await worker.fetch(payment({ amount: '10.00' }), { DB, KOFI_TOKEN: TOKEN, POOLS: POOLS_HALF })
+  assert.equal(DB.handled.get('m1').code, 'CODE-1')
+})
+
 test('a wrong token is turned away and claims nothing', async () => {
   const DB = database()
   const response = await worker.fetch(payment({ verification_token: 'someone-else', type: 'Subscription', tier_name: 'Gold' }),
     { DB, KOFI_TOKEN: TOKEN, POOLS })
   assert.equal(response.status, 401)
+  assert.equal(DB.free.length, 1)
+})
+
+test('with no token configured, nobody gets in', async () => {
+  // A worker deployed before `wrangler secret put KOFI_TOKEN` has no token at all. Two empty strings used to
+  // compare equal, so an unsigned request looked like a genuine payment and could empty the pool code by code.
+  const DB = database()
+  const noToken = await worker.fetch(payment({ verification_token: undefined, type: 'Subscription', tier_name: 'Gold' }), { DB, POOLS })
+  assert.equal(noToken.status, 503)
+  assert.equal(DB.free.length, 1, 'nothing may be claimed while the worker cannot tell who is asking')
+  assert.equal(DB.handled.size, 0)
+
+  // Not even a caller who sends an empty token to match an empty secret.
+  const empty = await worker.fetch(payment({ verification_token: '', type: 'Subscription', tier_name: 'Gold' }), { DB, KOFI_TOKEN: '', POOLS })
+  assert.equal(empty.status, 503)
   assert.equal(DB.free.length, 1)
 })
 

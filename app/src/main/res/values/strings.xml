@@ -1,5 +1,5 @@
 <resources>
-    <string name="dune_wallpaper_description">Folio dunes — the launcher’s landscape, sized for your display.</string>
+    <string name="dune_wallpaper_description">Folio dunes, the launcher’s landscape, sized for your display.</string>
     <string name="shade_service_label">Folio gestures &amp; overlays</string>
     <string name="shade_service_description">Lets Folio open the system notifications and Quick Settings panels from Home gestures, and, only if you turn them on, show Folio’s dock handle and Dynamic Island over other apps, launch your dock apps and go Home. It does not read screen content or observe what you do in other apps.</string>
     <string name="personal">Personal</string>
@@ -34,7 +34,7 @@
     <string name="opens_android_s_preview_to_use_folio_s_b">Opens Android’s preview to use Folio’s background as your phone’s wallpaper too (a live wallpaper), so it matches outside Folio.</string>
     <string name="preview_as_phone_wallpaper">Preview as phone wallpaper</string>
     <string name="gestures">Gestures</string>
-    <string name="pull_down_from_the_top_left_for_notifica">Pull down from the top-left for notifications, top-right for Control Center. Swipe sideways to change pages. A swipe down lower on Home does what you pick above — set it to Notification Center for the usual Android pull-down, from anywhere on the page.</string>
+    <string name="pull_down_from_the_top_left_for_notifica">Pull down from the top-left for notifications, top-right for Control Center. Swipe sideways to change pages. A swipe down lower on Home does what you pick above: set it to Notification Center for the usual Android pull-down, from anywhere on the page.</string>
     <string name="iphone_style_control_center_and_notifica">iPhone-style Control Center and notifications</string>
     <string name="panels">Panels</string>
     <string name="big_clock_in_notification_center">Big clock in Notification Center</string>
@@ -634,18 +634,18 @@
     <string name="until">Until</string>
     <string name="remove_code">Remove Code</string>
     <string name="beta_features">Beta Features</string>
-    <string name="beta_features_arrive_a_release_or_two_ea">Beta features arrive a release or two early, before they\'ve been through everyone\'s phones. Expect more bugs than usual — that\'s the trade. Turn this off whenever you like and Folio goes straight back to the way the stable release behaves.</string>
-    <string name="folio_s_core_is_free_and_stays_free_home">Folio\'s core is free and stays free — Home, the island, panels, gestures and themes are never behind a code. Supporting buys time to keep building, and these extras are the thank-you.</string>
+    <string name="beta_features_arrive_a_release_or_two_ea">Beta features arrive a release or two early, before they\'ve been through everyone\'s phones. Expect more bugs than usual, and that\'s the trade. Turn this off whenever you like and Folio goes straight back to the way the stable release behaves.</string>
+    <string name="folio_s_core_is_free_and_stays_free_home">Folio\'s core is free and stays free: Home, the island, panels, gestures and themes are never behind a code. Supporting buys time to keep building, and these extras are the thank-you.</string>
     <string name="that_code_has_run_out_ko_fi_codes_have_a">That code has run out. Ko-fi codes have a date on them; a new one will work.</string>
     <string name="that_code_has_been_withdrawn_if_you_thin">That code has been withdrawn. If you think that\'s wrong, message me on Ko-fi and I\'ll sort it out.</string>
-    <string name="folio_doesn_t_recognize_that_code_check">Folio doesn\'t recognize that code. Check for a typo — the letters I, L and O aren\'t used.</string>
+    <string name="folio_doesn_t_recognize_that_code_check">Folio doesn\'t recognize that code. Check for a typo. The letters I, L and O aren\'t used.</string>
     <string name="that_doesn_t_look_like_a_folio_code_past">That doesn\'t look like a Folio code. Paste the whole thing, dashes and all.</string>
     <string name="beta_features_2">Beta features</string>
     <string name="personalization">Personalization</string>
     <string name="automation">Automation</string>
     <string name="keyboard_extras">Keyboard extras</string>
     <string name="in_design">In design</string>
-    <string name="folio_keys_is_a_keyboard_for_the_rest_of">Keyd is a keyboard for the rest of Folio: a separate app, because Android needs a keyboard to be its own input method. It splits around the crease of a fold, learns which words you fix, and asks for no internet permission. Your code already covers it — there is just nothing to install yet.</string>
+    <string name="folio_keys_is_a_keyboard_for_the_rest_of">Keyd is a keyboard for the rest of Folio: a separate app, because Android needs a keyboard to be its own input method. It splits around the crease of a fold, learns which words you fix, and asks for no internet permission. Your code already covers it. There is just nothing to install yet.</string>
     <string name="what_it_will_do">What it will do</string>
     <string name="splits_around_the_crease_key_gestures_pe">Splits around the crease · key gestures · an action shelf · clipboard with snippets · a profile per app · typing insights · no internet permission</string>
     <string name="nothing_yet">Nothing yet</string>
@@ -735,14 +735,11 @@
     <string name="allow_calendar_access">Allow calendar access</string>
     <string name="no_more_events_today">No more events today</string>
     <string name="suggestions_appear_as_you_use_your_apps">Suggestions appear as you use your apps.</string>
-    <string name="columns_1">%1$d columns</string>
-    <string name="rows_1">%1$d rows</string>
     <string name="what_s_new_in_folio">What\'s New in Folio</string>
     <string name="version_1">Version %1$s</string>
     <string name="continue_choice">Continue</string>
     <string name="connected">Connected</string>
     <string name="finish_setting_up_folio">Finish Setting Up Folio</string>
-    <string name="pinned_1">%1$d pinned</string>
     <string name="search_1_with">Search “%1$s” with</string>
     <string name="stack_1">%1$s Stack</string>
     <string name="swipe_down_on_1_to_open_these_2_of_3">Swipe down on %1$s to open these. %2$d of %3$d</string>
@@ -750,10 +747,8 @@
     <string name="home_editing_is_off_while_1_is_on">Home editing is off while %1$s is on</string>
     <string name="turn_off_1_to_edit_home_screen">Turn off %1$s to edit Home Screen</string>
     <string name="skip">Skip</string>
-    <string name="more_from_1_2">%1$d more from %2$s</string>
-    <string name="apps_folders_widgets_1_2_3">%1$d apps · %2$d folders · %3$d widgets</string>
     <string name="unavailable_apps_1">Unavailable apps (%1$d)</string>
-    <string name="its_saved_position_will_stay_empty_1">• %1$s — its saved position will stay empty</string>
+    <string name="its_saved_position_will_stay_empty_1">• %1$s, its saved position will stay empty</string>
     <string name="folio_kept_your_saved_layout_untouched">Folio kept your saved layout untouched and is showing a basic Home for now. Restore a backup or an earlier layout, or start fresh (Folio keeps a copy of the old one).</string>
     <string name="folio_closed_unexpectedly_twice_so_opt">Folio closed unexpectedly twice, so optional features are paused: Cabinet, Actions, the fold animation, Lock Cover, the island and dock over other apps, and tinting. Your settings haven’t changed.</string>
     <string name="apply_1">Apply “%1$s”?</string>
@@ -913,6 +908,108 @@
     <string name="installing_apps">Installing apps</string>
     <string name="folio_downloads_and_installs">Folio downloads and installs</string>
     <string name="open_play_f_droid_or_obtainium_instead">Open Play, F-Droid or Obtainium instead</string>
-    <string name="some_listings_are_apps_of_their_own">Some listings are apps of their own rather than something Folio applies — a keyboard has to be its own app, because Android says so. With this on, Folio downloads one and hands it to Android, which asks before installing it and names the app. With it off, Folio opens the store the author named and you install it there.</string>
-    <string name="turn_it_on_only_for_sources_you_would">Turn it on only for sources you would install an app from anyway. Folio checks the download against the checksum the source signed, so nothing can be swapped in on the way — but the source is what vouches for the app itself, and Folio can\'t check that for you.</string>
+    <string name="some_listings_are_apps_of_their_own">Some listings are apps of their own rather than something Folio applies: a keyboard has to be its own app, because Android says so. With this on, Folio downloads one and hands it to Android, which asks before installing it and names the app. With it off, Folio opens the store the author named and you install it there.</string>
+    <string name="turn_it_on_only_for_sources_you_would">Turn it on only for sources you would install an app from anyway. Folio checks the download against the checksum the source signed, so nothing can be swapped in on the way. The source is still what vouches for the app itself, and Folio can\'t check that for you.</string>
+    <plurals name="columns">
+        <item quantity="one">%1$d column</item>
+        <item quantity="other">%1$d columns</item>
+    </plurals>
+    <plurals name="rows">
+        <item quantity="one">%1$d row</item>
+        <item quantity="other">%1$d rows</item>
+    </plurals>
+    <plurals name="pinned">
+        <item quantity="one">%1$d pinned</item>
+        <item quantity="other">%1$d pinned</item>
+    </plurals>
+    <plurals name="more_from_app">
+        <item quantity="one">%1$d more from %2$s</item>
+        <item quantity="other">%1$d more from %2$s</item>
+    </plurals>
+    <plurals name="restore_apps">
+        <item quantity="one">%1$d app</item>
+        <item quantity="other">%1$d apps</item>
+    </plurals>
+    <plurals name="restore_folders">
+        <item quantity="one">%1$d folder</item>
+        <item quantity="other">%1$d folders</item>
+    </plurals>
+    <plurals name="restore_widgets">
+        <item quantity="one">%1$d widget</item>
+        <item quantity="other">%1$d widgets</item>
+    </plurals>
+    <!-- On a notification, iPhone's short form for the last minute. -->
+    <string name="time_now">now</string>
+    <plurals name="minutes_ago">
+        <item quantity="one">%1$dm ago</item>
+        <item quantity="other">%1$dm ago</item>
+    </plurals>
+    <plurals name="hours_ago">
+        <item quantity="one">%1$dh ago</item>
+        <item quantity="other">%1$dh ago</item>
+    </plurals>
+    <plurals name="days_ago">
+        <item quantity="one">%1$dd ago</item>
+        <item quantity="other">%1$dd ago</item>
+    </plurals>
+    <string name="rename">Rename…</string>
+    <string name="rename_app">Rename App</string>
+    <string name="leave_it_empty_to_use_s_again">Leave it empty to use %1$s again.</string>
+    <string name="edit_home_screen">Edit Home Screen</string>
+    <string name="clear_badge">Clear Badge</string>
+    <string name="delete_shortcut">Delete Shortcut</string>
+    <string name="remove_from_home">Remove from Home</string>
+    <string name="add_to_home">Add to Home</string>
+    <string name="add_to_folder">Add to Folder</string>
+    <string name="create_folder">Create Folder</string>
+    <string name="stack_apps">Stack Apps…</string>
+    <string name="show_in_app_library">Show in App Library</string>
+    <string name="hide_from_app_library">Hide from App Library</string>
+    <string name="info_for_app">Info for App</string>
+    <string name="share_diagnostics">Share Diagnostics</string>
+    <string name="save_current_layout">Save Current Layout</string>
+    <string name="saved_by_you">Saved by you</string>
+    <string name="resize_on_home">Resize on Home</string>
+    <string name="hide_custom_size">Hide Custom Size</string>
+    <string name="custom_size">Custom Size</string>
+    <string name="edit_widget">Edit Widget</string>
+    <string name="replace_widget">Replace Widget</string>
+    <string name="add_widget_to_stack">Add Widget to Stack</string>
+    <string name="make_a_stack">Make a Stack</string>
+    <string name="remove_stack">Remove Stack</string>
+    <string name="remove_widget_2">Remove Widget</string>
+    <string name="wallpaper_appearance_2">Wallpaper &amp; Appearance</string>
+    <string name="add_page">Add Page</string>
+    <string name="remove_this_empty_page">Remove This Empty Page</string>
+    <string name="folio_settings">Folio Settings</string>
+    <string name="search_your_contacts">Search your contacts</string>
+    <string name="allow_contacts_access">Allow contacts access</string>
+    <string name="snooze_for_1_hour">Snooze for 1 Hour</string>
+    <string name="snooze_until_tomorrow">Snooze Until Tomorrow</string>
+    <string name="notification_settings">Notification Settings</string>
+    <!-- Settings > Supporter, development builds only: the switches that let one build be seen three ways. -->
+    <string name="developer">Developer</string>
+    <string name="unlock_developer_switches">Unlock developer switches</string>
+    <string name="paste_a_code_signed_with_the_development_key">Paste a code signed with the development key. A release build has no key to check one against, so these switches exist only here.</string>
+    <string name="that_code_doesn_t_carry_the_developer_scope">That code doesn\'t carry the developer scope. Mint one with --scopes dev.</string>
+    <string name="behave_as">Behave as</string>
+    <string name="lock_developer_switches">Lock and forget the switches</string>
+    <string name="update_channel">Update channel</string>
+    <string name="features">Features</string>
+    <string name="turn_one_off_to_see_the_release_before_it">Turn one off to see how Folio behaved before it arrived, without installing that older Folio.</string>
+    <string name="dev_face_free">Free</string>
+    <string name="dev_face_free_detail">What someone who hasn\'t supported Folio sees.</string>
+    <string name="dev_face_supporter">Supporter</string>
+    <string name="dev_face_supporter_detail">Every scope a code can carry, without a code.</string>
+    <string name="dev_face_dev">Developer</string>
+    <string name="dev_face_dev_detail">As a supporter, and anything built for testing.</string>
+    <string name="dev_channel_default">The Beta Updates switch</string>
+    <string name="dev_channel_stable">Stable only</string>
+    <string name="dev_channel_beta">Betas too</string>
+    <string name="dev_line_clear_icons">Clear icons</string>
+    <string name="dev_line_gauge">Gauge status glyph</string>
+    <string name="dev_line_big_clock">Big Clock</string>
+    <string name="dev_line_software_update">Software Update</string>
+    <string name="dev_line_since_065">New in 0.6.5</string>
+    <string name="you_already_have_a_code_paste_this_one">You already have a supporter code. Paste this one in Settings \u203a Supporter if you want to swap it.</string>
 </resources>

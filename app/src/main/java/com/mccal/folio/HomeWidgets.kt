@@ -2,6 +2,7 @@
 
 package com.mccal.folio
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import android.appwidget.AppWidgetProviderInfo
 import android.os.UserManager
@@ -374,16 +375,16 @@ internal fun WidgetActions(
                 }
             }
             MenuDivider()
-            MenuRow("Resize on Home", Icons.Rounded.OpenInFull) { if (feasible) onStartResize(width, height) }
+            MenuRow(stringResource(R.string.resize_on_home), Icons.Rounded.OpenInFull) { if (feasible) onStartResize(width, height) }
             MenuDivider()
-            MenuRow(if (customSize) "Hide Custom Size" else "Custom Size", Icons.Rounded.Tune) { customSize = !customSize }
+            MenuRow(if (customSize) stringResource(R.string.hide_custom_size) else stringResource(R.string.custom_size), Icons.Rounded.Tune) { customSize = !customSize }
             if (customSize) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!feasible) Text(stringResource(R.string.move_this_widget_into_the_six_row_grid_b), color = FolioColors.Red, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.width), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
                         onClick = { if (feasible) width = (width - 1).coerceAtLeast(minWidth) }) { Icon(Icons.Rounded.Remove, "Decrease widget width", tint = Color.White) }
-                    Text(stringResource(R.string.columns_1, width), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
+                    Text(pluralStringResource(R.plurals.columns, width, width), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
                         onClick = { if (feasible) width = (width + 1).coerceAtMost(maxWidth) }) { Icon(Icons.Rounded.Add, "Increase widget width", tint = Color.White) }
                 }
@@ -391,7 +392,7 @@ internal fun WidgetActions(
                     Text(stringResource(R.string.height), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
                         onClick = { if (feasible) height = (height - 1).coerceAtLeast(minHeight) }) { Icon(Icons.Rounded.Remove, "Decrease widget height", tint = Color.White) }
-                    Text(stringResource(R.string.rows_1, height), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
+                    Text(pluralStringResource(R.plurals.rows, height, height), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
                         onClick = { if (feasible) height = (height + 1).coerceAtMost(maxHeight) }) { Icon(Icons.Rounded.Add, "Increase widget height", tint = Color.White) }
                 }
@@ -403,8 +404,8 @@ internal fun WidgetActions(
 
         SheetGroupLabel(stringResource(R.string.widget))
         SheetGroup {
-            if (canConfigure) { MenuRow("Edit Widget", Icons.Rounded.Settings) { onConfigure() }; MenuDivider() }
-            MenuRow("Replace Widget", Icons.Rounded.FindReplace) { onReplace() }
+            if (canConfigure) { MenuRow(stringResource(R.string.edit_widget), Icons.Rounded.Settings) { onConfigure() }; MenuDivider() }
+            MenuRow(stringResource(R.string.replace_widget), Icons.Rounded.FindReplace) { onReplace() }
             if (homePages > 1) {
                 MenuDivider()
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -418,7 +419,7 @@ internal fun WidgetActions(
 
         SheetGroupLabel(stringResource(R.string.smart_stack))
         SheetGroup {
-            MenuRow(if (stackCards.size > 1) "Add Widget to Stack" else "Make a Stack", Icons.Rounded.Layers) { onAddToStack() }
+            MenuRow(if (stackCards.size > 1) stringResource(R.string.add_widget_to_stack) else stringResource(R.string.make_a_stack), Icons.Rounded.Layers) { onAddToStack() }
             if (stackCards.size > 1) {
                 stackCards.forEachIndexed { index, card ->
                     MenuDivider()
@@ -445,7 +446,7 @@ internal fun WidgetActions(
             modifier = Modifier.padding(start = 4.dp))
 
         SheetGroup(Modifier.padding(top = 8.dp)) {
-            MenuRow(if (stackCards.size > 1) "Remove Stack" else "Remove Widget", Icons.Rounded.RemoveCircleOutline, destructive = true) { onRemove() }
+            MenuRow(if (stackCards.size > 1) stringResource(R.string.remove_stack) else stringResource(R.string.remove_widget_2), Icons.Rounded.RemoveCircleOutline, destructive = true) { onRemove() }
         }
         Spacer(Modifier.height(16.dp))
     }

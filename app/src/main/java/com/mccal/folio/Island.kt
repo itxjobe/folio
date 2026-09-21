@@ -183,8 +183,11 @@ class IslandListenerService : NotificationListenerService() {
     private val shownContent = object : LinkedHashMap<String, Pair<Int, Long>>(32, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Int, Long>>?) = size > 64
     }
-    private fun isRepeat(key: String, title: String?, text: String?): Boolean {
-        val signature = (title to text).hashCode()
+    private fun isRepeat(key: String, title: String?, text: String?, posted: Long): Boolean {
+        // The time the app itself posted goes into the signature: an app re-posting one warning keeps its own
+        // `when`, while a person sending "ok" twice in a conversation makes a new notification with a new one —
+        // and messaging apps reuse a single key per conversation, so without this the second "ok" never appeared.
+        val signature = (title to text).hashCode() * 31 + posted.hashCode()
         val now = System.currentTimeMillis()
         val last = shownContent[key]
         if (last != null && last.first == signature && now - last.second < REPEAT_QUIET_MS) return true
@@ -241,7 +244,8 @@ class IslandListenerService : NotificationListenerService() {
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))
             ?.toString()?.takeIf { it.isNotBlank() }
         if (title == null && text == null) return
-        if (isRepeat(sbn.key, title, text)) return
+        // `when` is the app's own idea of when this was posted; postTime is Android's, and stands in when an app leaves it unset.
+        if (isRepeat(sbn.key, title, text, n.`when`.takeIf { it > 0L } ?: sbn.postTime)) return
         val picture = runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(96, 96) }.getOrNull()
         IslandEvents.post(IslandEvent.Message(sbn.key, sbn.packageName, label, title ?: label, text, picture,
             appIcon(sbn.packageName), Messaging.replyAction(n) != null, alert = true))
@@ -257,7 +261,11 @@ class IslandListenerService : NotificationListenerService() {
         return n.extras.getCharSequence(Notification.EXTRA_TITLE) != null || n.extras.getCharSequence(Notification.EXTRA_TEXT) != null
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification) = publish()
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        // Swiping one away ends its quiet window: what comes back after that is new, not a re-post.
+        shownContent.remove(sbn.key)
+        publish()
+    }
     // Fires when a channel's importance changes (e.g. its pop-up was turned off), so the settings list updates.
     override fun onNotificationRankingUpdate(rankingMap: RankingMap?) = publish()
 
@@ -373,19 +381,25 @@ class IslandListenerService : NotificationListenerService() {
     }
 
     private fun currentMedia(controllers: List<MediaController>): IslandActivity.Media? {
+        // A session that has gone away takes its pause clock with it, so a player that comes back paused gets its
+        // fifteen minutes again instead of being judged on a pause from an hour ago — and the map can't grow forever.
+        pausedSince.keys.retainAll(controllers.map { it.packageName }.toSet())
         // Anything playing is not forgotten, so its pause clock starts again from zero next time it stops.
-        controllers.filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+        controllers.filter { playbackIsLive(it.playbackState?.state) }
             .forEach { pausedSince.remove(it.packageName) }
-        val active = controllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-            ?: controllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PAUSED && stillWorthShowing(it) }
-            ?: return null
-        val meta = active.metadata ?: return null
-        val title = meta.getString(MediaMetadata.METADATA_KEY_TITLE) ?: return null
-        val artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
-        return IslandActivity.Media(active.packageName, title, artist,
-            appIcon(active.packageName), active.playbackState?.state == PlaybackState.STATE_PLAYING, active.sessionToken,
-            art = albumArt(active.packageName, title, artist, meta))
-            .also { it.controller = active }
+        val order = controllers.filter { playbackIsLive(it.playbackState?.state) } +
+            controllers.filter { it.playbackState?.state == PlaybackState.STATE_PAUSED && stillWorthShowing(it) }
+        // One session without a title used to hide a perfectly good one behind it, so each is tried in turn.
+        for (active in order) {
+            val meta = active.metadata ?: continue
+            val title = meta.getString(MediaMetadata.METADATA_KEY_TITLE) ?: continue
+            val artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
+            return IslandActivity.Media(active.packageName, title, artist,
+                appIcon(active.packageName), playbackIsLive(active.playbackState?.state), active.sessionToken,
+                art = albumArt(active.packageName, title, artist, meta))
+                .also { it.controller = active }
+        }
+        return null
     }
 
     /** Cached per track so each playback update reuses one small bitmap (stable equality, no re-scaling). */
@@ -497,6 +511,13 @@ class IslandListenerService : NotificationListenerService() {
         private val pausedSince = mutableMapOf<String, Long>()
         /** How long a paused track stays in the island: long enough to come back to, short enough not to be clutter. */
         private const val PAUSED_KEEP_MS = 15 * 60 * 1000L
+
+        /**
+         * Playback that is running, not stopped: buffering and connecting count, because a track that pauses to load
+         * would otherwise drop out of the island and reappear a second later, once on every skip.
+         */
+        internal fun playbackIsLive(state: Int?) = state == PlaybackState.STATE_PLAYING ||
+            state == PlaybackState.STATE_BUFFERING || state == PlaybackState.STATE_CONNECTING
         private val QUIET_CATEGORIES = setOf(Notification.CATEGORY_CALL, Notification.CATEGORY_TRANSPORT, Notification.CATEGORY_PROGRESS,
             Notification.CATEGORY_SERVICE, Notification.CATEGORY_NAVIGATION, Notification.CATEGORY_STATUS, "stopwatch", "location_sharing", "workout")
         private val OVERFLOW_TITLE = Regex("^\\d+ more notifications?$", RegexOption.IGNORE_CASE)

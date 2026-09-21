@@ -209,7 +209,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         }
                         if (Supporter.available(supportContext)) MenuDivider()
                         if (Supporter.available(supportContext)) TweakRow(Icons.Rounded.Redeem, 0xFFBF5AF2, "Supporter", "customization-supporter",
-                            Supporter.code(supportContext)?.let { stringResource(R.string.code_added) }, selected = selected == CustomizationPage.SUPPORTER,
+                            remember(supportContext) { Supporter.code(supportContext) }?.let { stringResource(R.string.code_added) },
+                            selected = selected == CustomizationPage.SUPPORTER,
                             chevron = !sidebar) { onPage(CustomizationPage.SUPPORTER) }
                     }
                     CardNote(stringResource(R.string.folio_is_free_and_always_will_be_if_it_m), Modifier.padding(horizontal = 16.dp))
@@ -1338,7 +1339,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
             CardAction(stringResource(R.string.share_latest), Modifier.fillMaxWidth(), onClick = { runCatching { context.startActivity(CrashLog.shareIntent(latest).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } })
             CardAction(stringResource(R.string.clear), Modifier.fillMaxWidth(), destructive = true, onClick = { CrashLog.clear(context); reports = emptyList() })
         }
-        CardAction("Share Diagnostics", onClick = { runCatching { context.startActivity(Diagnostics.shareIntent(context).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+        CardAction(stringResource(R.string.share_diagnostics), onClick = { runCatching { context.startActivity(Diagnostics.shareIntent(context).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
             modifier = Modifier.testTag("share-diagnostics"))
         CardNote("Phone and screen settings, recent Folio events, crash, freeze and restart reports, and Folio's own log, for a bug report. You choose where it goes.")
     }
@@ -1933,7 +1934,9 @@ private fun roadmapIcon(name: String): ImageVector = when (name) {
             IosSwitch(state.layoutHistory, model::setLayoutHistory, Modifier.testTag("layout-history-switch"))
         }
         if (state.layoutHistory) {
-            CardAction("Save Current Layout", onClick = { model.saveLayoutSnapshot("Saved by you", force = true) }, modifier = Modifier.testTag("layout-history-save"))
+            // Read here rather than in the click: the name is what the snapshot is called in the list below it.
+            val savedByYou = stringResource(R.string.saved_by_you)
+            CardAction(stringResource(R.string.save_current_layout), onClick = { model.saveLayoutSnapshot(savedByYou, force = true) }, modifier = Modifier.testTag("layout-history-save"))
             snapshots.forEach { snapshot ->
                 // Merged, like the switch row above: without it every saved layout offers a button TalkBack reads as
                 // just "Restore", and there is no way to hear which layout it would put back. Merged, the row is one

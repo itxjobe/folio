@@ -143,7 +143,9 @@ class SupporterTest {
         // Asked on the last day it works, then asked again the morning after: the remembered answer can't carry it over.
         assertNotNull(Supporter.code(context, last, keys))
         assertNull(Supporter.code(context, last.plusDays(1), keys))
-        assertNotNull("and it comes back if the clock goes back", Supporter.code(context, last, keys))
+        // Winding the clock back doesn't bring it back: Folio's supporter clock only moves forward (0.6.5), so that
+        // setting the date back can't return time that has already run out. This line used to expect the opposite.
+        assertNull("and winding the clock back doesn't return it", Supporter.code(context, last, keys))
     }
 
     @Test fun `asking again doesn't check the signature again`() {

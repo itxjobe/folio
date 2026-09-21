@@ -309,12 +309,12 @@ private fun SpotlightContent(state: LauncherState, active: Boolean, onClose: () 
                             } }) { start(Intent(Intent.ACTION_VIEW, c.uri)) }
                         } }
                     } else if (shows(SpotlightSection.CONTACTS) && !contactsGranted && q.length >= 2) item("contacts-permission") {
-                        Section("Contacts") { ResultRow(Icons.Rounded.PersonSearch, "Search your contacts", "Allow contacts access") {
+                        Section(stringResource(R.string.contacts)) { ResultRow(Icons.Rounded.PersonSearch, stringResource(R.string.search_your_contacts), stringResource(R.string.allow_contacts_access)) {
                             contactsPermission.launch(Manifest.permission.READ_CONTACTS)
                         } }
                     }
                     if (shows(SpotlightSection.SETTINGS) && settingHits.isNotEmpty()) item("settings") {
-                        Section("Settings") { settingHits.forEach { s -> ResultRow(Icons.Rounded.Settings, s.title, "Settings") { start(Intent(s.action)) } } }
+                        Section(stringResource(R.string.settings)) { settingHits.forEach { s -> ResultRow(Icons.Rounded.Settings, s.title, stringResource(R.string.settings)) { start(Intent(s.action)) } } }
                     }
                     if (shows(SpotlightSection.WEB)) item("web") {
                         Section(stringResource(R.string.search_the_web_ask_ai)) {
@@ -427,9 +427,17 @@ private fun SpotlightRoundAction(icon: ImageVector, label: String, onClick: () -
 // ---------------------------------------------------------------------------------------------
 // Search logic
 
-/** Prefix beats word-start beats substring beats initials ("gm" → Google Maps). */
-internal fun rankApps(apps: List<AppEntry>, query: String, frecency: Map<String, Double> = emptyMap()): List<AppEntry> =
-    rankByLabel(apps, query, boost = { frecency[it.id] ?: 0.0 }) { it.label }
+/**
+ * Prefix beats word-start beats substring beats initials ("gm" → Google Maps). An app you renamed is still
+ * found by the name Android gives it, after everything matching the name you chose.
+ */
+internal fun rankApps(apps: List<AppEntry>, query: String, frecency: Map<String, Double> = emptyMap()): List<AppEntry> {
+    val boost: (AppEntry) -> Double = { frecency[it.id] ?: 0.0 }
+    val hits = rankByLabel(apps, query, boost) { it.label }
+    val matched = hits.mapTo(mutableSetOf(), AppEntry::id)
+    val renamed = apps.filter { it.label != it.systemLabel && it.id !in matched }
+    return if (renamed.isEmpty()) hits else hits + rankByLabel(renamed, query, boost) { it.systemLabel }
+}
 
 /** Label ranking used by Spotlight; shorter labels win ties. Pure, so it's unit-tested. */
 internal fun <T> rankByLabel(items: List<T>, query: String, boost: (T) -> Double = { 0.0 }, label: (T) -> String): List<T> {

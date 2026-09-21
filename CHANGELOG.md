@@ -31,19 +31,19 @@ Folio shows the newest section on the phone after an update, and every version u
 ### Fixed
 - With TalkBack, every saved layout under Layout History offered a button that read as just "Restore", with no way to hear which layout it would put back. Each row is now one thing to land on, and it names the layout and when it was saved.
 - An install now outlives the screen that started it: pressing Back during a download used to leave the package applied with no message and no Undo.
-- A failed write to Folio's own store no longer destroys the value it was replacing — for a source, that value is its pinned key.
+- A failed write to Folio's own store no longer destroys the value it was replacing: for a source, that value is its pinned key.
 - A source that published a list Folio couldn't read used to stay stuck on a tamper warning; it recovers as soon as the source publishes a good one.
 - A shared `.foliopkg` opened while Settings was on a sub-page was dropped, and one opened while the Market was up was ignored until later.
 - Reading the installed list, the bundled index, cached source lists and a package's files no longer happens while a frame is being drawn.
 
-## [0.6.5] - Unreleased
+## [0.6.5] - 2026-09-20
 
 ### Added
-- **Gauge status glyph:** a sixth Icon style for the Side Bar — the battery as an arc, your connection inside it, and the percentage above (Icons & Side Bar › Icon style).
+- **Gauge status glyph:** a sixth Icon style for the Side Bar: the battery as an arc, your connection inside it, and the percentage above (Icons & Side Bar › Icon style).
 - **More rows:** Home fills taller screens with up to 3 more rows, the same on both screens of a foldable.
 - **Layout sliders:** adjust row, column and dock spacing, widget size and status spacing, and watch Home change as you drag.
 - **Apps, dock and status position:** apps at the top, the dock on the side or bottom, and the status anywhere, for each screen.
-- **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight.
+- **Software Update:** updates install automatically overnight, with release notes, Update Now and Update Tonight. A new install starts there; updating from an earlier Folio does not change what you chose, and if you never chose, Folio stays on Manual until you say otherwise.
 - **Big Clock:** a large Lock Screen-style clock with the date and what's next.
 - **Try Folio first:** open Folio as a preview before making it your Home app.
 - **Clear icons:** frosted glass icons with white symbols, like iOS.
@@ -52,14 +52,17 @@ Folio shows the newest section on the phone after an update, and every version u
 - **Folder badges:** folders show the total of their apps' notification badges.
 - **Better bug reports:** Folio notes freezes and restarts, and Report a Bug can include them (kept on your phone).
 - **A live Roadmap:** see what's coming, updated from Folio's GitHub page.
-- **Keyd, for supporters:** a code that carries the keyboard scope shows where Folio's own keyboard has got to, in Settings › Supporter. It's in design — a separate app, because Android needs a keyboard to be its own input method — so there is nothing to install yet.
+- **Supporter codes with months:** a code can carry a number of months that starts the day you redeem it, so one handed out from a batch still gives its full time. Settings › Supporter shows the day it runs out.
+- **Folio Keys, for supporters:** a code that carries the keyboard scope shows where Folio's own keyboard has got to, in Settings › Supporter. It's in design (a separate app, because Android needs a keyboard to be its own input method), so there is nothing to install yet.
+- **Beta updates for supporters:** with a code that carries beta access, Beta Updates installs the beta builds the same way as any other update. They live in a private repository, and Folio reaches them through the supporter worker, which checks your code and never puts a key on your phone. No GitHub account, no downloading APKs by hand.
 
 - **Move apps without dragging:** TalkBack actions and Alt+arrow keys move apps and folders around Home and between pages.
 - **Wallpaper Tint:** one slider from Clear to Tinted glass (Wallpaper & Appearance › Glass).
 - **Reduce Transparency:** nearly solid widgets, Side Bar and dock; it also turns on with Android's high contrast.
 - **Big Buttons:** optional large Back, Home and Recents buttons over other apps, for when the system's are too small (Dynamic Island › In Every App). They sit above Android's own navigation, hide in full-screen apps and fade when idle.
-- **Swipe Down on Home:** pick what a swipe down the middle of Home does — Spotlight, Notification Center or nothing (Gestures & Actions). Set to Notification Center it works like Android's usual one-finger pull-down, and follows your choice of Folio's panels or Android's own shade.
+- **Swipe Down on Home:** pick what a swipe down the middle of Home does: Spotlight, Notification Center or nothing (Gestures & Actions). Set to Notification Center it works like Android's usual one-finger pull-down, and follows your choice of Folio's panels or Android's own shade.
 - **Move the buttons:** long-press and drag Big Buttons up the screen, away from the keyboard or an app's own bottom bar; Settings puts them back.
+- **Rename apps:** long-press an app, More › Rename… and give it any name; the new name shows on Home, in the dock, in folders, in the App Library and in search. Searching the app's original name still finds it, and clearing the field puts that name back.
 - **The island steps aside in full screen:** the island in every app now leaves full-screen video and games alone, with switches for full screen and landscape (Dynamic Island › In Every App).
 - **Predictive back:** folders, the App Library and Settings follow your back swipe before closing.
 
@@ -89,7 +92,18 @@ Folio shows the newest section on the phone after an update, and every version u
 - Folders can be moved again: dragging one no longer drops it onto itself (which buzzed and put it back).
 - Folding or rotating no longer throws away a search: the pull-down panel closes, Spotlight keeps what you typed, and the panel now closes on the first fold after a restart too.
 - In the Gauge, the mark shown when there's nothing to connect to sits in the middle of the ring, level with the Wi-Fi one.
+- Music that stops to load no longer drops out of the island and back in on every skip, and a player with no track title no longer hides one that has it.
+- On a phone set to Turkish, supporter codes typed in lower case can be redeemed, the Roadmap shows every item, and What's New keeps its symbols: Folio was reading its own data through the phone's language.
+- The time on each notification ("now", "5m ago") follows your language and its plural rules, and a phone whose clock has just been corrected no longer shows a notification as arriving in the future.
 - The last of Folio's own words follow your language: brief messages (a file that isn't a theme, an app that won't open, a redeemed code) and the text left in What's New, Choose Home Apps, widget editing, Up Next, restore and the alerts.
+- A backup now carries the names you gave your apps, and restoring puts them back: renames lived in one file on the phone and went no further.
+- A clock that comes back years ahead after a flat battery no longer expires your supporter code for good; winding the date back still can't hand time back.
+- Layout History keeps the snapshots it can read instead of dropping all ten when one of them can't be, and a second damaged layout no longer writes over the first rescue copy.
+- A message with the same words as the last one shows in the island again: repeats are judged by when the app posted them, and dismissing one ends its quiet window.
+- An automatic update tidies up after itself again, instead of leaving the installed APK in Folio's storage.
+- Opening Software Update no longer uses up the day's check, so an automatic update still installs; a check that Android stops mid-way no longer stops the daily check for good.
+- A folio://redeem link can add a supporter code but never replace one you already have. Swapping is done in Settings › Supporter, which the link now opens.
+- Unfolded, the row of page dots, Search and App Library sits under Home instead of across the middle of the screen, where it ran into the widgets on the page beside it.
 
 ## [0.6.0] - 2026-09-16
 
