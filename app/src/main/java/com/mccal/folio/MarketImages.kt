@@ -89,14 +89,22 @@ internal object MarketImages {
     /**
      * Where a picture a package names lives.
      *
-     * A depiction only ever names a relative path, so every image a package shows comes from the same host as its
-     * index. Folio's own packages are in the APK and have no address at all, which is why this returns null for them.
+     * Every image a package shows comes from the same host as its index, which is what PRIVACY.md promises. A full
+     * address is only followed when it is on that host; one anywhere else would tell a third party who opened which
+     * package, so it isn't loaded. Folio's own packages are in the APK and have no address at all.
      */
     fun urlFor(source: Source, path: String): String? = when {
         source.kind == Source.Kind.BUILT_IN -> null
-        path.startsWith("https://") -> path
+        path.startsWith("https://") -> path.takeIf { sameHost(it, source.url) }
+        "://" in path -> null
         else -> source.url.trimEnd('/') + "/" + path.trimStart('/')
     }
+
+    internal fun sameHost(url: String, sourceUrl: String): Boolean = runCatching {
+        val a = java.net.URI(url)
+        val b = java.net.URI(sourceUrl)
+        a.userInfo == null && a.host != null && a.host.equals(b.host, ignoreCase = true) && a.port == b.port
+    }.getOrDefault(false)
 }
 
 /** Hands Coil the bytes Folio's own client fetched, instead of letting it make its own request. */

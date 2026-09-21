@@ -183,6 +183,16 @@ class PackageInstallerTest {
         assertTrue(host.applied.isEmpty())
     }
 
+    @Test fun `a package that isn't what its listing described is refused`() {
+        val bytes = pack()
+        val real = (installer.read(bytes) as PackageInstaller.ReadResult.Ok).pkg.manifest
+        // A mirror describing it as something milder than it is: what was shown is what must be applied.
+        val listed = index(sha256Hex(bytes), bytes.size).copy(manifest = real.copy(permissions = emptySet()))
+        assertEquals(InstallResult.Reason.MISMATCH, failure(installer.install(bytes, listed)).reason)
+        assertTrue(host.applied.isEmpty())
+        assertTrue(installer.install(bytes, index(sha256Hex(bytes), bytes.size).copy(manifest = real)) is InstallResult.Installed)
+    }
+
     @Test fun `a package needing a capability this Folio lacks is not applied`() {
         val limited = PackageInstaller(store, FakeHost(capabilities = setOf(Capability.THEME)), clock = { now })
         val result = limited.install(pack())

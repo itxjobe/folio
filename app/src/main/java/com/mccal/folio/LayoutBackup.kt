@@ -223,7 +223,7 @@ fun decodeLayoutBackup(raw: String, currentApps: List<AppEntry>, currentProfiles
     val verticalStatus = root.strictBoolean("verticalStatus")
     // Added in 0.7.0; an older backup leaves the key out and carries no packages. Read but not understood here:
     // what is inside belongs to `:market`, and only the Market can say what to do with it.
-    val packages = if (root.has("packages")) root.getJSONObject("packages").toString() else null
+    val packages = root.optJSONObject("packages")?.toString()
     // Written since 0.6.5; a backup made before that simply has none, and the names already on the phone stay.
     val appNames = root.optJSONObject("appNames")?.let { o ->
         o.keys().asSequence().mapNotNull { id -> o.optString(id).takeIf { it.isNotBlank() }?.let { id to it.take(60) } }.toMap()

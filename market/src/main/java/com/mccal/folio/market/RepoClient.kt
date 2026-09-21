@@ -70,13 +70,20 @@ class RepoClient(
                 if (result.missing) "that address doesn't have a Folio source" else result.message,
             )
         }
-        return RefreshResult.NeedsTrust(base, key, store.state(base).pinnedKey)
+        val pinned = store.state(base).pinnedKey
+        // The key Folio already trusts: nothing to confirm. Asking again showed "this source changed its key" beside two
+        // identical fingerprints, and confirming it reset the rollback floors below.
+        if (pinned != null && pinned.spki.contentEquals(key.spki)) return refresh(base)
+        return RefreshResult.NeedsTrust(base, key, pinned)
     }
 
     /** Pins [key] after the user has confirmed its fingerprint. */
     fun trust(url: String, key: SourceKey) {
         val base = normalizeSourceUrl(url)
         val state = store.state(base)
+        // Trusting the same key again changes nothing: resetting the floors would let an older signed entry, index or
+        // revocation list back in.
+        if (state.pinnedKey?.spki?.contentEquals(key.spki) == true) return
         // A new key starts its own rollback history, so an old signed entry can't be replayed under it.
         store.save(base, state.copy(keyBase64 = key.base64, lastTimestamp = 0, lastRevokedTimestamp = 0, etag = null))
     }
@@ -160,7 +167,10 @@ class RepoClient(
                         return RefreshResult.Failed(RefreshResult.Reason.HASH, "that source's list doesn't match what it signed", cached)
                     }
                     downloadedEtag = result.etag
-                    result.bytes.decodeToString()
+                    // Strict, because the list is cached as text and re-hashed from it: a lossy decode would never match
+                    // the signed hash again and the source would show the tamper warning on every later refresh.
+                    runCatching { result.bytes.decodeToString(throwOnInvalidSequence = true) }.getOrNull()
+                        ?: return RefreshResult.Failed(RefreshResult.Reason.PARSE, "that source's list isn't UTF-8 text", cached)
                 }
             }
         }
@@ -237,6 +247,12 @@ class RepoClient(
         .put("index", JSONObject().put("path", entry.index.path).put("sha256", entry.index.sha256).put("size", entry.index.size))
         .toString()
 
+    /** True when the signed list Folio has for this source is past its `maxAge` (T3). */
+    fun isStale(url: String): Boolean {
+        val signed = cachedSnapshot(url)?.entry ?: return false
+        return clock() > signed.staleAfter
+    }
+
     /** The last good copy, so the store keeps working offline and a failed refresh changes nothing. */
     fun cachedSnapshot(url: String): SourceSnapshot? {
         val base = normalizeSourceUrl(url)
@@ -252,16 +268,19 @@ class RepoClient(
         return SourceSnapshot(base, entry, index, revocation, state.lastRefresh)
     }
 
-    /** Null when the source publishes no revocation list. A broken or unsigned one is ignored, never trusted. */
+    /**
+     * The newest revocation list Folio has for this source. A missing, broken, unsigned or older copy never replaces
+     * the one already stored, so a host can't un-revoke a package by withholding the file or serving an old one.
+     */
     private fun readRevocations(base: String, key: SourceKey, state: SourceState): RevocationList? {
+        val stored = store.cached(base, "revoked")?.let { (RevocationList.parse(it) as? ParseResult.Ok)?.value }
         val body = http.get(base + REVOKED_FILE, RevocationList.MAX_CHARS)
-        val bytes = (body as? HttpResult.Body)?.bytes ?: return null
+        val bytes = (body as? HttpResult.Body)?.bytes ?: return stored
         val signature = (http.get(base + REVOKED_FILE + SIGNATURE_SUFFIX, SourceKey.MAX_SIGNATURE_CHARS) as? HttpResult.Body)
-            ?.bytes?.decodeToString() ?: return null
-        if (!key.verifies(bytes, signature)) return null
-        val list = (RevocationList.parse(bytes.decodeToString()) as? ParseResult.Ok)?.value ?: return null
-        // An older list would un-revoke packages, so keep the newest one seen.
-        if (list.timestamp < state.lastRevokedTimestamp) return null
+            ?.bytes?.decodeToString() ?: return stored
+        if (!key.verifies(bytes, signature)) return stored
+        val list = (RevocationList.parse(bytes.decodeToString()) as? ParseResult.Ok)?.value ?: return stored
+        if (list.timestamp < state.lastRevokedTimestamp) return stored
         store.cache(base, "revoked", bytes.decodeToString())
         return list
     }

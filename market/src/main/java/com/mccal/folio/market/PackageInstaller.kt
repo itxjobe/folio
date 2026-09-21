@@ -113,6 +113,12 @@ class PackageInstaller(
                 }
             }
         }
+        // What the user was shown comes from the index's copy of the manifest, so the package has to be what that
+        // copy said: a mirror could otherwise label a tweak bundle "Appearance only" and have it applied anyway.
+        val shown = expected?.manifest
+        if (shown != null && (shown.kinds != pkg.manifest.kinds || shown.permissions != pkg.manifest.permissions)) {
+            return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
+        }
         if (expected != null && (expected.id != pkg.id || expected.version != pkg.version)) {
             return InstallResult.Failed(InstallResult.Reason.MISMATCH, "that package isn't the one the source listed")
         }
@@ -184,7 +190,6 @@ class PackageInstaller(
             installedAt = clock(),
             snapshots = snapshots,
         )
-        pinning?.let { (id, key) -> authors.remember(id, key) }
         // Nothing stays applied that Folio couldn't write down. A package on the Home screen and missing from the
         // list is one nobody can remove, so a store that won't write means the whole install is put back.
         if (!store.put(installed, changes = pkg.changes)) {
@@ -194,6 +199,8 @@ class PackageInstaller(
             safeMode.endChange()
             return InstallResult.Failed(InstallResult.Reason.APPLY, "Folio couldn't save that package, so nothing changed")
         }
+        // Only once the package is really on: a key remembered for an install that failed would own the id anyway.
+        pinning?.let { (id, key) -> authors.remember(id, key) }
         safeMode.endChange()
         return InstallResult.Installed(installed, replaced, pkg.notes)
     }
@@ -323,9 +330,20 @@ class PackageInstaller(
         // Newest first, for the same reason a package undoes its own changes in reverse: each snapshot is the Home
         // screen from before that package, so taking an older one off first would throw away everything stacked on
         // top of it and then put it back.
+        // This phone's own packages, kept so a restore that fails after they come off can put them back. Without it
+        // the caller said "this phone's were left as they are" about packages that were already gone.
+        val mine = store.readBackup(store.export())
         store.installed().reversed().forEach { remove(it.id) }
         putLayoutBack()
-        store.restore(backup)
+        try {
+            store.restore(backup)
+        } catch (e: Exception) {
+            mine?.let { own ->
+                runCatching { store.restore(own) }
+                own.wasOn.forEach { runCatching { enable(it) } }
+            }
+            throw e
+        }
         val on = mutableListOf<InstalledPackage>()
         val failed = mutableListOf<InstalledPackage>()
         for (id in backup.wasOn) {
