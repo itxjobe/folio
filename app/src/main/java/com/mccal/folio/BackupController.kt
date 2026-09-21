@@ -121,7 +121,9 @@ class BackupController(
                 // The packages are put back around the layout, not after it: what a package replaced has to be the
                 // layout it was applied over. `:market` owns that order, so the layout goes back inside its call.
                 var changed = false
-                val putLayoutBack = { changed = model.applyImportedLayout(imported) }
+                // Taken before the Market removes anything, so Undo and Layout History hold the Home the user had.
+                val before = model.state.value
+                val putLayoutBack = { changed = model.applyImportedLayout(imported, before) }
                 val packages = if (marketOpen) imported.packages else null
                 val restored = runCatching { market.restorePackages(packages, PACKAGE_LEFT_OFF, putLayoutBack) }.getOrElse {
                     // The Market failing is no reason to lose the layout the user asked for.

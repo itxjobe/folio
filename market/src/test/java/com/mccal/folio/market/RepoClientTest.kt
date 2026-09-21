@@ -2,6 +2,7 @@ package com.mccal.folio.market
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -179,7 +180,10 @@ class RepoClientTest {
     @Test fun `T3 a source frozen past maxAge is refused`() {
         publish(hostedIndex(), timestamp = now - 100, maxAge = 3600)
         assertTrue(refresh() is RefreshResult.Updated)
+        assertFalse(client.isStale(base))
         now += 7200
+        // Still there to browse, but nothing is installed from a list past its maxAge.
+        assertTrue(client.isStale(base))
         val failed = failure(refresh())
         assertEquals(RefreshResult.Reason.EXPIRED, failed.reason)
         assertNotNull(failed.cached)

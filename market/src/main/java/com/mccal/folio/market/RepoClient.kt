@@ -247,6 +247,12 @@ class RepoClient(
         .put("index", JSONObject().put("path", entry.index.path).put("sha256", entry.index.sha256).put("size", entry.index.size))
         .toString()
 
+    /** True when the signed list Folio has for this source is past its `maxAge` (T3). */
+    fun isStale(url: String): Boolean {
+        val signed = cachedSnapshot(url)?.entry ?: return false
+        return clock() > signed.staleAfter
+    }
+
     /** The last good copy, so the store keeps working offline and a failed refresh changes nothing. */
     fun cachedSnapshot(url: String): SourceSnapshot? {
         val base = normalizeSourceUrl(url)

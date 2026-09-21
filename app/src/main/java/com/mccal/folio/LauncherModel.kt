@@ -666,15 +666,20 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         commitLayout(com.mccal.folio.moveFolderApp(mutable.value.layout, folderId, appId, index))
     fun folder(id: String) = mutable.value.layout.folder(id)
 
-    fun applyImportedLayout(preview: LayoutImportPreview): Boolean {
+    /**
+     * [before] is the Home the user had when they chose to restore. It differs from the current state when the Market
+     * has already taken this phone's packages off, and it is what Layout History and Undo should give back.
+     */
+    fun applyImportedLayout(preview: LayoutImportPreview, before: LauncherState? = null): Boolean {
         if (statePayloadInvalid) return false
         val old = mutable.value
+        val kept = before ?: old
         if (old.layout == preview.layout && old.compact == preview.compact && old.expanded == preview.expanded &&
             old.labels == preview.labels && old.googleSearch == preview.googleSearch && old.verticalStatus == preview.verticalStatus &&
             old.appNames + preview.appNames == old.appNames) return false
-        saveLayoutSnapshot("Before restoring a backup")
-        undoLayout = old.layout to preview.layout
-        undoImportSettings = UndoImportSettings(old.compact, old.expanded, old.labels, old.googleSearch, old.verticalStatus)
+        if (old.layoutHistory && !old.loading) LayoutHistory.add(getApplication(), "Before restoring a backup", kept.layout)
+        undoLayout = kept.layout to preview.layout
+        undoImportSettings = UndoImportSettings(kept.compact, kept.expanded, kept.labels, kept.googleSearch, kept.verticalStatus)
         // A restored name replaces the one on this phone; names this backup says nothing about are left alone.
         val names = old.appNames + preview.appNames
         mutable.value = old.copy(appNames = names, apps = old.apps.withAppNames(names),
