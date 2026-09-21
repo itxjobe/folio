@@ -38,8 +38,15 @@ VERSION = 1           # a fixed last day, decided here
 VERSION_MONTHS = 2    # months counted from the day the code is redeemed (months and tier share one byte)
 
 
+# The passphrase reaches openssl through its environment, never its arguments: anything on the command line shows in
+# `ps` to every user on the Mac for as long as the command runs.
+PHRASE_VAR = "FOLIO_OPENSSL_PHRASE"
+_phrase_env = {}
+
+
 def run(args, stdin=None):
-    done = subprocess.run(args, input=stdin, capture_output=True)
+    env = {**os.environ, **_phrase_env} if _phrase_env else None
+    done = subprocess.run(args, input=stdin, capture_output=True, env=env)
     if done.returncode != 0:
         sys.exit(done.stderr.decode().strip() or f"{args[0]} failed")
     return done.stdout
@@ -56,7 +63,8 @@ def passin(path):
     if not encrypted(path):
         return []
     phrase = os.environ.get("FOLIO_KEY_PASSPHRASE") or getpass.getpass(f"Passphrase for {path}: ")
-    return ["-passin", "pass:" + phrase]
+    _phrase_env[PHRASE_VAR] = phrase
+    return ["-passin", "env:" + PHRASE_VAR]
 
 
 def ask_new_passphrase(path):
@@ -77,12 +85,13 @@ def protect(path):
     if encrypted(path):
         sys.exit(f"{path} is already encrypted")
     phrase = ask_new_passphrase(path)
+    _phrase_env[PHRASE_VAR] = phrase
     temporary = path + ".encrypted"
     run(["openssl", "pkcs8", "-topk8", "-v2", "aes-256-cbc", "-in", path, "-out", temporary,
-         "-passout", "pass:" + phrase])
+         "-passout", "env:" + PHRASE_VAR])
     os.chmod(temporary, 0o600)
     # Prove the new file opens before the old one goes: a passphrase typed wrong twice would lose the key.
-    run(["openssl", "ec", "-in", temporary, "-noout", "-passin", "pass:" + phrase])
+    run(["openssl", "ec", "-in", temporary, "-noout", "-passin", "env:" + PHRASE_VAR])
     os.replace(temporary, path)
     print(f"{path} is encrypted now. Put the passphrase in your password manager; there is no way back without it.")
 

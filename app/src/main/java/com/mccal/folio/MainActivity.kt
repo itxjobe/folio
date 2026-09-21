@@ -509,8 +509,9 @@ class MainActivity : ComponentActivity() {
         FoldRenderExperiment.onNewIntent(this, intent)
         updateDefaultHome()
         if (intent.getStringExtra("duo_destination") == "search") searchRequests.intValue++
+        // One chain: tapping Folio's icon opens Settings *or* goes Home, never both.
         if (opensSettings(intent)) { SoftwareUpdate.openRequested = intent.getBooleanExtra(SoftwareUpdate.EXTRA_OPEN_UPDATE, false); settingsRequests.intValue++ }
-        if (takeMarketLink(intent)) settingsRequests.intValue++
+        else if (takeMarketLink(intent)) settingsRequests.intValue++
         else if (intent.hasCategory(Intent.CATEGORY_HOME) || fromAppIcon(intent) || intent.getStringExtra("duo_destination") == "home") {
             closeEverything(); homeRequests.intValue++
         }

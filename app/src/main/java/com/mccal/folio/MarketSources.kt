@@ -34,6 +34,12 @@ internal data class MarketEntry(
      */
     val clash: Impostor? = null,
 ) {
+    /**
+     * This listing, not just its id: two sources can list one id, and a sheet that looked the id back up got whichever
+     * source came first rather than the row that was tapped.
+     */
+    val listingKey: String get() = source.url + "\n" + entry.id
+
     enum class Impostor {
         /** It claims an id that belongs to a package inside Folio. There's no honest reason to do that. */
         BUILT_IN,
@@ -175,8 +181,19 @@ internal class MarketSources(
      * the same client, the same byte cap and the same rules as everything else. [maxBytes] is what the index
      * promised, so a source can't grow a download after the fact.
      */
+    /**
+     * True when this source's signed list is past its `maxAge` (T3). It can still be browsed offline, but nothing is
+     * installed from it: a host that simply stops answering would otherwise keep a frozen list, and every revocation
+     * it never delivered, installable for ever.
+     */
+    private fun stale(source: Source): Boolean {
+        if (source.kind == Source.Kind.BUILT_IN || source.kind == Source.Kind.LOCAL_DEV) return false
+        return client.isStale(source.url)
+    }
+
     suspend fun fetch(source: Source, url: String, maxBytes: Int, onProgress: (Long, Long) -> Unit): ByteArray? =
         withContext(io) {
+            if (stale(source)) return@withContext null
             val full = if (url.startsWith("https://")) url else source.url + url
             (http.get(full, maxBytes, onProgress) as? HttpResult.Body)?.bytes
         }
@@ -189,6 +206,9 @@ internal class MarketSources(
         onProgress: (Long, Long) -> Unit = { _, _ -> },
         onApplying: () -> Unit = {},
     ): InstallResult = withContext(io) {
+        if (stale(source)) {
+            return@withContext InstallResult.Failed(InstallResult.Reason.ARCHIVE, "that source's list is too old to install from, so refresh it first")
+        }
         val url = entry.url ?: return@withContext InstallResult.Failed(InstallResult.Reason.ARCHIVE, "that package has nowhere to download from")
         val size = entry.size ?: return@withContext InstallResult.Failed(InstallResult.Reason.SIZE, "that package didn't say how big it is")
         val full = if (url.startsWith("https://")) url else source.url + url

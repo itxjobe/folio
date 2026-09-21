@@ -1227,6 +1227,7 @@
     <string name="installing_1_s">Installing %1$s</string>
     <string name="text_1_s_was_pulled_by_its_source_2_s">%1$s was pulled by its source: %2$s</string>
     <string name="text_1_s_offers_this_under_a_name">%1$s offers this under a name that belongs to one of Folio\'s own packages</string>
+    <string name="that_file_uses_a_name_that_belongs">That file uses a name that belongs to one of Folio\'s own packages.</string>
     <string name="folio_couldn_t_find_that_package">Folio couldn\'t find that package</string>
     <string name="folio_stopped_twice_just_after_this_package">Folio stopped twice just after this package changed, so it\'s off. Your settings are kept.</string>
     <string name="folio_couldn_t_finish_that_install">Folio couldn\'t finish that install</string>

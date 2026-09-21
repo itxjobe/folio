@@ -142,6 +142,19 @@ internal class MarketSession(
 
     /** Installs a file someone opened. It's recorded as coming from a file, not from a source. */
     suspend fun installFile(bytes: ByteArray): InstallResult = withContext(io) {
+        // A file gets the same two refusals a source's listing does, before its signature can pin a key to the id.
+        val pkg = (installer.read(bytes) as? PackageInstaller.ReadResult.Ok)?.pkg
+        if (pkg != null) {
+            if (source.filesFor(pkg.id) != null) return@withContext InstallResult.Failed(
+                InstallResult.Reason.MISMATCH, appContext.getString(R.string.that_file_uses_a_name_that_belongs),
+            )
+            val revoked = sources.cached().firstNotNullOfOrNull { it.snapshot?.revocation?.reasonFor(pkg.id, pkg.version) }
+            if (revoked != null) return@withContext InstallResult.Failed(
+                // The same words as a pulled package from a source's list, so the two refusals read alike.
+                InstallResult.Reason.REVOKED,
+                appContext.getString(R.string.text_1_s_was_pulled_by_its_source_2_s, pkg.manifest.name.english, revoked),
+            )
+        }
         installer.install(bytes, origin = InstalledPackage.Origin.FILE)
     }
 

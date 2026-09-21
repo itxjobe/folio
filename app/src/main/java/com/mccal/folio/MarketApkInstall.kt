@@ -8,7 +8,8 @@ import android.content.pm.PackageInstaller
 import com.mccal.folio.market.IndexPackage
 import com.mccal.folio.market.Source
 import kotlinx.coroutines.flow.MutableStateFlow
-import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Installing an app from the Market, the way Sileo does it: the store downloads, checks, and hands it over,
@@ -66,8 +67,11 @@ internal object MarketApkInstall {
      * check it against. A listing with no checksum is never installed, whatever the setting says - there would
      * be nothing to compare the download with.
      */
-    fun canInstall(source: Source, entry: IndexPackage, on: Boolean): Boolean =
-        on && entry.url != null && entry.sha256 != null && source.kind != Source.Kind.BUILT_IN
+    fun canInstall(source: Source, entry: IndexPackage, on: Boolean, revoked: Boolean = false): Boolean =
+        // Not a local source: it's unsigned plain http, so any app on the phone listening on that port could name an
+        // APK and its checksum. Not a pulled listing either, whatever the button showed.
+        on && !revoked && entry.url != null && entry.sha256 != null &&
+            source.kind != Source.Kind.BUILT_IN && source.kind != Source.Kind.LOCAL_DEV
 
     /**
      * Downloads the APK, checks it against the checksum the index promised, and hands it to Android.
@@ -86,18 +90,15 @@ internal object MarketApkInstall {
         status.value = Status.Working(name)
         val bytes = fetch(url) { read, total -> MarketWork.downloaded(read, total) }
             ?: return fail(context, R.string.folio_couldn_t_download_that_app)
-        if (!sha256(bytes).equals(expected, ignoreCase = true)) {
-            return fail(context, R.string.that_app_didn_t_match_what_its_source)
-        }
+        // Hashing and copying up to 20 MB happen off the main thread: MarketWork runs on it, and only the fetch moved.
+        val matches = withContext(Dispatchers.Default) { sha256(bytes).equals(expected, ignoreCase = true) }
+        if (!matches) return fail(context, R.string.that_app_didn_t_match_what_its_source)
         MarketWork.applying()
-        val apk = File(context.cacheDir, "market-install.apk")
         return runCatching {
-            apk.writeBytes(bytes)
-            hand(context, apk)
+            withContext(Dispatchers.IO) { hand(context, bytes) }
             status.value = Status.Handed(name)
             true
         }.getOrElse {
-            runCatching { apk.delete() }
             fail(context, R.string.folio_couldn_t_hand_that_app_to_android)
         }
     }
@@ -110,7 +111,8 @@ internal object MarketApkInstall {
         return false
     }
 
-    private fun hand(context: Context, apk: File) {
+    /** Written straight into the install session: the checked bytes, with no copy on disk anyone could swap. */
+    private fun hand(context: Context, apk: ByteArray) {
         val installer = context.packageManager.packageInstaller
         // No `setAppPackageName` and no `USER_ACTION_NOT_REQUIRED`: this is somebody else's app, so Android asks,
         // and Folio does not get to say which package these bytes claim to be.
@@ -118,11 +120,9 @@ internal object MarketApkInstall {
         val sessionId = installer.createSession(params)
         try {
             installer.openSession(sessionId).use { session ->
-                apk.inputStream().use { input ->
-                    session.openWrite("package.apk", 0, apk.length()).use { out ->
-                        input.copyTo(out)
-                        session.fsync(out)
-                    }
+                session.openWrite("package.apk", 0, apk.size.toLong()).use { out ->
+                    out.write(apk)
+                    session.fsync(out)
                 }
                 val pending = PendingIntent.getBroadcast(
                     context, sessionId, Intent(context, MarketInstallReceiver::class.java),
@@ -133,8 +133,6 @@ internal object MarketApkInstall {
         } catch (error: Exception) {
             runCatching { installer.abandonSession(sessionId) }
             throw error
-        } finally {
-            runCatching { apk.delete() }
         }
     }
 }

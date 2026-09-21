@@ -188,9 +188,9 @@ internal fun MarketScreen(
      */
     fun onExternalOrConfirm(entry: MarketEntry) {
         val manifest = entry.entry.manifest
-        if (!MarketExternalApp.isExternal(manifest)) { confirming = entry.id; return }
+        if (!MarketExternalApp.isExternal(manifest)) { confirming = entry.listingKey; return }
         val already = MarketExternalApp.installedAppId(appContext, manifest)
-        if (already != null) MarketExternalApp.open(context, already, returns) else choosing = entry.id
+        if (already != null) MarketExternalApp.open(context, already, returns) else choosing = entry.listingKey
     }
 
     // What finished while nobody was looking. Closing the Market during a download used to lose the message and the
@@ -287,7 +287,8 @@ internal fun MarketScreen(
         val bytes = MarketImport.pending
         MarketImport.pending = null
         if (bytes != null) {
-            when (val read = session.read(bytes)) {
+            // Unzipped off the main thread, like every other read here: a big package froze Home before its sheet.
+            when (val read = withContext(session.io) { session.read(bytes) }) {
                 is com.mccal.folio.market.PackageInstaller.ReadResult.Ok -> importing = bytes to read.pkg
                 is com.mccal.folio.market.PackageInstaller.ReadResult.NeedsNewerFolio ->
                     say(context.getString(R.string.that_package_needs_a_newer_folio))
@@ -576,20 +577,20 @@ internal fun MarketScreen(
                 }
             }
         }
-        choosing?.let { id ->
-            entries.firstOrNull { it.id == id }?.entry?.manifest?.let { manifest ->
+        choosing?.let { key ->
+            entries.firstOrNull { it.listingKey == key }?.entry?.manifest?.let { manifest ->
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { choosing = null }) {
                     Box(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(Color(0xFF1C1C1E))
                             .clickable(enabled = false) {},
                     ) {
-                        val listing = entries.first { it.id == id }
+                        val listing = entries.first { it.listingKey == key }
                         MarketExternalSheet(
                             manifest = manifest,
                             signed = listing.source.kind != Source.Kind.LOCAL_DEV,
                             onInstallHere = if (
-                                MarketApkInstall.canInstall(listing.source, listing.entry, session.prefs.installApps)
+                                MarketApkInstall.canInstall(listing.source, listing.entry, session.prefs.installApps, listing.revokedReason != null)
                             ) {
                                 { choosing = null; installApp(listing) }
                             } else {
@@ -608,8 +609,8 @@ internal fun MarketScreen(
                 }
             }
         }
-        confirming?.let { id ->
-            entries.firstOrNull { it.id == id }?.let { entry ->
+        confirming?.let { key ->
+            entries.firstOrNull { it.listingKey == key }?.let { entry ->
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f)).clickable { confirming = null }) {
                     Box(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth()
