@@ -146,11 +146,13 @@ internal class MarketSession(
         val pkg = (installer.read(bytes) as? PackageInstaller.ReadResult.Ok)?.pkg
         if (pkg != null) {
             if (source.filesFor(pkg.id) != null) return@withContext InstallResult.Failed(
-                InstallResult.Reason.MISMATCH, "that file uses a name that belongs to one of Folio's own packages",
+                InstallResult.Reason.MISMATCH, appContext.getString(R.string.that_file_uses_a_name_that_belongs),
             )
             val revoked = sources.cached().firstNotNullOfOrNull { it.snapshot?.revocation?.reasonFor(pkg.id, pkg.version) }
             if (revoked != null) return@withContext InstallResult.Failed(
-                InstallResult.Reason.REVOKED, "${pkg.manifest.name.english} was pulled: $revoked",
+                // The same words as a pulled package from a source's list, so the two refusals read alike.
+                InstallResult.Reason.REVOKED,
+                appContext.getString(R.string.text_1_s_was_pulled_by_its_source_2_s, pkg.manifest.name.english, revoked),
             )
         }
         installer.install(bytes, origin = InstalledPackage.Origin.FILE)
