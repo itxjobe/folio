@@ -69,6 +69,25 @@ class MarketScreenRenderTest {
         compose.onNodeWithText("Undo").assertExists()
     }
 
+    @Test fun `a message with Undo stays, and a plain one goes away by itself`() {
+        val session = session()
+        session.prefs.introductionSeen = true
+        session.installed().forEach { session.remove(it.id) }
+        compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
+        compose.onNodeWithTag("market-tab-packages").performClick()
+        compose.onNodeWithContentDescription("Get Cabinet").performClick()
+        compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
+        awaitText("Cabinet is on")
+        // Dismissing Undo is what ends the chance to undo, so it waits for that rather than a clock.
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.onNodeWithText("Undo").assertExists()
+        // Removing says so with a plain message, which leaves on its own.
+        compose.onNodeWithContentDescription("Remove Cabinet").performClick()
+        awaitText("Cabinet removed")
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Cabinet removed").fetchSemanticsNodes().isEmpty() }
+    }
+
     @Test fun `a package Safe Mode turned off says so, and Try Again puts it back`() {
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val launcher = NoopLauncher()

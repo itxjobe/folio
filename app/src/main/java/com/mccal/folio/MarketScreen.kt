@@ -441,6 +441,20 @@ internal fun MarketScreen(
                     }
                 }
             }
+            // A plain message goes away by itself, as an iOS banner does; it used to stay until tapped or replaced,
+            // so "Keyd updated" could sit over the page for as long as the store was open. One with Undo stays until
+            // it's dismissed or replaced, because dismissing it is what ends the chance to undo. The time is
+            // Android's recommended one, which is longer for someone using TalkBack or a longer timeout setting.
+            val a11y = remember { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java) }
+            LaunchedEffect(message, undo) {
+                if (message != null && undo == null) {
+                    val wait = a11y?.getRecommendedTimeoutMillis(
+                        MESSAGE_MILLIS, android.view.accessibility.AccessibilityManager.FLAG_CONTENT_TEXT,
+                    ) ?: MESSAGE_MILLIS
+                    kotlinx.coroutines.delay(wait.toLong())
+                    message = null
+                }
+            }
             message?.let { text ->
                 MarketMessage(
                     text = text,
@@ -570,6 +584,7 @@ internal fun MarketScreen(
                         val listing = entries.first { it.id == id }
                         MarketExternalSheet(
                             manifest = manifest,
+                            signed = listing.source.kind != Source.Kind.LOCAL_DEV,
                             onInstallHere = if (
                                 MarketApkInstall.canInstall(listing.source, listing.entry, session.prefs.installApps)
                             ) {
@@ -1216,6 +1231,9 @@ private fun MarketMessage(text: String, undo: (() -> Unit)?, onDismiss: () -> Un
         }
     }
 }
+
+/** How long a plain message stays, before Android lengthens it for anyone who needs longer. */
+private const val MESSAGE_MILLIS = 4_000
 
 /** What Folio can do today, for the "Needs a newer Folio" check. Kept next to the screen that shows it. */
 internal val MARKET_CAPABILITIES: Set<Capability> = MarketHost(NoLauncher).capabilities

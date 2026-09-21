@@ -37,6 +37,11 @@ internal fun MarketExternalSheet(
     manifest: PackageManifest,
     /** Folio's own install, when the setting allows it and the listing carries an APK. */
     onInstallHere: (() -> Unit)? = null,
+    /**
+     * Whether the listing came from a signed source. A Local Dev source is unsigned, so "the checksum its source
+     * signed" would be untrue there: the checksum is still checked, but nothing vouches for the list it came in.
+     */
+    signed: Boolean = true,
     onPick: (ExternalSource) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -97,8 +102,11 @@ internal fun MarketExternalSheet(
         // or, when Folio can install it, what Folio checks and what it can't.
         Text(
             stringResource(
-                if (here) R.string.folio_checks_the_download_against_the
-                else R.string.folio_never_downloads_or_installs_an_app,
+                when {
+                    !here -> R.string.folio_never_downloads_or_installs_an_app
+                    signed -> R.string.folio_checks_the_download_against_the
+                    else -> R.string.folio_checks_the_download_unsigned
+                },
             ),
             color = Color.White.copy(alpha = .55f), fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp),
         )

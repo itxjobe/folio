@@ -907,6 +907,7 @@
     <string name="folio_downloads_it_and_android_asks">Folio downloads it and Android asks before installing</string>
     <string name="android_is_installing_1_s">Android is installing %1$s</string>
     <string name="install_it_with_folio_or_get_it_from">Install it with Folio, or get it from a store you already use.</string>
+    <string name="folio_checks_the_download_unsigned">Folio checks the download against the checksum this source lists. The source is unsigned, so nothing vouches for that list: only install from it if you are the one serving it. Android asks before installing, and names the app itself.</string>
     <string name="folio_checks_the_download_against_the">Folio checks the download against the checksum its source signed. Android asks before installing, and names the app itself.</string>
     <string name="text_1_s_is_installed">%1$s is installed</string>
     <string name="installing_apps">Installing apps</string>
