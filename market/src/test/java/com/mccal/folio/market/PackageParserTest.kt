@@ -35,7 +35,7 @@ class PackageParserTest {
         assertEquals(setOf(PackageKind.TWEAK_BUNDLE), m.kinds)
         assertEquals(setOf(PackagePermission.TWEAKS), m.permissions)
         assertEquals(setOf(Capability.APP_PANELS), m.requiredFeatures)
-        assertEquals(FolioVersion(0, 7, 0), m.minFolio)
+        assertEquals(FolioVersion(0, 6, 6), m.minFolio)
         assertEquals("https://github.com/McCal-Codes/folio", m.author.url)
         assertEquals(setOf(Capability.APP_PANELS), m.missingCapabilities(setOf(Capability.THEME)))
         assertTrue(m.missingCapabilities(Capability.entries.toSet()).isEmpty())
