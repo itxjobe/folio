@@ -152,6 +152,10 @@ fun LauncherScreen(
     var pinQuery by rememberSaveable { mutableStateOf("") }
     val launcherActivity = androidx.activity.compose.LocalActivity.current as MainActivity
     val launcherRootView = LocalView.current.rootView
+    val marketSession = remember(model) { MarketSession(launcherActivity, ModelLauncher(model)) }
+    // Package Safe Mode: runs as Home starts, so a package that crashed Folio while it was being applied is turned off
+    // on the next launch. Asked only when the Market opened, the minute-long marker had always expired by then.
+    LaunchedEffect(marketSession) { marketSession.noteCrash() }
     DisposableEffect(sheet == "widgets") {
         val active = sheet == "widgets"
         if (active) LiveDiscover.setExternalResultPending(launcherActivity, "main", "widget-picker", true)
@@ -973,8 +977,6 @@ fun LauncherScreen(
                           }
                           if (sheet == "market") {
                               // The Market lives here, so its Settings tab is Folio's own Settings rather than a jump.
-                              val marketSession = remember(model) { MarketSession(launcherActivity, ModelLauncher(model)) }
-                              LaunchedEffect(marketSession) { marketSession.noteCrash() }
                               MarketScreen(marketSession, state.installedTweaks, onClose = { sheet = "" },
                                   settingsContent = { settingsSheet("market") })
                           } else {

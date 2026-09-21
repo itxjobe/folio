@@ -168,6 +168,14 @@ class RepoClientTest {
         assertEquals(RefreshResult.Reason.ROLLBACK, failure(refresh()).reason)
     }
 
+    @Test fun `T2 re-adding a source with the key it already has keeps its rollback floor`() {
+        refresh()
+        assertTrue("already trusted, so nothing to confirm", client.readKey(base) !is RefreshResult.NeedsTrust)
+        client.trust(base, key)
+        publish(hostedIndex(), timestamp = now - 10_000)
+        assertEquals(RefreshResult.Reason.ROLLBACK, failure(refresh()).reason)
+    }
+
     @Test fun `T3 a source frozen past maxAge is refused`() {
         publish(hostedIndex(), timestamp = now - 100, maxAge = 3600)
         assertTrue(refresh() is RefreshResult.Updated)
@@ -186,6 +194,7 @@ class RepoClientTest {
         assertEquals(RefreshResult.Reason.KEY_MISMATCH, failure(refresh()).reason)
         // A source that rotates its key: the user confirms the new fingerprint, and pinning resets the rollback floor.
         val rotated = keyOf(attacker)
+        source.files[base + "key.pub"] = rotated.base64.toByteArray()
         assertEquals(key, (client.readKey(base) as RefreshResult.NeedsTrust).previous)
         client.trust(base, rotated)
         publish(hostedIndex(), pair = attacker, keyId = rotated.keyId)
@@ -209,11 +218,15 @@ class RepoClientTest {
         // "*" covers every version.
         publishRevocations("""{"format":1,"timestamp":${now - 20},"packages":[{"id":"$CABINET","versions":["*"],"reason":"Test: every version"}]}""")
         assertEquals("Test: every version", (refresh() as RefreshResult.Unchanged).snapshot.let { it.revokedReason(it.cabinet()) })
-        // An unsigned or older list is ignored rather than trusted.
+        // An unsigned, older or missing list is ignored, and the newest one Folio has keeps applying.
+        fun stillRevoked() = assertEquals("Test: every version", (refresh() as RefreshResult.Unchanged).snapshot.let { it.revokedReason(it.cabinet()) })
         source.files[base + "revoked.json.sig"] = "not a signature".toByteArray()
-        assertNull((refresh() as RefreshResult.Unchanged).snapshot.revocation)
+        stillRevoked()
         publishRevocations("""{"format":1,"timestamp":${now - 40_000},"packages":[]}""")
-        assertNull((refresh() as RefreshResult.Unchanged).snapshot.revocation)
+        stillRevoked()
+        source.files.remove(base + "revoked.json")
+        stillRevoked()
+        assertEquals("Test: every version", client.cachedSnapshot(base)!!.let { it.revokedReason(it.cabinet()) })
         // A source listed in a trusted source's revocation list is dropped before Folio even calls it.
         val known = (RevocationList.parse("""{"format":1,"timestamp":$now,"packages":[],"sources":[{"url":"$base","reason":"Test: hosts malware"}]}""") as ParseResult.Ok).value
         val failed = failure(refresh(revocations = known))

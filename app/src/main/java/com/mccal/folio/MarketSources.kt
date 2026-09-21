@@ -34,6 +34,12 @@ internal data class MarketEntry(
      */
     val clash: Impostor? = null,
 ) {
+    /**
+     * This listing, not just its id: two sources can list one id, and a sheet that looked the id back up got whichever
+     * source came first rather than the row that was tapped.
+     */
+    val listingKey: String get() = source.url + "\n" + entry.id
+
     enum class Impostor {
         /** It claims an id that belongs to a package inside Folio. There's no honest reason to do that. */
         BUILT_IN,

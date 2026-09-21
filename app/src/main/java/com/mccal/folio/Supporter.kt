@@ -155,7 +155,9 @@ internal object Supporter {
         if (result !is BetaCodes.Result.Valid) return result
         val code = result.code
         if (code.expired(judged, window(context, code, clock))) return BetaCodes.Result.Expired(code)
-        val first = stored(context) == null
+        // "First" means no working code, not no stored text: a supporter whose months ran out and who redeems a new
+        // code gets Beta and the supporter source like anyone new, rather than keeping a Market that stays shut.
+        val first = code(context, today, keys) == null
         checked = null
         context.getSharedPreferences(PREFS, 0).edit().putString(CODE, BetaCodes.group(text)).apply()
         if (first && BetaCodes.SCOPE_BETA in code.scopes) {

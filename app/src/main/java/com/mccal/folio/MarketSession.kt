@@ -139,6 +139,17 @@ internal class MarketSession(
 
     /** Installs a file someone opened. It's recorded as coming from a file, not from a source. */
     suspend fun installFile(bytes: ByteArray): InstallResult = withContext(io) {
+        // A file gets the same two refusals a source's listing does, before its signature can pin a key to the id.
+        val pkg = (installer.read(bytes) as? PackageInstaller.ReadResult.Ok)?.pkg
+        if (pkg != null) {
+            if (source.filesFor(pkg.id) != null) return@withContext InstallResult.Failed(
+                InstallResult.Reason.MISMATCH, "that file uses a name that belongs to one of Folio's own packages",
+            )
+            val revoked = sources.cached().firstNotNullOfOrNull { it.snapshot?.revocation?.reasonFor(pkg.id, pkg.version) }
+            if (revoked != null) return@withContext InstallResult.Failed(
+                InstallResult.Reason.REVOKED, "${pkg.manifest.name.english} was pulled: $revoked",
+            )
+        }
         installer.install(bytes, origin = InstalledPackage.Origin.FILE)
     }
 

@@ -42,11 +42,15 @@ class MarketApkInstallTest {
     @Test fun `a source the user added may offer an app`() {
         // The earlier draft allowed only sources whose key ships in Folio. McCal chose Cydia's bargain instead:
         // you chose the source, so you chose what it may hand you.
-        for (kind in listOf(Source.Kind.ADDED, Source.Kind.SUPPORTER, Source.Kind.LOCAL_DEV)) {
+        for (kind in listOf(Source.Kind.ADDED, Source.Kind.SUPPORTER)) {
             assertTrue("$kind", MarketApkInstall.canInstall(Source("https://x.example/", kind = kind), entry(), on = true))
         }
         // Except Folio's own, which is inside the APK and has nothing to download.
         assertFalse(MarketApkInstall.canInstall(Source("built-in", kind = Source.Kind.BUILT_IN), entry(), on = true))
+        // And a local source, which is unsigned http any app on the phone could answer.
+        assertFalse(MarketApkInstall.canInstall(Source("http://localhost:8787/", kind = Source.Kind.LOCAL_DEV), entry(), on = true))
+        // And a listing its source pulled.
+        assertFalse(MarketApkInstall.canInstall(Source("https://x.example/", kind = Source.Kind.ADDED), entry(), on = true, revoked = true))
     }
 
     @Test fun `a listing with no checksum is never installed, whatever the setting says`() {

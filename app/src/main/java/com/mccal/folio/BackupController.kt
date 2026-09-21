@@ -79,7 +79,7 @@ class BackupController(
 
     fun startExport(fileName: String = "folio-layout.json") {
         val state = model.state.value
-        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
+        val raw = runCatching { encodeBackup(state) }.getOrElse {
             errorMessage = it.message ?: "Layout backup could not be prepared."; return
         }
         begin(OP_EXPORT, raw)
@@ -90,7 +90,7 @@ class BackupController(
     /** Saves a backup straight to Download/Folio, no picker. */
     fun saveToFolioFolder(name: String? = null) {
         val state = model.state.value
-        val raw = runCatching { encodeLayoutBackup(state, widgetDescriptors(state), scope, savedPackages()) }.getOrElse {
+        val raw = runCatching { encodeBackup(state) }.getOrElse {
             errorMessage = it.message ?: "Layout backup could not be prepared."; return
         }
         val name = FolioFiles.fileName(name, "folio-layout")
@@ -142,6 +142,19 @@ class BackupController(
         OP_EXPORT -> runCatching { createDocument.launch("folio-layout.json") }.isSuccess
         OP_IMPORT -> runCatching { openDocument.launch(arrayOf("application/json", "text/json", "text/plain")) }.isSuccess
         else -> false
+    }
+
+    /**
+     * The backup, with this phone's packages when they fit. A wallpaper package carries its whole image, so one big one
+     * pushed the file past 2 MB and no layout backup could be made at all; the layout alone is still worth saving.
+     */
+    private fun encodeBackup(state: LauncherState): String {
+        val descriptors = widgetDescriptors(state)
+        val packages = savedPackages()
+        return runCatching { encodeLayoutBackup(state, descriptors, scope, packages) }.getOrElse { error ->
+            if (packages == null) throw error
+            encodeLayoutBackup(state, descriptors, scope, null)
+        }
     }
 
     /** What this phone has installed from the Market, for the backup to carry. */
