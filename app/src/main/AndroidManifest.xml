@@ -66,7 +66,7 @@
         <activity android:name=".DiscoverFeedActivity" android:theme="@style/Theme.Duo.Discover" android:exported="false" android:resizeableActivity="true" />
         <activity android:name=".LiveDiscoverActivity" android:theme="@style/Theme.Duo.LiveDiscover"
             android:exported="false" android:resizeableActivity="true" />
-        <service android:name=".DuneWallpaperService" android:label="Folio dunes"
+        <service android:name=".DuneWallpaperService" android:label="@string/label_dune_wallpaper"
             android:permission="android.permission.BIND_WALLPAPER" android:exported="true">
             <intent-filter><action android:name="android.service.wallpaper.WallpaperService" /></intent-filter>
             <meta-data android:name="android.service.wallpaper" android:resource="@xml/dune_wallpaper" />
@@ -85,7 +85,7 @@
             android:taskAffinity="com.mccal.folio.foldbridge" android:excludeFromRecents="true"
             android:noHistory="true" android:resizeableActivity="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|density" />
-        <service android:name=".IslandListenerService" android:label="Folio island"
+        <service android:name=".IslandListenerService" android:label="@string/label_island_listener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
         </service>
@@ -170,7 +170,7 @@
              doesn't show up under "Open with" for every JSON file. -->
         <activity android:name=".ThemeImportActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.theme" android:noHistory="true"
-            android:label="Folio Theme">
+            android:label="@string/label_theme_import">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -180,7 +180,7 @@
         <!-- A .foliopkg file opened or shared with Folio. It's unsigned, so the Market says so before anything runs. -->
         <activity android:name=".PackageImportActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.package"
-            android:noHistory="true" android:label="Folio Package">
+            android:noHistory="true" android:label="@string/label_package_import">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -198,7 +198,7 @@
         <!-- folio://redeem?c=… from a supporter email: the code is checked on the phone, so a bad link is simply refused. -->
         <activity android:name=".RedeemActivity" android:exported="true" android:excludeFromRecents="true"
             android:theme="@style/Theme.Folio.FoldBridge" android:taskAffinity="com.mccal.folio.redeem" android:noHistory="true"
-            android:label="Folio supporter code">
+            android:label="@string/label_redeem">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -216,27 +216,27 @@
         </activity>
         <!-- Opens Folio's settings from Android's screens (Accessibility gear, tile long-press, wallpaper settings). -->
         <activity android:name=".FolioSettingsActivity" android:exported="true" android:excludeFromRecents="true"
-            android:noHistory="true" android:theme="@style/Theme.Folio.FoldBridge" android:label="Folio settings">
+            android:noHistory="true" android:theme="@style/Theme.Folio.FoldBridge" android:label="@string/label_settings_shortcut">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
         </activity>
         <!-- Quick Settings tiles -->
-        <service android:name=".SpotlightTileService" android:exported="true" android:label="Spotlight"
+        <service android:name=".SpotlightTileService" android:exported="true" android:label="@string/spotlight"
             android:icon="@drawable/ic_tile_search" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
-        <service android:name=".IslandTileService" android:exported="true" android:label="Island"
+        <service android:name=".IslandTileService" android:exported="true" android:label="@string/island"
             android:icon="@drawable/ic_tile_island" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
         </service>
-        <service android:name=".DockTileService" android:exported="true" android:label="Folio Dock"
+        <service android:name=".DockTileService" android:exported="true" android:label="@string/label_dock_tile"
             android:icon="@drawable/ic_tile_dock" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
         </service>
-        <service android:name=".StandByTileService" android:exported="true" android:label="StandBy"
+        <service android:name=".StandByTileService" android:exported="true" android:label="@string/standby"
             android:icon="@drawable/ic_tile_standby" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />

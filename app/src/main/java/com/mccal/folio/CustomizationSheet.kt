@@ -175,7 +175,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.AutoAwesome, 0xFFBF5AF2, stringResource(R.string.tweaks), "customization-tweaks",
-                            stringResource(R.string.count_installed, state.installedTweaks.size), selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
+                            pluralStringResource(R.plurals.count_installed, state.installedTweaks.size, state.installedTweaks.size), selected = selected == CustomizationPage.TWEAKS, chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
                         // The Market: Folio Dev shows it, and a supporter's code opens it (0.6.6).
                         if (MarketAccess.isOpen(sheetContext)) {
                             MenuDivider()
@@ -711,7 +711,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.Extension, 0xFFBF5AF2, stringResource(R.string.tweak_library), "tweak-library",
-                            stringResource(R.string.count_available, TweakFeatures.size - installed.size)) { onPage(CustomizationPage.TWEAK_LIBRARY) }
+                            (TweakFeatures.size - installed.size).let { pluralStringResource(R.plurals.count_available, it, it) }) { onPage(CustomizationPage.TWEAK_LIBRARY) }
                     }
                 }
                 CustomizationPage.TWEAK_LIBRARY -> TweakLibraryPage(state, model) { tweakId = it.id; onPage(CustomizationPage.LIBRARY_TWEAK) }
@@ -1616,7 +1616,7 @@ internal fun settingsMatches(query: String, title: String, keywords: String): Bo
         IosMenuRow(stringResource(R.string.rows), listOf(0 to stringResource(R.string.automatic_rows_count, state.homeAppRows), 4 to "4"), state.homeRows, model::setHomeRows, tag = "home-rows")
         CardNote(stringResource(R.string.automatic_adds_up_to_3_more_rows_of_apps))
         val rowsContext = androidx.compose.ui.platform.LocalContext.current
-        CardNote(automaticRowsNote(state) { id, args -> rowsContext.getString(id, *args) })
+        CardNote(automaticRowsNote(state, rowsContext.strings()))
     }
     SettingsCard(stringResource(R.string.position)) {
         IosMenuRow(stringResource(R.string.dock), listOf(DockPlacement.AUTOMATIC to stringResource(R.string.automatic), DockPlacement.SIDE to stringResource(R.string.side_rail), DockPlacement.BOTTOM to stringResource(R.string.bottom)),
@@ -2228,17 +2228,17 @@ internal fun releaseNoteLines(markdown: String): List<String> = markdown.lines()
     }
 
 /** Why Automatic landed on this many rows: which screens Folio has measured, and which one sets the limit. */
-internal fun automaticRowsNote(state: LauncherState, text: (Int, Array<out Any>) -> String): String {
+internal fun automaticRowsNote(state: LauncherState, strings: Strings): String {
     val cover = state.homeFitCompact
     val inner = state.homeFitExpanded
     return when {
-        state.homeRows > 0 -> text(R.string.rows_note_fixed, arrayOf(state.homeRows))
-        cover == 0 && inner == 0 -> text(R.string.rows_note_unmeasured, emptyArray())
-        inner == 0 -> text(R.string.rows_note_cover_only, arrayOf(cover))
-        cover == 0 -> text(R.string.rows_note_inner_only, arrayOf(inner))
-        cover == inner && cover < MAX_APP_ROWS -> text(R.string.rows_note_same, arrayOf(cover))
-        cover == inner -> text(R.string.rows_note_same_max, arrayOf(cover))
-        else -> text(R.string.rows_note_different, arrayOf(cover, inner, minOf(cover, inner)))
+        state.homeRows > 0 -> strings.plural(R.plurals.rows_note_fixed, state.homeRows, state.homeRows)
+        cover == 0 && inner == 0 -> strings.get(R.string.rows_note_unmeasured)
+        inner == 0 -> strings.get(R.string.rows_note_cover_only, cover)
+        cover == 0 -> strings.get(R.string.rows_note_inner_only, inner)
+        cover == inner && cover < MAX_APP_ROWS -> strings.plural(R.plurals.rows_note_same, cover, cover)
+        cover == inner -> strings.plural(R.plurals.rows_note_same_max, cover, cover)
+        else -> strings.get(R.string.rows_note_different, cover, inner, minOf(cover, inner))
     }
 }
 

@@ -121,11 +121,12 @@ internal fun currentTime(): LocalDateTime {
 
 @Composable
 internal fun ClockCard(onClick: () -> Unit) {
+    val clockWidgetTapToReplaceLabel = stringResource(R.string.clock_widget_tap_to_replace)
     val time = currentTime()
     val format = if (android.text.format.DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm"
     GlassCard(onClick = onClick) {
         Text(stringResource(R.string.local_time), color = LocalHomeInk.current.secondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .6.sp,
-            modifier = Modifier.semantics { contentDescription = "Clock widget; tap to replace" })
+            modifier = Modifier.semantics { contentDescription = clockWidgetTapToReplaceLabel })
         Text(time.format(DateTimeFormatter.ofPattern(format)), color = LocalHomeInk.current.primary, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, maxLines = 1,
             style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"))
         Text(time.format(DateTimeFormatter.ofPattern(if (format == "HH:mm") "EEE" else "a · EEE")), color = LocalHomeInk.current.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
@@ -360,13 +361,13 @@ internal fun WidgetActions(
             Text(if (stackCards.size > 1) stringResource(R.string.smart_stack) else stringResource(R.string.widget), Modifier.weight(1f), color = Color.White,
                 fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Box(Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)).clickable(onClickLabel = stringResource(R.string.close_widget_options), onClick = onClose),
-                contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, "Close widget options", tint = Color.White, modifier = Modifier.size(18.dp)) }
+                contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, stringResource(R.string.close_widget_options), tint = Color.White, modifier = Modifier.size(18.dp)) }
         }
 
         SheetGroupLabel(stringResource(R.string.size))
         SheetGroup {
             Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(Triple("Small", 2, 2), Triple("Medium", 4, 2), Triple("Large", 4, 4)).forEach { (label, w, h) ->
+                listOf(Triple(stringResource(R.string.small), 2, 2), Triple(stringResource(R.string.medium), 4, 2), Triple(stringResource(R.string.large), 4, 4)).forEach { (label, w, h) ->
                     val ok = fits(w, h) || (placement.spanX == w && placement.spanY == h)
                     IosChip(selected = placement.spanX == w && placement.spanY == h,
                         onClick = { if (ok && (placement.spanX != w || placement.spanY != h)) { onResize(w, h); onClose() } },
@@ -383,18 +384,18 @@ internal fun WidgetActions(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.width), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
-                        onClick = { if (feasible) width = (width - 1).coerceAtLeast(minWidth) }) { Icon(Icons.Rounded.Remove, "Decrease widget width", tint = Color.White) }
+                        onClick = { if (feasible) width = (width - 1).coerceAtLeast(minWidth) }) { Icon(Icons.Rounded.Remove, stringResource(R.string.decrease_widget_width), tint = Color.White) }
                     Text(pluralStringResource(R.plurals.columns, width, width), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeHorizontally != false,
-                        onClick = { if (feasible) width = (width + 1).coerceAtMost(maxWidth) }) { Icon(Icons.Rounded.Add, "Increase widget width", tint = Color.White) }
+                        onClick = { if (feasible) width = (width + 1).coerceAtMost(maxWidth) }) { Icon(Icons.Rounded.Add, stringResource(R.string.increase_widget_width), tint = Color.White) }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.height), Modifier.weight(1f), color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
-                        onClick = { if (feasible) height = (height - 1).coerceAtLeast(minHeight) }) { Icon(Icons.Rounded.Remove, "Decrease widget height", tint = Color.White) }
+                        onClick = { if (feasible) height = (height - 1).coerceAtLeast(minHeight) }) { Icon(Icons.Rounded.Remove, stringResource(R.string.decrease_widget_height), tint = Color.White) }
                     Text(pluralStringResource(R.plurals.rows, height, height), Modifier.width(88.dp), textAlign = TextAlign.Center, color = Color.White)
                     IconButton(enabled = constraints?.canResizeVertically != false,
-                        onClick = { if (feasible) height = (height + 1).coerceAtMost(maxHeight) }) { Icon(Icons.Rounded.Add, "Increase widget height", tint = Color.White) }
+                        onClick = { if (feasible) height = (height + 1).coerceAtMost(maxHeight) }) { Icon(Icons.Rounded.Add, stringResource(R.string.increase_widget_height), tint = Color.White) }
                 }
                 if (!valid) Text(stringResource(R.string.that_size_overlaps_another_item_or_exten), color = secondary, fontSize = 13.sp)
                 IosChip(selected = valid, onClick = { if (valid) { onResize(width, height); onClose() } }, label = { Text(stringResource(R.string.apply_size)) },

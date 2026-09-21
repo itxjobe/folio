@@ -77,6 +77,7 @@ internal sealed interface IslandContent {
  */
 @Composable
 internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = emptySet(), onOpen: (IslandActivity) -> Unit) {
+    val islandStrings = androidx.compose.ui.platform.LocalContext.current.strings()
     val view = LocalView.current
     val density = LocalDensity.current
 
@@ -186,7 +187,7 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
             .animateContentSize(spring(dampingRatio = .78f, stiffness = Spring.StiffnessMediumLow))
             .clip(RoundedCornerShape(corner)).background(Color.Black)
             .clickable(remember { MutableInteractionSource() }, null) { if (message == null && live != null) expanded = !expanded }
-            .semantics { contentDescription = describe(content) }
+            .semantics { contentDescription = describe(content, islandStrings) }
             .testTag("cutout-island")) {
             androidx.compose.animation.AnimatedContent(open, label = "island-content",
                 transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(90)) }) { showCard ->
@@ -287,16 +288,22 @@ internal fun islandWantWidth(content: IslandContent, camW: Dp): Dp = when (conte
     }
 }
 
-internal fun describe(content: IslandContent): String = when (content) {
+/** What TalkBack reads for the island. */
+internal fun describe(content: IslandContent, strings: Strings): String = when (content) {
     is IslandContent.Event -> when (val e = content.event) {
-        is IslandEvent.Charging -> "Charging${e.level?.let { ", $it percent" } ?: ""}"
-        is IslandEvent.Silent -> if (e.on) "Silent mode on" else "Silent mode off"
-        is IslandEvent.Focus -> if (e.on) "Do Not Disturb on" else "Do Not Disturb off"
-        is IslandEvent.Bluetooth -> "Connected${e.name?.let { " to $it" } ?: ""}"
+        is IslandEvent.Charging -> e.level?.let { strings.plural(R.plurals.island_charging_percent, it, it) } ?: strings.get(R.string.charging)
+        is IslandEvent.Silent -> strings.get(if (e.on) R.string.silent_mode_on else R.string.silent_mode_off)
+        is IslandEvent.Focus -> strings.get(if (e.on) R.string.do_not_disturb_on_2 else R.string.do_not_disturb_off_2)
+        is IslandEvent.Bluetooth -> e.name?.let { strings.get(R.string.island_connected_to, it) } ?: strings.get(R.string.connected)
         is IslandEvent.Notice -> e.text
-        is IslandEvent.Message -> (if (e.alert) "${e.appLabel}: ${e.sender}" else "Message from ${e.sender}") + (e.text?.let { ": $it" } ?: "")
+        is IslandEvent.Message -> when {
+            e.alert && e.text != null -> strings.get(R.string.island_alert_text, e.appLabel, e.sender, e.text)
+            e.alert -> strings.get(R.string.island_alert, e.appLabel, e.sender)
+            e.text != null -> strings.get(R.string.island_message_text, e.sender, e.text)
+            else -> strings.get(R.string.island_message, e.sender)
+        }
     }
-    is IslandContent.Live -> content.activity.title + ". Tap for details"
+    is IslandContent.Live -> strings.get(R.string.island_live_details, content.activity.title)
 }
 
 @Composable
@@ -344,7 +351,7 @@ internal fun TrailingGlyph(content: IslandContent, size: Dp) {
             is IslandEvent.Charging -> Text("${e.level ?: ""}%", color = IslandGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             is IslandEvent.Silent -> Text(if (e.on) "On" else "Off", color = if (e.on) Red else Color.White.copy(alpha = .7f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             is IslandEvent.Focus -> Text(if (e.on) "On" else "Off", color = if (e.on) Purple else Color.White.copy(alpha = .7f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            is IslandEvent.Bluetooth -> Text(e.name ?: "Connected", color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            is IslandEvent.Bluetooth -> Text(e.name ?: stringResource(R.string.connected), color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             // The app's icon beside the sender's photo; without a photo the icon is already on the left.
             is IslandEvent.Message -> e.appIcon?.takeIf { e.avatar != null }?.let { Image(it.asImageBitmap(), null, Modifier.size(size * .8f).clip(RoundedCornerShape(size * .22f))) }
             is IslandEvent.Notice -> Unit
@@ -454,7 +461,7 @@ internal fun ExpandedCardContent(activity: IslandActivity, onOpen: () -> Unit) {
                     is IslandActivity.Media -> activity.subtitle
                     is IslandActivity.Progress -> activity.subtitle
                     is IslandActivity.Navigation -> activity.subtitle
-                    is IslandActivity.Call -> if (activity.incoming) "Incoming call" else null
+                    is IslandActivity.Call -> if (activity.incoming) stringResource(R.string.incoming_call) else null
                     else -> null
                 }
                 subtitle?.let { Text(it, color = Color.White.copy(alpha = .6f), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
@@ -468,10 +475,10 @@ internal fun ExpandedCardContent(activity: IslandActivity, onOpen: () -> Unit) {
         when (activity) {
             is IslandActivity.Media -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 val t = activity.controller.transportControls
-                Icon(Icons.Rounded.FastRewind, "Previous", tint = Color.White, modifier = Modifier.minimumInteractiveComponentSize().size(34.dp).clip(CircleShape).clickable { t.skipToPrevious() })
-                Icon(if (activity.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Play or pause", tint = Color.White,
+                Icon(Icons.Rounded.FastRewind, stringResource(R.string.previous), tint = Color.White, modifier = Modifier.minimumInteractiveComponentSize().size(34.dp).clip(CircleShape).clickable { t.skipToPrevious() })
+                Icon(if (activity.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, stringResource(R.string.play_or_pause), tint = Color.White,
                     modifier = Modifier.size(44.dp).clip(CircleShape).clickable { if (activity.playing) t.pause() else t.play() })
-                Icon(Icons.Rounded.FastForward, "Next", tint = Color.White, modifier = Modifier.minimumInteractiveComponentSize().size(34.dp).clip(CircleShape).clickable { t.skipToNext() })
+                Icon(Icons.Rounded.FastForward, stringResource(R.string.next), tint = Color.White, modifier = Modifier.minimumInteractiveComponentSize().size(34.dp).clip(CircleShape).clickable { t.skipToNext() })
             }
             is IslandActivity.Progress -> activity.fraction?.let { f ->
                 Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = .2f))) {
@@ -500,12 +507,12 @@ private fun CallButtons(call: IslandActivity.Call) {
     fun act(kind: CallControls.Kind) { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm); IslandListenerService.callAction(context, call.key, kind) }
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         if (call.incoming) {
-            if (call.canDecline) CallButton(Icons.Rounded.CallEnd, "Decline", Red) { act(CallControls.Kind.DECLINE) }
-            if (call.canAnswer) CallButton(Icons.Rounded.Call, "Accept", IslandGreen) { act(CallControls.Kind.ANSWER) }
+            if (call.canDecline) CallButton(Icons.Rounded.CallEnd, stringResource(R.string.decline), Red) { act(CallControls.Kind.DECLINE) }
+            if (call.canAnswer) CallButton(Icons.Rounded.Call, stringResource(R.string.accept), IslandGreen) { act(CallControls.Kind.ANSWER) }
         } else {
-            if (call.canMute) CallButton(Icons.Rounded.MicOff, "Mute", Color.White.copy(alpha = .22f)) { act(CallControls.Kind.MUTE) }
+            if (call.canMute) CallButton(Icons.Rounded.MicOff, stringResource(R.string.mute), Color.White.copy(alpha = .22f)) { act(CallControls.Kind.MUTE) }
             if (call.canHangUp) CallButton(Icons.Rounded.CallEnd, "End", Red) { act(CallControls.Kind.HANG_UP) }
-            if (call.canSpeaker) CallButton(Icons.AutoMirrored.Rounded.VolumeUp, "Speaker", Color.White.copy(alpha = .22f)) { act(CallControls.Kind.SPEAKER) }
+            if (call.canSpeaker) CallButton(Icons.AutoMirrored.Rounded.VolumeUp, stringResource(R.string.speaker), Color.White.copy(alpha = .22f)) { act(CallControls.Kind.SPEAKER) }
             if (!call.canHangUp && !call.canMute && !call.canSpeaker) Text(stringResource(R.string.tap_to_return_to_the_call), color = Color.White.copy(alpha = .6f), fontSize = 13.sp)
         }
     }

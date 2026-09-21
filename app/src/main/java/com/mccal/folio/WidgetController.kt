@@ -56,7 +56,7 @@ class WidgetController(
     private val bind = activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val returnedId = result.data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingId) ?: pendingId
         if (result.resultCode == Activity.RESULT_OK && returnedId == pendingId) configure() else {
-            if (result.resultCode == Activity.RESULT_OK) failureMessage = "The widget host returned an unexpected binding. Try again."
+            if (result.resultCode == Activity.RESULT_OK) failureMessage = activity.getString(R.string.the_widget_host_returned_an_unexpected_b)
             cancel()
         }
     }
@@ -131,7 +131,7 @@ class WidgetController(
     }
 
     fun clearFailure() { failureMessage = null }
-    fun label(id: Int): String = manager.getAppWidgetInfo(id)?.loadLabel(activity.packageManager) ?: "Widget"
+    fun label(id: Int): String = manager.getAppWidgetInfo(id)?.loadLabel(activity.packageManager) ?: activity.getString(R.string.widget)
     fun providers(profile: UserHandle): List<AppWidgetProviderInfo> =
         manager.getInstalledProvidersForProfile(profile)
     fun personalProviders(): List<AppWidgetProviderInfo> = providers(Process.myUserHandle())
@@ -203,7 +203,7 @@ class WidgetController(
     fun add(placement: WidgetPlacement, provider: AppWidgetProviderInfo, grid: WidgetGridSizing? = null,
         contentSize: WidgetContentSize? = null, stack: Boolean = false, todaySize: TodaySize? = null) {
         if (reconfigureWidgetId != null) {
-            failureMessage = "Finish or cancel the open widget settings first."
+            failureMessage = activity.getString(R.string.finish_or_cancel_the_open_widget_setting)
             return
         }
         cancel()
@@ -342,7 +342,7 @@ class WidgetController(
     }
 
     private fun fail() {
-        failureMessage = "This widget could not be added. Try another widget."
+        failureMessage = activity.getString(R.string.this_widget_could_not_be_added_try_anoth)
         cancel()
     }
 
@@ -359,7 +359,7 @@ class WidgetController(
     private fun launchReconfigure(): Boolean {
         val id = reconfigureWidgetId ?: return false
         if (!canReconfigure(id)) {
-            failureMessage = "This widget can no longer be configured."
+            failureMessage = activity.getString(R.string.this_widget_can_no_longer_be_configured)
             clearReconfigure()
             return false
         }
@@ -368,7 +368,7 @@ class WidgetController(
             host.startAppWidgetConfigureActivityForResult(activity, id, 0, RECONFIGURE, null)
             true
         } catch (_: Exception) {
-            failureMessage = "This widget could not open its settings."
+            failureMessage = activity.getString(R.string.this_widget_could_not_open_its_settings)
             clearReconfigure()
             false
         }

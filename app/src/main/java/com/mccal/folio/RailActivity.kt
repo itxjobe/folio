@@ -200,6 +200,7 @@ internal fun cameraSideEdge(left: Int, top: Int, right: Int, bottom: Int, window
 @Composable
 internal fun VerticalIsland(content: IslandContent, camera: android.graphics.Rect, side: Int, windowWidth: Int, windowHeight: Int,
     onOpen: (IslandActivity) -> Unit, onMessage: (IslandEvent.Message) -> Unit) {
+    val islandStrings = androidx.compose.ui.platform.LocalContext.current.strings()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val live = (content as? IslandContent.Live)?.activity
     val media = live as? IslandActivity.Media
@@ -305,8 +306,8 @@ internal fun VerticalIsland(content: IslandContent, camera: android.graphics.Rec
                 if (card && live != null) ExpandedCardContent(live) { expanded = false; onOpen(live) }
             }
             Box(Modifier.shadow(8.dp, RoundedCornerShape(width / 2)).clip(RoundedCornerShape(width / 2)).background(Color.Black)
-                .clickable(pressed, null, onClickLabel = if (media != null || callControls) (if (expanded) "Collapse" else "Expand") else describe(content)) { onTap() }
-                .semantics { contentDescription = describe(content) }.testTag("vertical-island"))
+                .clickable(pressed, null, onClickLabel = if (media != null || callControls) (if (expanded) "Collapse" else "Expand") else describe(content, islandStrings)) { onTap() }
+                .semantics { contentDescription = describe(content, islandStrings) }.testTag("vertical-island"))
             leading()
             trailing()
         }, modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale }) { measurables, constraints ->

@@ -208,7 +208,7 @@ internal object SoftwareUpdate {
     }
 
     private fun createChannel(context: Context, manager: android.app.NotificationManager) =
-        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "Software updates", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+        manager.createNotificationChannel(android.app.NotificationChannel(CHANNEL, context.getString(R.string.software_updates_channel), android.app.NotificationManager.IMPORTANCE_DEFAULT)
             .apply { description = context.getString(R.string.new_versions_of_folio) })
 
     fun installedVersion(context: Context): String =

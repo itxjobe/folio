@@ -49,6 +49,7 @@ internal fun AppLibrary(
     onLaunchFrom: (AppEntry, android.graphics.Rect?) -> Unit = { app, _ -> onLaunch(app) },
     onTurnOnWork: (Long) -> Unit = {},
 ) {
+    val appOptionsLabel = stringResource(R.string.app_options)
     val glass = !editing
     val palette = LocalDuoPalette.current
     val ink = if (glass) Ink else MaterialTheme.colorScheme.onSurface
@@ -125,7 +126,7 @@ internal fun AppLibrary(
                 IosChip(selected = !showWork, onClick = { showWork = false }, label = { Text(stringResource(R.string.personal)) })
                 IosChip(selected = showWork, onClick = { showWork = true }, label = { Text(stringResource(R.string.work)) })
             }
-            IosSearchField(query, onQuery, if (editing) "Search apps" else "App Library", Modifier.padding(vertical = 12.dp),
+            IosSearchField(query, onQuery, if (editing) stringResource(R.string.search_apps) else stringResource(R.string.app_library), Modifier.padding(vertical = 12.dp),
                 fieldModifier = (if (editing) Modifier else Modifier.focusRequester(searchFocus)).testTag(if (editing) "pin-search" else "library-search"),
                 ink = ink, onSearch = {
                     if (!editing && query.isNotBlank()) openWebSearch(context,
@@ -137,7 +138,7 @@ internal fun AppLibrary(
                 contentPadding = PaddingValues(bottom = 12.dp)) {
                 if (showWork && selectedProfile?.available == false) item("work-paused") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (selectedProfile.quiet) "Work apps are paused" else "Work profile is unavailable")
+                        Text(if (selectedProfile.quiet) stringResource(R.string.work_apps_are_paused) else stringResource(R.string.work_profile_is_unavailable))
                         if (selectedProfile.quiet) Button(onClick = { onTurnOnWork(selectedProfile.userSerial) },
                             Modifier.padding(top = 10.dp).testTag("turn-on-work")) { Text(stringResource(R.string.turn_on_work_apps)) }
                     }
@@ -157,7 +158,7 @@ internal fun AppLibrary(
                             repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
-                } else if (groups.isEmpty()) item { Text(if (state.loading) "Loading apps…" else "No apps found", Modifier.padding(vertical = 20.dp)) }
+                } else if (groups.isEmpty()) item { Text(if (state.loading) stringResource(R.string.loading_apps) else stringResource(R.string.no_apps_found), Modifier.padding(vertical = 20.dp)) }
                 if (!(browsing && categorized.isNotEmpty())) groups.forEach { (letter, entries) ->
                     stickyHeader(key = "heading-$letter") {
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -178,7 +179,7 @@ internal fun AppLibrary(
                         val click = { if (editing) onPin(app.id, !isPinned) else onLaunchFrom(app, launchBounds) }
                         Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).then(dragModifier).clip(RoundedCornerShape(14.dp)).testTag("library-app-${app.id}")
                             .then(if (drag == null) Modifier.combinedClickable(onClick = click, onLongClick = { onActions(app) })
-                                else Modifier.clickable(onClick = click).semantics { onLongClick("App options") { onActions(app); true } })
+                                else Modifier.clickable(onClick = click).semantics { onLongClick(appOptionsLabel) { onActions(app); true } })
                             .padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             AppIcon(app, null, Modifier.size(40.dp)
                                 .onGloballyPositioned { launchBounds.set(it.boundsInWindow().toAndroidBounds()) }.clip(RoundedCornerShape(10.dp)))
@@ -189,7 +190,7 @@ internal fun AppLibrary(
                             if (editing) IconButton(onClick = { onPin(app.id, !isPinned) }, Modifier.testTag("pin-${app.id}")) {
                                 // iOS selection: filled blue check when on Home, empty ring when not.
                                 Icon(if (isPinned) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                    if (isPinned) "Remove ${app.label} from home" else "Pin ${app.label} to home",
+                                    if (isPinned) stringResource(R.string.remove_from_home_3, app.label) else stringResource(R.string.pin_to_home, app.label),
                                     tint = if (isPinned) FolioColors.Blue else ink.copy(alpha = .35f),
                                     modifier = Modifier.size(24.dp))
                             }
