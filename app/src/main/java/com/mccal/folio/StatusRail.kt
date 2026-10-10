@@ -411,34 +411,14 @@ fun StatusRail(
                                 modifier = Modifier.padding(top = visualSize * (ringCenter - .15f)).size(visualSize * .3f))
                         }
                     }
-                    StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FolioSpace.SNUG.dp),
-                        modifier = Modifier.padding(top = FolioSpace.HAIR.dp).then(tap(onSignal))) {
-                        // Wi-Fi when joined (in Home's text color, so it reads on light wallpapers), an airplane in Airplane Mode;
-                        // otherwise nothing, and the cellular bars below say how you're connected.
-                        if (wifiVisual is WifiSignalVisual.Connected) Canvas(Modifier.size(width = 22.dp, height = 16.dp)) { drawWifiFan(size.width, wifiVisual, centered = true, ink = ink, onLight = onLight) }
-                        else if (status.airplane) Icon(Icons.Rounded.AirplanemodeActive, stringResource(R.string.airplane_mode_2), tint = ink, modifier = Modifier.size(16.dp))
-                        Canvas(Modifier.size(width = 22.dp, height = 14.dp)) {
-                            val bar = size.width / 7
-                            for (i in 0 until 5) {
-                                val h = size.height * (.3f + .7f * i / 4)
-                                drawRoundRect(ink.copy(alpha = if (i < activeDots) 1f else faint(.28f)),
-                                    Offset(i * bar * 1.5f, size.height - h), Size(bar, h),
-                                    androidx.compose.ui.geometry.CornerRadius(bar / 2))
-                            }
-                        }
-                        Canvas(Modifier.then(tap(onBattery)).size(width = 26.dp, height = 12.dp)) {
-                            val body = Size(size.width * .86f, size.height)
-                            drawRoundRect(ink.copy(alpha = if (onLight) .75f else .55f), Offset.Zero, body, androidx.compose.ui.geometry.CornerRadius(size.height * .3f),
-                                style = Stroke(size.height * .1f))
-                            drawRoundRect(ink.copy(alpha = if (onLight) .75f else .55f), Offset(body.width + size.width * .03f, size.height * .3f),
-                                Size(size.width * .08f, size.height * .4f), androidx.compose.ui.geometry.CornerRadius(size.height * .1f))
-                            status.battery?.let { level ->
-                                val inset = size.height * .18f
-                                drawRoundRect(batteryColor, Offset(inset, inset), Size((body.width - inset * 2) * level / 100, size.height - inset * 2),
-                                    androidx.compose.ui.geometry.CornerRadius(size.height * .15f))
-                            }
-                        }
-                    }
+                    StatusGlyph.ICONS -> if (status.airplane && !status.wifiConnected)
+                        Icon(Icons.Rounded.AirplanemodeActive, stringResource(R.string.airplane_mode_2), tint = ink, modifier = Modifier.then(tap(onSignal)).size(16.dp))
+                    else IosStatusIcons(
+                        cellularBars = (cellularVisual as? CellularSignalVisual.Available)?.let { (activeDots * 4 + 4) / 5 },
+                        wifiLevel = if (status.wifiConnected) ((status.wifiLevel ?: 4) * 3 + 3) / 4 else null,
+                        networkType = status.networkType, battery = status.battery, ink = ink, faint = ink.copy(alpha = faint(.3f)),
+                        batteryFill = if (status.charging || (status.battery ?: 100) <= 20) batteryColor else ink,
+                        signalTap = tap(onSignal), batteryTap = tap(onBattery))
                     StatusGlyph.NONE -> Unit
                 }
                 // The percentage is already inside the ring in that style.

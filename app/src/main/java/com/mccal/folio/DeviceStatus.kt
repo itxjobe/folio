@@ -30,6 +30,8 @@ data class DeviceStatus(
     val airplane: Boolean = false,
     /** Ringer on silent or vibrate. */
     val silent: Boolean = false,
+    /** Mobile data technology as iOS labels it ("5G", "LTE", "3G"), or null when unknown. */
+    val networkType: String? = null,
 )
 
 /**
@@ -55,6 +57,13 @@ class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserv
         override fun onLost(network: Network) = updateConnection()
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = updateConnection()
     }
+    /** Kept apart from [phoneCallback]: if Android refuses this one, the signal bars still register. */
+    private val displayCallback = object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
+        override fun onDisplayInfoChanged(info: android.telephony.TelephonyDisplayInfo) {
+            mutable.update { it.copy(networkType = networkTypeLabel(info.networkType, info.overrideNetworkType)) }
+        }
+    }
+    private var displayRegistered = false
     private val phoneCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
         override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
             mutable.update { it.copy(cellularLevel = signalStrength.level.coerceIn(0, 4)) }
@@ -82,6 +91,7 @@ class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserv
         receiverRegistered = true
         networkRegistered = runCatching { connection.registerDefaultNetworkCallback(networkCallback); true }.getOrDefault(false)
         phoneRegistered = runCatching { phone.registerTelephonyCallback(context.mainExecutor, phoneCallback); true }.getOrDefault(false)
+        displayRegistered = runCatching { phone.registerTelephonyCallback(context.mainExecutor, displayCallback); true }.getOrDefault(false)
         mutable.update { it.copy(cellularLevel = runCatching { phone.signalStrength?.level }.getOrNull()) }
         updateConnection()
     }
@@ -101,7 +111,32 @@ class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserv
     override fun onStop(owner: LifecycleOwner) {
         if (networkRegistered) runCatching { connection.unregisterNetworkCallback(networkCallback) }
         if (phoneRegistered) runCatching { phone.unregisterTelephonyCallback(phoneCallback) }
+        if (displayRegistered) runCatching { phone.unregisterTelephonyCallback(displayCallback) }; displayRegistered = false
         if (receiverRegistered) runCatching { context.unregisterReceiver(receiver) }
         networkRegistered = false; phoneRegistered = false; receiverRegistered = false
     }
 }
+
+/** iOS's label for the mobile data technology; the 5G override (NSA/Advanced) wins over the LTE it rides on. */
+internal fun networkTypeLabel(type: Int, override: Int): String? = when {
+    override == android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA ||
+        override == android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED -> NET_5G
+    override == android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_ADVANCED_PRO -> NET_LTE_PLUS
+    else -> when (type) {
+        android.telephony.TelephonyManager.NETWORK_TYPE_NR -> NET_5G
+        android.telephony.TelephonyManager.NETWORK_TYPE_LTE, android.telephony.TelephonyManager.NETWORK_TYPE_IWLAN -> NET_LTE
+        android.telephony.TelephonyManager.NETWORK_TYPE_HSPAP, android.telephony.TelephonyManager.NETWORK_TYPE_HSPA,
+        android.telephony.TelephonyManager.NETWORK_TYPE_HSDPA, android.telephony.TelephonyManager.NETWORK_TYPE_HSUPA,
+        android.telephony.TelephonyManager.NETWORK_TYPE_UMTS -> NET_3G
+        android.telephony.TelephonyManager.NETWORK_TYPE_EDGE -> NET_EDGE
+        android.telephony.TelephonyManager.NETWORK_TYPE_GPRS -> NET_GPRS
+        else -> null
+    }
+}
+// Technology names, the same in every language, as iOS shows them.
+private const val NET_5G = "5G"
+private const val NET_LTE_PLUS = "LTE+"
+private const val NET_LTE = "LTE"
+private const val NET_3G = "3G"
+private const val NET_EDGE = "E"
+private const val NET_GPRS = "G"
