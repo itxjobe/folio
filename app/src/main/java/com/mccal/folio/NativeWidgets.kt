@@ -24,6 +24,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Thunderstorm
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
@@ -59,7 +73,10 @@ const val LOCATION_WIDGET = -12
 /** Folio's own glass widgets added in the polish pass. */
 internal val NativeWidgetIds = setOf(WEATHER_WIDGET, BATTERY_WIDGET, NOW_PLAYING_WIDGET, LOCATION_WIDGET)
 
-internal data class Weather(val tempC: Double, val code: Int, val highC: Double, val lowC: Double, val place: String? = null)
+internal data class Weather(val tempC: Double, val code: Int, val highC: Double, val lowC: Double, val place: String? = null,
+    /** Next hours (hour of day, temp, code) and the days ahead (day, code, high, low) for the medium and large sizes. */
+    val hours: List<Triple<Int, Double, Int>> = emptyList(), val days: List<WeatherDay> = emptyList())
+internal data class WeatherDay(val date: java.time.LocalDate, val code: Int, val highC: Double, val lowC: Double)
 
 /** WMO weather code to a short label, as Open-Meteo reports it. */
 internal fun weatherLabel(code: Int) = when (code) {
@@ -71,8 +88,18 @@ internal fun weatherLabel(code: Int) = when (code) {
 
 internal fun parseOpenMeteo(json: String): Weather? = runCatching {
     val o = JSONObject(json); val cur = o.getJSONObject("current"); val d = o.getJSONObject("daily")
+    val hours = o.optJSONObject("hourly")?.let { h ->
+        val times = h.getJSONArray("time"); val temps = h.getJSONArray("temperature_2m"); val codes = h.getJSONArray("weather_code")
+        val now = cur.optString("time").take(13)
+        val start = (0 until times.length()).firstOrNull { times.getString(it).take(13) >= now } ?: 0
+        (start until minOf(start + 6, times.length())).map { Triple(times.getString(it).substring(11, 13).toInt(), temps.getDouble(it), codes.getInt(it)) }
+    }.orEmpty()
+    val days = d.optJSONArray("time")?.let { t ->
+        (0 until t.length()).mapNotNull { i -> runCatching { WeatherDay(java.time.LocalDate.parse(t.getString(i)), d.getJSONArray("weather_code").getInt(i),
+            d.getJSONArray("temperature_2m_max").getDouble(i), d.getJSONArray("temperature_2m_min").getDouble(i)) }.getOrNull() }
+    }.orEmpty()
     Weather(cur.getDouble("temperature_2m"), cur.getInt("weather_code"),
-        d.getJSONArray("temperature_2m_max").getDouble(0), d.getJSONArray("temperature_2m_min").getDouble(0))
+        d.getJSONArray("temperature_2m_max").getDouble(0), d.getJSONArray("temperature_2m_min").getDouble(0), hours = hours, days = days)
 }.getOrNull()
 
 /** Open-Meteo: free, no key. Only a coarse fix (two decimals, about 1 km) leaves the phone. */
@@ -84,7 +111,7 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
         lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
     }.getOrNull() ?: return@withContext null
     val url = URL("https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f".format(java.util.Locale.US, loc.latitude, loc.longitude) +
-        "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1")
+        "&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6")
     runCatching {
         (url.openConnection() as HttpURLConnection).run {
             connectTimeout = 8000; readTimeout = 8000
@@ -118,13 +145,42 @@ internal fun WeatherCard(onClick: () -> Unit) {
         when {
             !allowed -> Text(androidx.compose.ui.res.stringResource(R.string.allow_approximate_location), color = LocalAccent.current.ink, fontSize = FolioType.GROUP_LABEL.sp)
             w == null -> Text("—", color = ink.primary, fontSize = FolioType.WIDGET_FIGURE.sp)
-            else -> {
-                Text(deg(w.tempC), color = ink.primary, fontWeight = FontWeight.Light, fontSize = FolioType.WIDGET_FIGURE.sp)
-                Text(androidx.compose.ui.res.stringResource(weatherLabel(w.code)), color = ink.primary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                Text("H:${deg(w.highC)} L:${deg(w.lowC)}", color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1)
+            else -> WeatherBody(w, ink.primary, ink.secondary)
+        }
+    }
+}
+
+@Composable
+private fun WeatherBody(w: Weather, primary: androidx.compose.ui.graphics.Color, secondary: androidx.compose.ui.graphics.Color) {
+    val size = LocalWidgetSize.current
+    Text(deg(w.tempC), color = primary, fontWeight = FontWeight.Light, fontSize = FolioType.WIDGET_FIGURE.sp)
+    Text(androidx.compose.ui.res.stringResource(weatherLabel(w.code)), color = primary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+    Text("H:${deg(w.highC)} L:${deg(w.lowC)}", color = secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1)
+    // Medium and large add the next hours in a row; large adds the days ahead, like iOS.
+    if (size != WidgetSize.SMALL && w.hours.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        w.hours.forEach { (h, t, c) ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (h == 0) "12a" else if (h < 12) "${h}a" else if (h == 12) "12p" else "${h - 12}p", color = secondary, fontSize = FolioType.GROUP_LABEL.sp)
+                Icon(weatherIcon(c), null, tint = primary, modifier = Modifier.size(18.dp))
+                Text(deg(t), color = primary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
+    if (size == WidgetSize.LARGE) w.days.drop(1).take(5).forEach { d ->
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(d.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault()), color = primary,
+                fontSize = FolioType.FOOTNOTE.sp, modifier = Modifier.width(44.dp))
+            Icon(weatherIcon(d.code), null, tint = primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.weight(1f))
+            Text("${deg(d.lowC)}  ${deg(d.highC)}", color = primary, fontSize = FolioType.FOOTNOTE.sp)
+        }
+    }
+}
+
+private fun weatherIcon(code: Int) = when (code) {
+    0 -> Icons.Rounded.WbSunny; 1, 2, 3, 45, 48 -> Icons.Rounded.Cloud
+    in 71..77, 85, 86 -> Icons.Rounded.AcUnit; in 95..99 -> Icons.Rounded.Thunderstorm
+    else -> Icons.Rounded.WaterDrop
 }
 
 /** Phone battery from the sticky broadcast, plus connected Bluetooth devices that report a level (API 33+ hidden; read via reflection, best effort). */
@@ -140,20 +196,46 @@ internal fun BatteryCard(onClick: () -> Unit) {
             override fun onReceive(c: Context, i: Intent) {
                 val l = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1); val s = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
                 if (l >= 0) level = l * 100 / s.coerceAtLeast(1)
-                val st = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                charging = st == BatteryManager.BATTERY_STATUS_CHARGING || st == BatteryManager.BATTERY_STATUS_FULL
+                charging = isCharging(i.getIntExtra(BatteryManager.EXTRA_STATUS, -1), i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0))
                 devices = bluetoothLevels(c)
             }
         }
         ContextCompat.registerReceiver(context, receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
+    val size = LocalWidgetSize.current
     GlassCard(onClick = onClick) {
         Text(androidx.compose.ui.res.stringResource(R.string.batteries), color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text(if (level >= 0) "$level%" + if (charging) " ⚡" else "" else "—", color = ink.primary, fontWeight = FontWeight.SemiBold, fontSize = FolioType.WIDGET_FIGURE.sp)
-        devices.take(2).forEach { (name, l) ->
-            Text("$name  $l%", color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // iOS Batteries: a ring per device, green while charging, red at 20% or less.
+        val all = listOf(androidx.compose.ui.res.stringResource(R.string.battery_phone) to level) + devices
+        val shown = all.take(when (size) { WidgetSize.SMALL -> 1; WidgetSize.MEDIUM -> 4; WidgetSize.LARGE -> 6 })
+        if (size == WidgetSize.LARGE) shown.forEachIndexed { i, (name, l) ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BatteryRing(l, i == 0 && charging, ink.primary, 34.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(name, color = ink.primary, fontSize = FolioType.FOOTNOTE.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(if (l >= 0) "$l%" else "—", color = ink.primary, fontSize = FolioType.FOOTNOTE.sp, fontWeight = FontWeight.SemiBold)
+            }
+        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            shown.forEachIndexed { i, (_, l) -> BatteryRing(l, i == 0 && charging, ink.primary, if (size == WidgetSize.SMALL) 64.dp else 52.dp) }
         }
+        if (size != WidgetSize.LARGE) Text(if (level >= 0) "$level%" else "—", color = ink.primary, fontWeight = FontWeight.SemiBold, fontSize = FolioType.SUBHEAD.sp)
+    }
+}
+
+@Composable
+private fun BatteryRing(level: Int, charging: Boolean, ink: androidx.compose.ui.graphics.Color, size: androidx.compose.ui.unit.Dp) {
+    val color = when { charging -> FolioColors.Green; level in 0..20 -> FolioColors.Red; else -> FolioColors.Green }
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val stroke = this.size.minDimension * .1f
+            val inset = stroke / 2
+            val arc = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+            drawArc(ink.copy(alpha = .18f), 0f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            if (level > 0) drawArc(color, -90f, 360f * level.coerceAtMost(100) / 100f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+        }
+        Icon(if (charging) Icons.Rounded.Bolt else Icons.Rounded.PhoneAndroid, null, tint = ink, modifier = Modifier.size(size * .38f))
     }
 }
 
@@ -193,11 +275,21 @@ internal fun NowPlayingCard(onClick: () -> Unit) {
         if (c == null || meta == null) {
             Text(if (c == null) androidx.compose.ui.res.stringResource(R.string.nothing_playing) else "—", color = ink.primary, fontSize = FolioType.SUBHEAD.sp, maxLines = 2)
         } else {
+            val art = remember(meta) { meta.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) ?: meta.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART) }
+            val size = LocalWidgetSize.current
+            if (art != null && size != WidgetSize.SMALL) androidx.compose.foundation.Image(art.asImageBitmap(), null,
+                Modifier.size(if (size == WidgetSize.LARGE) 140.dp else 56.dp).clip(RoundedCornerShape(FolioRadius.CONTROL.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             Text(meta.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "", color = ink.primary, fontWeight = FontWeight.SemiBold,
                 fontSize = FolioType.SUBHEAD.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(meta.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "", color = ink.secondary,
                 fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (LocalWidgetSize.current != WidgetSize.SMALL) {
+                    Icon(Icons.Rounded.SkipPrevious, androidx.compose.ui.res.stringResource(R.string.previous), tint = ink.primary,
+                        modifier = Modifier.size(30.dp).clickable { c.transportControls.skipToPrevious(); tick++ })
+                    Spacer(Modifier.width(16.dp))
+                }
                 Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) androidx.compose.ui.res.stringResource(R.string.pause) else androidx.compose.ui.res.stringResource(R.string.play), tint = ink.primary,
                     modifier = Modifier.size(30.dp).clickable { c.transportControls.run { if (playing) pause() else play() }; tick++ })
                 Spacer(Modifier.width(16.dp))

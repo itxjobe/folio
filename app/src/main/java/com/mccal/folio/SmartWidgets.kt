@@ -73,7 +73,10 @@ internal fun UpNextCard(onClick: () -> Unit) {
     val tick by rememberMinuteTick()
     var allowed by remember { mutableStateOf(UpNext.hasCalendar(context)) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
-    val events by produceState(emptyList<UpNextEvent>(), tick, allowed) { value = withContext(Dispatchers.IO) { UpNext.events(context) } }
+    // Large shows the week ahead, like iOS's large Calendar; small and medium the next day and a half.
+    val big = LocalWidgetSize.current == WidgetSize.LARGE
+    val events by produceState(emptyList<UpNextEvent>(), tick, allowed, big) { value = withContext(Dispatchers.IO) {
+        if (big) UpNext.events(context, withinMs = 7 * 24 * 60 * 60 * 1000L, limit = 7) else UpNext.events(context) } }
     val alarm = remember(tick) { UpNext.nextAlarm(context) }
     val today = remember(tick) { LocalDate.now() }
     val is24 = android.text.format.DateFormat.is24HourFormat(context)
@@ -92,7 +95,7 @@ internal fun UpNextCard(onClick: () -> Unit) {
                 Text(stringResource(R.string.allow_calendar_access), color = LocalAccent.current.ink, fontSize = FolioType.GROUP_LABEL.sp)
             }
             events.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(FolioSpace.SNUG.dp)) {
-                events.take(2).forEach { e ->
+                events.take(when (LocalWidgetSize.current) { WidgetSize.SMALL -> 2; WidgetSize.MEDIUM -> 3; WidgetSize.LARGE -> 7 }).forEach { e ->
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { UpNext.openEvent(context, e) }, verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.width(3.dp).height(30.dp).clip(RoundedCornerShape(2.dp)).background(e.color?.let { Color(it) } ?: LocalAccent.current.fill))
                         Spacer(Modifier.width(6.dp))

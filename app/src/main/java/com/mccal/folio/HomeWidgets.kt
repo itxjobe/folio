@@ -111,6 +111,16 @@ internal fun Modifier.widgetTap(onClick: () -> Unit): Modifier {
     return combinedClickable(onLongClickLabel = stringResource(R.string.edit), onLongClick = hold, onClick = onClick)
 }
 
+/** iOS widget families: a square (small), a wide bar (medium) and a big square (large). */
+internal enum class WidgetSize { SMALL, MEDIUM, LARGE }
+internal val LocalWidgetSize = staticCompositionLocalOf { WidgetSize.SMALL }
+internal fun widgetSizeFor(w: Float, h: Float): WidgetSize = when {
+    w <= 0f || h <= 0f -> WidgetSize.SMALL
+    w / h >= 1.6f -> WidgetSize.MEDIUM
+    minOf(w, h) >= 260f -> WidgetSize.LARGE
+    else -> WidgetSize.SMALL
+}
+
 @Composable
 internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit,
     /** A painted card instead of glass, like iOS Weather's sky. */
@@ -124,7 +134,8 @@ internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit,
         BoxWithConstraints {
             val scale = (minOf(maxWidth, maxHeight) / 150.dp).coerceIn(.6f, 1f)
             val density = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides androidx.compose.ui.unit.Density(density.density * scale, density.fontScale)) {
+            CompositionLocalProvider(LocalDensity provides androidx.compose.ui.unit.Density(density.density * scale, density.fontScale),
+                LocalWidgetSize provides widgetSizeFor(maxWidth.value, maxHeight.value)) {
                 Column(Modifier.fillMaxSize().padding(FolioSpace.LARGE.dp), verticalArrangement = Arrangement.SpaceBetween, content = content)
             }
         }

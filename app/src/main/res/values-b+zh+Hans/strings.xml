@@ -1965,4 +1965,5 @@
     <string name="app_names_on_cover">在封面屏幕上显示应用名称</string>
     <string name="now_label">现在</string>
     <string name="inner_columns">展开时的列数</string>
+    <string name="battery_phone">手机</string>
 </resources>
