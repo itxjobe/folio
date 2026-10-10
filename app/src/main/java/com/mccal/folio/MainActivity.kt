@@ -493,6 +493,16 @@ class MainActivity : ComponentActivity() {
         if (model.state.value.folioPanels) topPanel.value = panel else openAndroidShade(panel)
     }
 
+    /** Status rail taps (iOS-like): the clock app, falling back to the calendar; or Android's battery usage screen. */
+    internal fun openStatusTarget(target: StatusTarget) {
+        val intents = when (target) {
+            StatusTarget.CLOCK -> listOf(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS),
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR))
+            StatusTarget.BATTERY -> listOf(Intent(Intent.ACTION_POWER_USAGE_SUMMARY), Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS))
+        }
+        for (i in intents) if (runCatching { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) return
+    }
+
     internal fun openAndroidShade(panel: ShadePanel) {
         when (SystemShadeAccessibilityService.open(this, panel)) {
             ShadeOpenResult.OPENED -> Unit
@@ -823,3 +833,5 @@ class MainActivity : ComponentActivity() {
         const val PENDING_THEME = "folio.theme.pending"
     }
 }
+
+internal enum class StatusTarget { CLOCK, BATTERY }

@@ -959,6 +959,9 @@ fun LauncherScreen(
                     },
                 compact = contentHeight < COMPACT_DOCK_MAX_HEIGHT_DP.dp, iconSize = dockIconSize(geometry.iconSize).dp, style = state.statusStyle,
                 focus = state.focusModes.firstOrNull { it.id == state.activeFocus },
+                onTime = { launcherActivity.openStatusTarget(StatusTarget.CLOCK) },
+                onSignal = { launcherActivity.openSystemShade(ShadePanel.QUICK_SETTINGS) },
+                onBattery = { launcherActivity.openStatusTarget(StatusTarget.BATTERY) },
                 // Live activities grow the rail under the status; the dock below moves with the measured height.
                 island = if (state.island && state.railActivities) ({
                     RailLiveActivity(IslandListenerService.activity.collectAsStateWithLifecycle().value

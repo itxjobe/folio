@@ -1,5 +1,8 @@
 package com.mccal.folio
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -166,7 +169,14 @@ fun StatusRail(
     style: StatusStyle = StatusStyle(),
     /** The Focus that's on: its icon sits above the time, as iPhone shows it beside the clock. */
     focus: FocusMode? = null,
+    /** iOS-style taps: time/date opens Clock or Calendar, the signal glyph Control Center, the battery reading battery usage. */
+    onTime: (() -> Unit)? = null,
+    onSignal: (() -> Unit)? = null,
+    onBattery: (() -> Unit)? = null,
 ) {
+    // Nothing on the rail took taps before, so tapping it did nothing. Each part gets a pill-shaped press highlight.
+    fun tap(action: (() -> Unit)?): Modifier = if (action == null) Modifier
+        else Modifier.clip(RoundedCornerShape(FolioRadius.CONTROL.dp)).clickable(onClick = action)
     // Text sits on the frosted capsule, not straight on the wallpaper, so pick its color from how light the capsule
     // looks: the wallpaper's main color seen through the glass. An explicit Light or Dark "Text on Home" still wins.
     val tone = LocalWallpaperTone.current
@@ -248,14 +258,14 @@ fun StatusRail(
                 if (status.silent && style.showSilent) Icon(Icons.Rounded.NotificationsOff, null,
                     tint = if (style.colorfulBattery) (if (onLight) SilentOnLight else Silent) else ink,
                     modifier = Modifier.size(if (compact) 14.dp else 16.dp).testTag("status-silent"))
-                if (style.showTime) Text(now.format(timeFormatter), color = ink, fontSize = timeSize, fontWeight = FontWeight.SemiBold,
+                if (style.showTime) Text(now.format(timeFormatter), color = ink, fontSize = timeSize, fontWeight = FontWeight.SemiBold, modifier = tap(onTime),
                     lineHeight = if (tight) timeSize * 1.05f else androidx.compose.ui.unit.TextUnit.Unspecified,
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
-                if (!compact && style.showDate) Text(now.format(dateFormatter), color = ink.copy(alpha = if (onLight) .85f else .7f), fontSize = detailSize,
+                if (!compact && style.showDate) Text(now.format(dateFormatter), color = ink.copy(alpha = if (onLight) .85f else .7f), fontSize = detailSize, modifier = tap(onTime),
                     lineHeight = if (tight) detailSize * 1.1f else androidx.compose.ui.unit.TextUnit.Unspecified,
                     fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                 when (style.glyph) {
-                    StatusGlyph.RINGS -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).size(visualSize), contentAlignment = Alignment.Center) {
+                    StatusGlyph.RINGS -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).then(tap(onSignal)).size(visualSize), contentAlignment = Alignment.Center) {
                         val colorful = style.colorfulBattery
                         val batteryRing = if (!colorful) ink else if (status.charging || (status.battery ?: 100) > 20) (if (onLight) RingGreenOnLight else RingGreen) else low
                         val wifiRing = if (colorful) (if (onLight) RingBlueOnLight else RingBlue) else ink
@@ -279,7 +289,7 @@ fun StatusRail(
                         }
                         if (status.airplane) Icon(Icons.Rounded.AirplanemodeActive, stringResource(R.string.airplane_mode_2), tint = ink, modifier = Modifier.size(visualSize * .2f))
                     }
-                    StatusGlyph.PERCENT -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).size(visualSize), contentAlignment = Alignment.Center) {
+                    StatusGlyph.PERCENT -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).then(tap(onSignal)).size(visualSize), contentAlignment = Alignment.Center) {
                         Canvas(Modifier.fillMaxSize()) {
                             val w = size.width
                             val radius = w * .44f
@@ -292,7 +302,7 @@ fun StatusRail(
                         Text(status.battery?.toString() ?: "—", color = if (status.charging && style.colorfulBattery) charging else ink,
                             fontSize = (visualSize.value * .34f / fontScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
-                    StatusGlyph.RING, StatusGlyph.MINIMAL -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).size(visualSize), contentAlignment = Alignment.Center) {
+                    StatusGlyph.RING, StatusGlyph.MINIMAL -> Box(Modifier.padding(top = FolioSpace.HAIR.dp).then(tap(onSignal)).size(visualSize), contentAlignment = Alignment.Center) {
                         // Inside the battery ring, like iPhone's status bar: Wi-Fi when joined; otherwise cellular bars,
                         // an airplane in Airplane Mode, or a slowly sweeping fan while there's no connection at all.
                         val offline = !status.wifiConnected && cellularVisual !is CellularSignalVisual.Available && !status.airplane
@@ -434,7 +444,7 @@ fun StatusRail(
                 // Glyphs that carry the number themselves don't need it repeated underneath.
                 if (!compact && style.showBatteryPercent && style.glyph != StatusGlyph.PERCENT && style.glyph != StatusGlyph.GAUGE) Text(if (status.airplane) "Airplane" else status.battery?.let { "$it%" } ?: "—",
                     color = if (status.charging && style.colorfulBattery) charging else ink,
-                    fontSize = detailSize, fontWeight = FontWeight.Medium,
+                    fontSize = detailSize, fontWeight = FontWeight.Medium, modifier = tap(onBattery),
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
             }
             if (island != null) { Spacer(Modifier.height(8.dp)); island() }
