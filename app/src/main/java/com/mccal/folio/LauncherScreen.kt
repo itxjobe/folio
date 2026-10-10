@@ -2,6 +2,8 @@
 
 package com.mccal.folio
 
+import androidx.compose.foundation.systemGestureExclusion
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
 import android.appwidget.AppWidgetProviderInfo
@@ -1027,7 +1029,7 @@ fun LauncherScreen(
                         customActions = listOf(
                             androidx.compose.ui.semantics.CustomAccessibilityAction(upLabel) { model.setPreset(grabScreen, currentPreset.copy(dockPosition = dockPositionStepFrom(centerDp, windowHeight, -1))); true },
                             androidx.compose.ui.semantics.CustomAccessibilityAction(downLabel) { model.setPreset(grabScreen, currentPreset.copy(dockPosition = dockPositionStepFrom(centerDp, windowHeight, 1))); true })
-                    }.testTag("dock-grabber"), contentAlignment = Alignment.Center) {
+                    }.systemGestureExclusion().testTag("dock-grabber"), contentAlignment = Alignment.Center) {
                     Box(Modifier.size(width = 56.dp, height = 28.dp).background(Glass.copy(alpha = .9f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.UnfoldMore, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
@@ -1057,7 +1059,9 @@ fun LauncherScreen(
                     compositingStrategy = if (state.dockMagnify) androidx.compose.ui.graphics.CompositingStrategy.Auto
                         else androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                 }.background(Glass.copy(alpha = state.statusStyle.railGlass), RoundedCornerShape(30.dp))
-                .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp)).testTag("dock")) {
+                .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp))
+                // The dock rail sits on the screen edge: keep Android's back swipe from taking drags that start on it.
+                .systemGestureExclusion().testTag("dock")) {
                 Column(if (geometry.horizontalDock) (if (dockBarScrolls) Modifier.fillMaxHeight().horizontalScroll(dockBarScroll) else Modifier.fillMaxSize()).padding(horizontal = FolioSpace.SMALL.dp) else Modifier.padding(vertical = FolioSpace.SMALL.dp).verticalScroll(dockScroll)) {
                     DockAppColumn(shownDock, previewLayout.dock, appsById, dockPitchShown,
                         dockIconSize(geometry.iconSize), drag, insertionTarget,
@@ -1110,7 +1114,9 @@ fun LauncherScreen(
                                     scope.launch { pager.scrollToPage(page) }
                                 }
                             }
-                        }.description(R.string.page_scrubber),
+                        }.description(R.string.page_scrubber)
+                            // Near the bottom edge: a drag along the dots stays Folio's, not the system's edge gesture.
+                            .systemGestureExclusion(),
                         transitionSpec = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) togetherWith
                             androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) },
                         contentAlignment = Alignment.Center) { view ->

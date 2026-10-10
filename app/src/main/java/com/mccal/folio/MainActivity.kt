@@ -271,6 +271,12 @@ class MainActivity : ComponentActivity() {
             if (clearsBadgesWhenOpened) androidx.compose.runtime.LaunchedEffect(postedBadges) { model.trimBadgesSeen(postedBadges) }
             androidx.compose.runtime.SideEffect { latestNotifications = notificationItems }
             val wallpaperTone = rememberWallpaperTone(state.systemWallpaper)
+            val baseViewConfiguration = androidx.compose.ui.platform.LocalViewConfiguration.current
+            val homeViewConfiguration = androidx.compose.runtime.remember(baseViewConfiguration) {
+                object : androidx.compose.ui.platform.ViewConfiguration by baseViewConfiguration {
+                    override val touchSlop: Float get() = baseViewConfiguration.touchSlop * .6f
+                }
+            }
             // Re-read on every resume so turning Remove animations on/off applies without restarting.
             val reduceMotionState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(reduceMotionEnabled(this@MainActivity)) }
             androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { reduceMotionState.value = reduceMotionEnabled(this@MainActivity); onPauseOrDispose { } }
