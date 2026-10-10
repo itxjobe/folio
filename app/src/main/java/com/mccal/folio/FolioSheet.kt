@@ -98,7 +98,7 @@ internal fun ModalBottomSheet(
     formWidth: androidx.compose.ui.unit.Dp = 560.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    DisposableEffect(Unit) { LauncherSheetsOpen.intValue++; onDispose { LauncherSheetsOpen.intValue-- } }
+    CountOpenSheet()
     if (fullScreen) { FullScreenPage(onDismissRequest, content); return }
     // Regular size (inner screen, either orientation): an iPad-style form sheet centered over Home instead of a stretched bottom sheet.
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current

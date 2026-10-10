@@ -47,6 +47,23 @@ internal val FolioSheetColors = androidx.compose.material3.darkColorScheme(
 /** Set while any launcher sheet is open, so Home blurs behind it like the other overlays. */
 internal val LauncherSheetsOpen = androidx.compose.runtime.mutableIntStateOf(0)
 
+/**
+ * The same count for this activity only. Home's blur and overlay state read this, so a sheet left open in a second
+ * MainActivity (another task) can't hold this one's Home blurred or its panels stuck. The process-wide count above
+ * stays for the island's "is anything covering Home" check.
+ */
+internal val LocalSheetsOpen = androidx.compose.runtime.staticCompositionLocalOf { androidx.compose.runtime.mutableIntStateOf(0) }
+
+/** Counts a sheet as open, both for this activity and process-wide, while it's in composition. */
+@androidx.compose.runtime.Composable
+internal fun CountOpenSheet() {
+    val local = LocalSheetsOpen.current
+    androidx.compose.runtime.DisposableEffect(local) {
+        LauncherSheetsOpen.intValue++; local.intValue++
+        onDispose { LauncherSheetsOpen.intValue--; local.intValue-- }
+    }
+}
+
 /** Full-screen pages (Setup, Settings pages): nothing behind them is visible, so Home skips its blur while one is up. */
 internal val LauncherPagesOpen = androidx.compose.runtime.mutableIntStateOf(0)
 

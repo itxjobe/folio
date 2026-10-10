@@ -52,6 +52,8 @@ class MainActivity : ComponentActivity() {
         private set
     private val homeRequests = mutableIntStateOf(0)
     private val searchRequests = mutableIntStateOf(0)
+    /** Sheets open in this activity only (see [LocalSheetsOpen]). */
+    private val activitySheets = mutableIntStateOf(0)
     /** Opened from Android Settings (Home app gear / "Additional settings in the app"). */
     private val settingsRequests = mutableIntStateOf(0)
     private val defaultHome = mutableStateOf(false)
@@ -147,6 +149,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) takeSharedTheme(intent)
         else sharedTheme.value = savedInstanceState.getString(PENDING_THEME)?.let(FolioTheme::fromJson)
         setContent {
+            androidx.compose.runtime.CompositionLocalProvider(LocalSheetsOpen provides activitySheets) {
             val savedState = model.state.collectAsStateWithLifecycle().value
             // Home is fully drawn once its own apps are in; at a start they come ahead of the rest.
             androidx.activity.compose.ReportDrawnWhen { savedState.homeReady }
@@ -195,13 +198,13 @@ class MainActivity : ComponentActivity() {
                     else show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 }
             }
-            val overlayOpen = topPanel.value != null || spotlightVisible.value || LauncherSheetsOpen.intValue > 0 ||
+            val overlayOpen = topPanel.value != null || spotlightVisible.value || activitySheets.intValue > 0 ||
                 // Only a Lock Cover that's actually drawn blurs Home (turning the setting off mid-way must not leave a blur).
                 (lockCoverVisible.value && state.lockCover)
             MotionSpeed.current = state.motionSpeed
             // The trail for bug reports: what was open, and a heartbeat while Home is showing.
             val overlayName = listOfNotNull(topPanel.value?.name, getString(R.string.spotlight).takeIf { spotlightVisible.value },
-                "sheet".takeIf { LauncherSheetsOpen.intValue > 0 }, getString(R.string.lock_cover).takeIf { lockCoverVisible.value && state.lockCover })
+                "sheet".takeIf { activitySheets.intValue > 0 }, getString(R.string.lock_cover).takeIf { lockCoverVisible.value && state.lockCover })
                 .joinToString(" + ").ifEmpty { null }
             androidx.compose.runtime.LaunchedEffect(overlayName) { Diagnostics.event(overlayName?.let { "Open: $it" } ?: getString(R.string.nothing_open_over_home)) }
             val regular = androidx.compose.ui.platform.LocalConfiguration.current.fitsRegularHomeLayout()
@@ -409,6 +412,7 @@ class MainActivity : ComponentActivity() {
                 // Last, so the corners sit above everything in Home's window.
                 if (state.roundedCorners) RoundedScreenCorners(state.cornerRadius.dp)
             } } }
+            }
         }
         FoldRenderExperiment.attach(this)
         // Reassert the token after recreation (and after process restoration, where the

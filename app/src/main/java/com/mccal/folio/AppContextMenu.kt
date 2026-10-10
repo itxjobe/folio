@@ -103,7 +103,7 @@ internal fun AppContextMenu(
     val appear = remember { Animatable(0f) }
     var more by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { appear.animateTo(1f, MotionSpeed.spring(.72f, Spring.StiffnessMediumLow)) }
-    DisposableEffect(Unit) { LauncherSheetsOpen.intValue++; onDispose { LauncherSheetsOpen.intValue-- } }
+    CountOpenSheet()
 
     val actions by produceState(emptyList<QuickAction>(), app.id) { if (!app.isShortcut) value = withContext(Dispatchers.IO) { loadQuickActions(context, app) } }
 
