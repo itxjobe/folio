@@ -69,6 +69,7 @@ internal fun parseOpenMeteo(json: String): Weather? = runCatching {
 }.getOrNull()
 
 /** Open-Meteo: free, no key. Only a coarse fix (two decimals, about 1 km) leaves the phone. */
+@android.annotation.SuppressLint(PERMISSION_CHECKED) // Only called once ACCESS_COARSE_LOCATION is granted; runCatching covers revocation.
 private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispatchers.IO) {
     val lm = context.getSystemService(android.location.LocationManager::class.java) ?: return@withContext null
     val loc = runCatching {
