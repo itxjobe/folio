@@ -54,12 +54,16 @@ internal fun focusSignals(activity: Activity): Flow<FocusSignals> {
         foldStateOf(folds.isNotEmpty(), folds.any { it.state == FoldingFeature.State.HALF_OPENED }, hinge || prefs.getBoolean("sawFold", false))
     }.distinctUntilChanged()
 
+    // Plugged in counts as charging (see [startsCharging]): BatteryManager.isCharging is false on a phone held at Samsung's
+    // charge limit, and can still read false at the instant ACTION_POWER_CONNECTED arrives. The sticky battery broadcast
+    // carries the plug state and is re-sent on every change, so it is both the first reading and the updates.
     val charging = callbackFlow {
-        fun now() = context.getSystemService(BatteryManager::class.java).isCharging
-        trySend(now())
-        val receiver = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { trySend(now()) } }
-        val filter = IntentFilter().apply { addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED) }
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        fun from(i: Intent?) = i != null &&
+            isCharging(i.getIntExtra(BatteryManager.EXTRA_STATUS, -1), i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0))
+        val receiver = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { trySend(from(i)) } }
+        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        // Registering for the sticky broadcast returns the current state at once.
+        trySend(from(ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)))
         awaitClose { context.unregisterReceiver(receiver) }
     }.distinctUntilChanged()
 
