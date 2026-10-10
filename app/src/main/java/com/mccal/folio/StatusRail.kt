@@ -51,16 +51,17 @@ import java.time.format.DateTimeFormatter
 /** How the side-rail status capsule looks. Saved with the launcher state. */
 data class StatusStyle(
     val showTime: Boolean = true,
-    val showDate: Boolean = true,
-    val showBatteryPercent: Boolean = true,
-    val glyph: StatusGlyph = StatusGlyph.RING,
+    // iPhone Fold: just the time and Wi-Fi, small, under the camera; no date, percentage or ring.
+    val showDate: Boolean = false,
+    val showBatteryPercent: Boolean = false,
+    val glyph: StatusGlyph = StatusGlyph.MINIMAL,
     val colorfulBattery: Boolean = true,
     /** Frost strength shared by the status, dock and island capsules (0 = clear, 1 = solid). */
     val railGlass: Float = .26f,
     /** A bell with a slash while the ringer is on silent or vibrate, like iPhone's status bar. */
     val showSilent: Boolean = true,
     /** The frosted capsule behind the status (the dock keeps its own). */
-    val background: Boolean = true,
+    val background: Boolean = false,
     /** Space between the status items (time, date, icons) in dp: [STANDARD_SPACING], or [COMPACT_SPACING] packed tight. */
     val spacing: Float = STANDARD_SPACING,
     /** Thicker rings with a clearer track (also on while Android's Bold text is on, see [RingLook]). */

@@ -1107,10 +1107,22 @@ fun LauncherScreen(
                     end = if (state.leftHanded) besideHome + FolioSpace.LARGE.dp else 0.dp, bottom = FolioSpace.SNUG.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (!isDefaultHome && !homeEdit.active && !drag.active) PreviewBar(onUseAsHome = { sheet = ""; onMakeDefault() },
                     onExit = { launcherActivity.moveTaskToBack(true) })
+                // iPhone Fold look (the default): dots centred, a small round search button at the trailing edge, and no
+                // Discover or app-list buttons; the Search choice keeps the old pill row.
+                val iosStrip = state.homeStrip == HomeStrip.DOTS
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                if (iosStrip && !drag.active && !homeEdit.active) Box(Modifier.align(if (state.leftHanded) Alignment.CenterStart else Alignment.CenterEnd)
+                    .size(FolioTouch.MIN.dp).clip(CircleShape).clickable { if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight() }
+                    .testTag("home-search-button"), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(34.dp).background(LocalGlassLook.current.fill(Glass), CircleShape)
+                        .border(1.dp, LocalGlassLook.current.outlineColor, CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Search, stringResource(R.string.search), tint = LocalHomeInk.current.primary, modifier = Modifier.size(18.dp))
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     // Only when there is a page to the left of Home: with Today View and Discover both off, the
                     // button led nowhere (reported on r/GalaxyFold, 18 Sep 2026).
-                    if (!drag.active && (firstHome > 0 || discoverMode)) IconButton(onClick = openDiscover, Modifier.size(FolioTouch.MIN.dp).testTag("discover-page-link")) {
+                    if (!iosStrip && !drag.active && (firstHome > 0 || discoverMode)) IconButton(onClick = openDiscover, Modifier.size(FolioTouch.MIN.dp).testTag("discover-page-link")) {
                         Icon(Icons.Rounded.Explore, stringResource(R.string.discover), tint = Color.White.copy(alpha = .65f), modifier = Modifier.size(17.dp))
                     }
                     // iOS: a "Search" capsule where the page dots are; the dots come back while paging or editing.
@@ -1175,9 +1187,10 @@ fun LauncherScreen(
                             }
                         }
                     }
-                    IconButton(onClick = openLibrary, Modifier.size(FolioTouch.MIN.dp).testTag("library-page-link")) {
+                    if (!iosStrip) IconButton(onClick = openLibrary, Modifier.size(FolioTouch.MIN.dp).testTag("library-page-link")) {
                         Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.all_apps_page), tint = Color.White.copy(alpha = if (pager.currentPage == homePages) 1f else .6f), modifier = Modifier.size(17.dp))
                     }
+                }
                 }
             }
             androidx.compose.animation.AnimatedVisibility(homeEdit.active && sheet.isEmpty(),
@@ -1585,9 +1598,9 @@ fun LauncherScreen(
                                                 DATE_WIDGET -> stringResource(R.string.date)
                                                 UP_NEXT_WIDGET -> stringResource(R.string.up_next)
                                                 SUGGESTIONS_WIDGET -> stringResource(R.string.suggestions)
-                                                WEATHER_WIDGET -> "Weather"
-                                                BATTERY_WIDGET -> "Batteries"
-                                                NOW_PLAYING_WIDGET -> "Now Playing"
+                                                WEATHER_WIDGET -> stringResource(R.string.weather)
+                                                BATTERY_WIDGET -> stringResource(R.string.batteries)
+                                                NOW_PLAYING_WIDGET -> stringResource(R.string.now_playing)
                                                 BIG_CLOCK_WIDGET -> stringResource(R.string.big_clock)
                                                 else -> stringResource(R.string.widget_panel)
                                             }, color = Ink,

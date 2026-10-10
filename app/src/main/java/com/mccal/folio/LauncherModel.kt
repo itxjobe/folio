@@ -167,12 +167,12 @@ data class LauncherState(
     /** The Personal and Work switch in the App Library (only shown with a work profile); off shows personal apps only. */
     val libraryWork: Boolean = true,
     val iconTint: Long = FolioColors.Value.Warning,
-    val iconShape: IconShape = IconShape.DEFAULT,
+    val iconShape: IconShape = IconShape.SQUIRCLE,
     /** Package of the selected third-party icon pack, or null for app icons. */
     val iconPack: String? = null,
     /** Icon pack used while Folio is in dark mode; null = the same pack as light ([iconPack]). */
     val iconPackDark: String? = null,
-    /** A pack (or "App icons") was picked by hand; until then an installed iOSIconPack is used in its Liquid Glass era. */
+    /** A pack (or plain app icons) was picked by hand; until then an installed iOSIconPack is used in its Liquid Glass era. */
     val iconPackChosen: Boolean = false,
     val badgeStyle: BadgeStyle = BadgeStyle.DOT,
     val badgeColor: BadgeColor = BadgeColor.RED,
@@ -183,7 +183,7 @@ data class LauncherState(
     /** Badge counts already seen, by package name: the count that was showing when the app was last opened. */
     val badgesSeen: Map<String, Int> = emptyMap(),
     /** iOS "Search" capsule on Home in place of the page dots. */
-    val homeStrip: HomeStrip = HomeStrip.SEARCH,
+    val homeStrip: HomeStrip = HomeStrip.DOTS,
     /** Swipe down on Home (below the top edge) opens Spotlight. */
     /** Swipe down on Home: SPOTLIGHT, NOTIFICATIONS (Folio's or Android's, whichever the panels setting says) or OFF. */
     val swipeDownHome: String = "SPOTLIGHT",

@@ -52,13 +52,14 @@ const val NOW_PLAYING_WIDGET = -11
 /** Folio's own glass widgets added in the polish pass. */
 internal val NativeWidgetIds = setOf(WEATHER_WIDGET, BATTERY_WIDGET, NOW_PLAYING_WIDGET)
 
-internal data class Weather(val tempC: Double, val code: Int, val highC: Double, val lowC: Double)
+internal data class Weather(val tempC: Double, val code: Int, val highC: Double, val lowC: Double, val place: String? = null)
 
 /** WMO weather code to a short label, as Open-Meteo reports it. */
 internal fun weatherLabel(code: Int) = when (code) {
-    0 -> "Clear"; 1, 2 -> "Partly Cloudy"; 3 -> "Cloudy"; 45, 48 -> "Fog"
-    in 51..57 -> "Drizzle"; in 61..67, in 80..82 -> "Rain"; in 71..77, 85, 86 -> "Snow"; in 95..99 -> "Thunderstorms"
-    else -> "—"
+    0 -> R.string.weather_clear; 1, 2 -> R.string.weather_partly_cloudy; 3 -> R.string.weather_cloudy; 45, 48 -> R.string.weather_fog
+    in 51..57 -> R.string.weather_drizzle; in 61..67, in 80..82 -> R.string.weather_rain; in 71..77, 85, 86 -> R.string.weather_snow
+    in 95..99 -> R.string.weather_thunderstorms
+    else -> R.string.weather_unknown
 }
 
 internal fun parseOpenMeteo(json: String): Weather? = runCatching {
@@ -80,7 +81,10 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
             connectTimeout = 8000; readTimeout = 8000
             try { inputStream.bufferedReader().readText() } finally { disconnect() }
         }
-    }.getOrNull()?.let(::parseOpenMeteo)
+    }.getOrNull()?.let(::parseOpenMeteo)?.copy(place = runCatching {
+        @Suppress("DEPRECATION")
+        android.location.Geocoder(context).getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()?.let { it.locality ?: it.subAdminArea }
+    }.getOrNull())
 }
 
 private fun usesFahrenheit() = java.util.Locale.getDefault().country in setOf("US", "LR", "MM", "BS", "BZ", "KY", "PW")
@@ -89,7 +93,8 @@ private fun deg(c: Double) = if (usesFahrenheit()) "${Math.round(c * 9 / 5 + 32)
 @Composable
 internal fun WeatherCard(onClick: () -> Unit) {
     val context = LocalContext.current
-    val ink = LocalHomeInk.current
+    // White on the blue sky whatever Home's ink is, like iOS.
+    val ink = HomeInk(dark = false)
     var allowed by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
     var weather by remember { mutableStateOf<Weather?>(null) }
@@ -97,15 +102,16 @@ internal fun WeatherCard(onClick: () -> Unit) {
         // Every 30 minutes while Home shows the card.
         while (allowed) { fetchWeather(context)?.let { weather = it }; delay(30 * 60_000L) }
     }
-    GlassCard(onClick = { if (!allowed) ask.launch(Manifest.permission.ACCESS_COARSE_LOCATION) else onClick() }) {
-        Text("Weather", color = ink.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    GlassCard(onClick = { if (!allowed) ask.launch(Manifest.permission.ACCESS_COARSE_LOCATION) else onClick() },
+        paint = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(FolioColors.WeatherSkyTop, FolioColors.WeatherSkyBottom))) {
+        Text(weather?.place ?: androidx.compose.ui.res.stringResource(R.string.weather), color = androidx.compose.ui.graphics.Color.White, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         val w = weather
         when {
-            !allowed -> Text("Tap to allow approximate location", color = LocalAccent.current.ink, fontSize = FolioType.GROUP_LABEL.sp)
-            w == null -> Text("—", color = ink.primary, fontSize = 40.sp)
+            !allowed -> Text(androidx.compose.ui.res.stringResource(R.string.allow_approximate_location), color = LocalAccent.current.ink, fontSize = FolioType.GROUP_LABEL.sp)
+            w == null -> Text("—", color = ink.primary, fontSize = FolioType.WIDGET_FIGURE.sp)
             else -> {
-                Text(deg(w.tempC), color = ink.primary, fontWeight = FontWeight.Light, fontSize = 44.sp, lineHeight = 46.sp)
-                Text(weatherLabel(w.code), color = ink.primary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(deg(w.tempC), color = ink.primary, fontWeight = FontWeight.Light, fontSize = FolioType.WIDGET_FIGURE.sp)
+                Text(androidx.compose.ui.res.stringResource(weatherLabel(w.code)), color = ink.primary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 Text("H:${deg(w.highC)} L:${deg(w.lowC)}", color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1)
             }
         }
@@ -134,8 +140,8 @@ internal fun BatteryCard(onClick: () -> Unit) {
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     GlassCard(onClick = onClick) {
-        Text("Batteries", color = ink.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text(if (level >= 0) "$level%" + if (charging) " ⚡" else "" else "—", color = ink.primary, fontWeight = FontWeight.SemiBold, fontSize = 34.sp)
+        Text(androidx.compose.ui.res.stringResource(R.string.batteries), color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(if (level >= 0) "$level%" + if (charging) " ⚡" else "" else "—", color = ink.primary, fontWeight = FontWeight.SemiBold, fontSize = FolioType.WIDGET_FIGURE.sp)
         devices.take(2).forEach { (name, l) ->
             Text("$name  $l%", color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -145,11 +151,11 @@ internal fun BatteryCard(onClick: () -> Unit) {
 private fun bluetoothLevels(context: Context): List<Pair<String, Int>> = runCatching {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return emptyList()
     val adapter = context.getSystemService(android.bluetooth.BluetoothManager::class.java)?.adapter ?: return emptyList()
-    @Suppress("MissingPermission")
+    @android.annotation.SuppressLint(PERMISSION_CHECKED)
     adapter.bondedDevices.mapNotNull { d ->
         val connected = runCatching { d.javaClass.getMethod("isConnected").invoke(d) as Boolean }.getOrDefault(false)
         val l = runCatching { d.javaClass.getMethod("getBatteryLevel").invoke(d) as Int }.getOrDefault(-1)
-        @Suppress("MissingPermission") val name = d.name ?: return@mapNotNull null
+        @android.annotation.SuppressLint(PERMISSION_CHECKED) val name = d.name ?: return@mapNotNull null
         if (connected && l in 0..100) name to l else null
     }
 }.getOrDefault(emptyList())
@@ -174,20 +180,23 @@ internal fun NowPlayingCard(onClick: () -> Unit) {
     val meta = remember(c, tick) { c?.metadata }
     val playing = remember(c, tick) { c?.playbackState?.state == PlaybackState.STATE_PLAYING }
     GlassCard(onClick = { c?.sessionActivity?.let { runCatching { it.send() } } ?: onClick() }) {
-        Text("Now Playing", color = ink.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(androidx.compose.ui.res.stringResource(R.string.now_playing), color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         if (c == null || meta == null) {
-            Text(if (c == null) "Nothing playing" else "—", color = ink.primary, fontSize = FolioType.SUBHEAD.sp, maxLines = 2)
+            Text(if (c == null) androidx.compose.ui.res.stringResource(R.string.nothing_playing) else "—", color = ink.primary, fontSize = FolioType.SUBHEAD.sp, maxLines = 2)
         } else {
             Text(meta.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "", color = ink.primary, fontWeight = FontWeight.SemiBold,
                 fontSize = FolioType.SUBHEAD.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(meta.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "", color = ink.secondary,
                 fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", tint = ink.primary,
+                Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) androidx.compose.ui.res.stringResource(R.string.pause) else androidx.compose.ui.res.stringResource(R.string.play), tint = ink.primary,
                     modifier = Modifier.size(30.dp).clickable { c.transportControls.run { if (playing) pause() else play() }; tick++ })
                 Spacer(Modifier.width(16.dp))
-                Icon(Icons.Rounded.SkipNext, "Next", tint = ink.primary, modifier = Modifier.size(30.dp).clickable { c.transportControls.skipToNext(); tick++ })
+                Icon(Icons.Rounded.SkipNext, androidx.compose.ui.res.stringResource(R.string.next_track), tint = ink.primary, modifier = Modifier.size(30.dp).clickable { c.transportControls.skipToNext(); tick++ })
             }
         }
     }
 }
+
+/** Lint id for calls guarded by a checkSelfPermission just above. */
+private const val PERMISSION_CHECKED = "MissingPermission"

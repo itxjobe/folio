@@ -61,11 +61,12 @@ data class FolioTheme(
 
         /** Built-in looks, each a take on an iOS appearance. */
         val PRESETS = listOf(
-            FolioTheme("Classic"),
-            FolioTheme("Dark", iconStyle = IconStyle.DARK, badgeColor = BadgeColor.SOFT, statusStyle = StatusStyle(railGlass = .38f)),
-            FolioTheme("Tinted", iconStyle = IconStyle.TINTED, iconTintFromWallpaper = true, badgeColor = BadgeColor.APP),
+            FolioTheme("Classic", statusStyle = StatusStyle(showDate = true, showBatteryPercent = true, glyph = StatusGlyph.RING, background = true)),
+            FolioTheme("Dark", iconStyle = IconStyle.DARK, badgeColor = BadgeColor.SOFT, statusStyle = StatusStyle(showDate = true, showBatteryPercent = true, glyph = StatusGlyph.RING, background = true, railGlass = .38f)),
+            FolioTheme("Tinted", iconStyle = IconStyle.TINTED, iconTintFromWallpaper = true, badgeColor = BadgeColor.APP,
+                statusStyle = StatusStyle(showDate = true, showBatteryPercent = true, glyph = StatusGlyph.RING, background = true)),
             FolioTheme("Clear", iconShape = IconShape.SQUIRCLE, badgeStyle = BadgeStyle.COUNT, tintedGlass = false,
-                statusStyle = StatusStyle(showDate = false, glyph = StatusGlyph.MINIMAL, railGlass = .1f)),
+                statusStyle = StatusStyle(showDate = false, showBatteryPercent = true, glyph = StatusGlyph.MINIMAL, background = true, railGlass = .1f)),
         )
     }
 }

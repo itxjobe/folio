@@ -7,6 +7,9 @@ import androidx.compose.ui.graphics.Color
  * point at the same values. Use these instead of writing hex colors in a screen.
  */
 internal object FolioColors {
+    /** iOS Weather widget sky, top and bottom of its gradient. */
+    val WeatherSkyTop = androidx.compose.ui.graphics.Color(0xFF3E86D8)
+    val WeatherSkyBottom = androidx.compose.ui.graphics.Color(0xFF1F5AA6)
     /**
      * The palette as ARGB numbers, for the places that hold a color as a value rather than a `Color`: a tweak's
      * tint, a Focus mode, a saved layout's icon tint. One source of truth, so a number and a color can't drift.
@@ -165,6 +168,8 @@ internal object FolioType {
     const val FOOTNOTE = 13
     /** Uppercase group labels, SemiBold with .4sp tracking. */
     const val GROUP_LABEL = 12
+    /** Big widget figures (temperature, battery level). */
+    const val WIDGET_FIGURE = 40
 }
 
 /**

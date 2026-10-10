@@ -112,10 +112,12 @@ internal fun Modifier.widgetTap(onClick: () -> Unit): Modifier {
 }
 
 @Composable
-internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit,
+    /** A painted card instead of glass, like iOS Weather's sky. */
+    paint: androidx.compose.ui.graphics.Brush? = null, content: @Composable ColumnScope.() -> Unit) {
     val look = LocalGlassLook.current
-    Surface(modifier.fillMaxSize().clip(RoundedCornerShape(FolioRadius.PANEL.dp)).widgetTap(onClick),
-        color = look.fill(Glass), shape = RoundedCornerShape(FolioRadius.PANEL.dp),
+    Surface(modifier.fillMaxSize().clip(RoundedCornerShape(FolioRadius.PANEL.dp)).let { if (paint != null) it.background(paint) else it }.widgetTap(onClick),
+        color = if (paint != null) Color.Transparent else look.fill(Glass), shape = RoundedCornerShape(FolioRadius.PANEL.dp),
         border = if (look.outline > 0f) androidx.compose.foundation.BorderStroke(1.dp, look.outlineColor) else null) {
         // Like iOS widgets, the whole card scales with its size, so a narrower column (the Today View beside
         // Home in portrait) shrinks the text instead of clipping it.
@@ -225,9 +227,9 @@ internal fun widgetLabel(context: android.content.Context, id: Int, controller: 
     DATE_WIDGET -> context.getString(R.string.date)
     UP_NEXT_WIDGET -> context.getString(R.string.up_next)
     SUGGESTIONS_WIDGET -> context.getString(R.string.suggestions)
-    WEATHER_WIDGET -> "Weather"
-    BATTERY_WIDGET -> "Batteries"
-    NOW_PLAYING_WIDGET -> "Now Playing"
+    WEATHER_WIDGET -> context.getString(R.string.weather)
+    BATTERY_WIDGET -> context.getString(R.string.batteries)
+    NOW_PLAYING_WIDGET -> context.getString(R.string.now_playing)
     BIG_CLOCK_WIDGET -> context.getString(R.string.big_clock)
     INFO_WIDGET -> context.getString(R.string.widget_panel)
     EMPTY_WIDGET -> context.getString(R.string.add_widget)
