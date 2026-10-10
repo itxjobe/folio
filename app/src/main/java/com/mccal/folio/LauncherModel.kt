@@ -1250,6 +1250,12 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             prefs.edit().putBoolean(INNER_COLUMNS_SNAPSHOT, true).apply()
             saveLayoutSnapshot(INNER_COLUMNS_SNAPSHOT_NAME)
         }
+        if (!prefs.getBoolean(STATUS_ICONS_APPLIED, false) && !mutable.value.loading && mutable.value.apps.isNotEmpty()) {
+            // The 09:26 build set the battery-only ring; the iPhone Fold look uses real status icons.
+            prefs.edit().putBoolean(STATUS_ICONS_APPLIED, true).apply()
+            if (prefs.getBoolean(IPHONE_FOLD_APPLIED, false))
+                updateSettings(soon = false) { it.copy(statusStyle = it.statusStyle.copy(glyph = StatusGlyph.ICONS)) }
+        }
         if (prefs.getBoolean(IPHONE_FOLD_APPLIED, false) || mutable.value.loading || mutable.value.apps.isEmpty()) return
         prefs.edit().putBoolean(IPHONE_FOLD_APPLIED, true).apply()
         applyIPhoneFoldLayout()
@@ -2026,3 +2032,4 @@ private const val IPHONE_FOLD_SNAPSHOT = "Before iPhone Fold layout"
 private const val INNER_COLUMNS_SNAPSHOT = "inner_columns_snapshot_saved"
 /** Layout History name for the copy saved when the inner screen first shows 5 columns. */
 private const val INNER_COLUMNS_SNAPSHOT_NAME = "Before 5 columns unfolded"
+private const val STATUS_ICONS_APPLIED = "status_icons_applied"
