@@ -13,7 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 
 enum class AppearanceMode { LIGHT, DARK, SYSTEM, SUNRISE_SUNSET }
-data class AppearanceState(val mode: AppearanceMode = AppearanceMode.LIGHT, val accent: AccentChoice = AccentChoice.FOLIO_TEAL, val place: String = "",
+data class AppearanceState(val mode: AppearanceMode = AppearanceMode.SYSTEM, val accent: AccentChoice = AccentChoice.FOLIO_TEAL, val place: String = "",
     val latitude: Double? = null, val longitude: Double? = null, val locationTime: Long = 0,
     val deviceLocation: Boolean = false, val dark: Boolean = false, val fallback: String? = null,
     val locationStatus: String? = null)
@@ -25,7 +25,7 @@ class AppearanceStore(private val context: Context) {
     var state by mutableStateOf(load(currentSystemDark())); private set
     init { DuoAppearanceRuntime.dark = state.dark; DuoAppearanceRuntime.accent = state.accent }
     private fun load(systemDark: Boolean): AppearanceState {
-        val mode = runCatching { AppearanceMode.valueOf(prefs.getString("mode", "LIGHT")!!) }.getOrDefault(AppearanceMode.LIGHT)
+        val mode = runCatching { AppearanceMode.valueOf(prefs.getString("mode", "SYSTEM")!!) }.getOrDefault(AppearanceMode.SYSTEM)
         val accent = runCatching { AccentChoice.valueOf(prefs.getString("accent", "FOLIO_TEAL")!!) }.getOrDefault(AccentChoice.FOLIO_TEAL)
         val lat = runCatching { prefs.getString("lat", null)?.toDoubleOrNull() }.getOrNull()
         val lon = runCatching { prefs.getString("lon", null)?.toDoubleOrNull() }.getOrNull()
