@@ -481,7 +481,15 @@ fun LauncherScreen(
     }?.target as? DropTarget.Home }
     // More rows: automatic placement uses the rows every page shows; a page already drawn taller (apps placed lower
     // on the other screen) also takes drops in those rows.
-    val homeAppRows = state.homeAppRows
+    // The screen class from the current window metrics (Jetpack WindowManager), recomputed on every configuration
+    // change, which includes folding, unfolding and rotating, so rows follow the screen Home is on (#13).
+    val windowConfig = androidx.compose.ui.platform.LocalConfiguration.current
+    val currentScreen = remember(windowConfig, launcherActivity) {
+        val bounds = androidx.window.layout.WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(launcherActivity).bounds
+        val d = launcherActivity.resources.displayMetrics.density
+        layoutScreenFor(bounds.width() / d, bounds.height() / d, windowConfig.classScale)
+    }
+    val homeAppRows = state.homeAppRowsFor(currentScreen)
     val visibleRows = visibleHomeRows(homeAppRows)
     fun pageRows(page: Int) = shownHomeRows(homeAppRows, state.layout.slotsForPage(page), state.widgetPlacements.filter { it.page == page })
     fun draftAt(index: Int, span: WidgetSpan, slot: Int) = widgetCandidate(state.layout, slot, index, span.width, span.height, pageRows(homeCellPage(index)))
@@ -733,7 +741,7 @@ fun LauncherScreen(
             // (micro covers never get here).
             val measuresRows = !geometry.splitColumns && maxHeight.value * classScale >= HOME_REGULAR_MIN_HEIGHT_DP &&
                 !launcherActivity.isInMultiWindowMode
-            LaunchedEffect(measuresRows, wide, geometry.fitAppRows) { if (measuresRows) model.recordHomeFit(wide, geometry.fitAppRows) }
+            LaunchedEffect(measuresRows, layoutScreen, geometry.fitAppRows) { if (measuresRows) model.recordHomeFit(layoutScreen, geometry.fitAppRows) }
             SideEffect {
                 resize.pitchX = with(density) { geometry.cellWidth.dp.toPx() }
                 resize.pitchY = with(density) { minOf((geometry.widgetHeight + 18f) / 2f, geometry.rowHeight).dp.toPx() }
