@@ -76,9 +76,24 @@ internal data class TintOptions(val notifications: Boolean = false, val media: B
 internal val LocalTintOptions = androidx.compose.runtime.staticCompositionLocalOf { TintOptions() }
 
 /** How strong Home's glass is: widget frost and the outline around widgets and Side Bar capsules (Settings › Glass). */
-internal data class GlassLook(val widget: Float = .26f, val outline: Float = .16f) {
+internal data class GlassLook(val widget: Float = .26f, val outline: Float = .16f,
+    /** The wallpaper behind Home is light: white glass and white text on it were unreadable, so glass turns smoky. */
+    val lightBehind: Boolean = false) {
     val outlineColor get() = androidx.compose.ui.graphics.Color.White.copy(alpha = outline)
+    /** The widget glass fill: [base] at the chosen strength, or a dark smoke strong enough for white text over a light wallpaper. */
+    fun fill(base: androidx.compose.ui.graphics.Color) =
+        if (lightBehind) SmokeGlass.copy(alpha = (widget + .2f).coerceIn(.42f, .85f)) else base.copy(alpha = widget)
 }
+private val SmokeGlass = androidx.compose.ui.graphics.Color(0xFF1C1C1E)
+
+/**
+ * Whether the wallpaper is light enough that white glass would wash out: Android's "supports dark text" hint, or a main
+ * color whose relative luminance is high (measured from the wallpaper's own colors, no pixels read).
+ */
+internal fun WallpaperTone.isLight(): Boolean = prefersDarkText || primary?.let { argb ->
+    fun ch(v: Int) = (v / 255f).let { if (it <= .03928f) it / 12.92f else Math.pow(((it + .055f) / 1.055f).toDouble(), 2.4).toFloat() }
+    .2126f * ch(argb shr 16 and 0xFF) + .7152f * ch(argb shr 8 and 0xFF) + .0722f * ch(argb and 0xFF) > .5f
+} == true
 internal val LocalGlassLook = androidx.compose.runtime.staticCompositionLocalOf { GlassLook() }
 
 /** Settings › Home Screen & Dock › Folders. */

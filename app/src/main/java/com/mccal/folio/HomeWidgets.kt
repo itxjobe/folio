@@ -115,7 +115,7 @@ internal fun Modifier.widgetTap(onClick: () -> Unit): Modifier {
 internal fun GlassCard(modifier: Modifier = Modifier, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val look = LocalGlassLook.current
     Surface(modifier.fillMaxSize().clip(RoundedCornerShape(FolioRadius.PANEL.dp)).widgetTap(onClick),
-        color = Glass.copy(alpha = look.widget), shape = RoundedCornerShape(FolioRadius.PANEL.dp),
+        color = look.fill(Glass), shape = RoundedCornerShape(FolioRadius.PANEL.dp),
         border = if (look.outline > 0f) androidx.compose.foundation.BorderStroke(1.dp, look.outlineColor) else null) {
         // Like iOS widgets, the whole card scales with its size, so a narrower column (the Today View beside
         // Home in portrait) shrinks the text instead of clipping it.

@@ -278,9 +278,11 @@ class MainActivity : ComponentActivity() {
             val iconTint = if (state.iconTintFromWallpaper) wallpaperTone.primary?.let(::vividTint)?.toLong()?.and(0xFFFFFFFFL) ?: state.iconTint else state.iconTint
             androidx.compose.runtime.CompositionLocalProvider(
                 LocalWallpaperTone provides wallpaperTone,
-                LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline),
+                LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline, lightBehind = wallpaperTone.isLight()),
                 LocalSolidGlass provides solidGlass,
                 LocalFolderLook provides FolderLook(state.folderColumns, state.folderBackground),
+                // iOS-style gestures start sooner: Home's drags, scrubs and swipes use 60% of Android's touch slop.
+                androidx.compose.ui.platform.LocalViewConfiguration provides homeViewConfiguration,
                 LocalLabelSize provides state.labelSize,
                 LocalDeviceStatus provides deviceStatus,
                 LocalReduceMotion provides reduceMotion,

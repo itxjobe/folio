@@ -75,7 +75,9 @@ internal fun DrawScope.drawLauncherBackground(photo: ImageBitmap?, dark: Boolean
         // No picture chosen. A flat surface rather than a scene: DES-2a says Folio does not draw backgrounds, and
         // this is the absence of one. It still has to be opaque, because Home's window is see-through and a window
         // with nothing behind it keeps showing the frame before (#12, #35).
-        drawRect(if (dark) Color(0xFF0B0B0C) else Color(0xFFE9E9EC))
+        // Dark enough in Light mode too (slate, not the old #E9E9EC): Home's text and widget glass are white, and white
+        // on near-white was unreadable. Folio's tone for "no picture" assumes white text, which this now matches.
+        drawRect(if (dark) Color(0xFF0B0B0C) else Color(0xFF34424F))
         return
     }
     val destinationWidth = size.width.toInt().coerceAtLeast(1)

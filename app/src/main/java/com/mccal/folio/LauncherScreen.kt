@@ -1919,7 +1919,7 @@ private fun libraryEdges(statusInCorner: Boolean, dockWidth: Float, leftHanded: 
 private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
     val ink = LocalHomeInk.current
     Row(Modifier.padding(bottom = FolioSpace.SNUG.dp).heightIn(min = 48.dp).clip(RoundedCornerShape(FolioRadius.PANEL.dp))
-        .background(Glass.copy(alpha = LocalGlassLook.current.widget)).border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(FolioRadius.PANEL.dp))
+        .background(LocalGlassLook.current.fill(Glass)).border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(FolioRadius.PANEL.dp))
         .padding(start = FolioSpace.LARGE.dp, end = FolioSpace.TINY.dp).testTag("home-setup"), verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.preview), color = ink.secondary, fontSize = FolioType.SUBHEAD.sp, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.width(12.dp))
