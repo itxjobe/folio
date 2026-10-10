@@ -427,7 +427,7 @@ class IslandListenerService : NotificationListenerService() {
 
     private fun currentProgress(): IslandActivity.Progress? {
         val sbn = runCatching { activeNotifications }.getOrNull().orEmpty()
-            .filter { it.isOngoing && it.packageName != packageName && hasProgress(it.notification) }
+            .filter { it.isOngoing && it.packageName != packageName && run { currentPkg = it.packageName; hasProgress(it.notification) } }
             .maxByOrNull { it.postTime } ?: return null
         val extras = sbn.notification.extras
         val max = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
@@ -438,11 +438,18 @@ class IslandListenerService : NotificationListenerService() {
             appIcon(sbn.packageName), if (!indeterminate && max > 0) (progress.toFloat() / max).coerceIn(0f, 1f) else null, sbn.key)
     }
 
+    private var currentPkg: String? = null
+
     private fun hasProgress(n: Notification): Boolean {
         val extras = n.extras
         return extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0) > 0 ||
             extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false) ||
-            extras.getString(Notification.EXTRA_TEMPLATE)?.endsWith("ProgressStyle") == true
+            extras.getString(Notification.EXTRA_TEMPLATE)?.endsWith("ProgressStyle") == true ||
+            // Android 16 Live Updates: a promoted ongoing notification (FLAG_PROMOTED_ONGOING) is a live activity
+            // even without a bar, like an Uber ETA. Ride-share and delivery apps that only post an ongoing card count too.
+            (n.flags and FLAG_PROMOTED_ONGOING) != 0 || n.extras.getBoolean("android.requestPromotedOngoing") ||
+            (n.flags and Notification.FLAG_ONGOING_EVENT != 0 && n.extras.getCharSequence(Notification.EXTRA_TITLE) != null &&
+                LIVE_TRIP_PACKAGES.any { pkg -> n.extras.getString("android.appInfo")?.contains(pkg) == true || currentPkg == pkg })
     }
 
     private fun watch(controllers: List<MediaController>) {
@@ -578,3 +585,10 @@ class IslandListenerService : NotificationListenerService() {
 }
 
 private val IslandAccent = Color(0xFF6EE39A)
+
+/** Notification.FLAG_PROMOTED_ONGOING (API 36), spelled out so older SDK stubs compile. */
+private const val FLAG_PROMOTED_ONGOING = 0x00040000
+
+/** Ride-share and delivery apps whose ongoing trip/order card is a live activity (pattern seen in HyperBridge's app list). */
+internal val LIVE_TRIP_PACKAGES = setOf("com.ubercab", "com.ubercab.eats", "me.lyft.android", "com.dd.doordash",
+    "com.grubhub.android", "com.instacart.client", "com.postmates.android")
