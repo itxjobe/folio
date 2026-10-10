@@ -84,6 +84,8 @@ data class BigClockStyle(
     val size: Float = 1f, val face: String = "SANS", val shadow: String = "SOFT",
     val date: String = "LONG", val showNext: Boolean = true, val align: String = "CENTER",
     val stacked: Boolean = false, val hours: String = "SYSTEM", val ampm: Boolean = false,
+    /** mode FIXED: a color picked from [ClockPalette], usable even when Folio can't read the wallpaper (#330). */
+    val color: Int = 0,
 )
 
 internal fun BigClockStyle?.orDefault() = this ?: BigClockStyle()
@@ -103,12 +105,26 @@ internal object BigClockBounds { val bySlot = mutableStateMapOf<Int, Rect>() }
 @Composable
 internal fun <T> clockMotion(): androidx.compose.animation.core.FiniteAnimationSpec<T> = if (LocalReduceMotion.current) snap() else FolioMotion.spring(FolioMotion.Quick)
 
-internal fun clockFontFamily(face: String, weight: Int): FontFamily? = when (face) {
-    "SERIF" -> FontFamily.Serif
-    "MONO" -> FontFamily.Monospace
-    "ROUNDED" -> runCatching { FontFamily(Typeface.create(Typeface.create("sans-serif-rounded", Typeface.NORMAL), weight.coerceIn(100, 900), false)) }.getOrNull()
-    else -> null
+/**
+ * The clock's typeface. Built from a named [Typeface] at the exact weight rather than Compose's generic families, because
+ * One UI (and phones with a downloaded system font) can map the generic families back to the system font, and
+ * "sans-serif-rounded" doesn't exist on Samsung at all, so picking a style looked like nothing happened (#330).
+ */
+internal fun clockFontFamily(face: String, weight: Int): FontFamily? {
+    val names = when (face) {
+        "SERIF" -> listOf("noto-serif", "serif")
+        "MONO" -> listOf("monospace", "droid-sans-mono")
+        "ROUNDED" -> listOf("sans-serif-rounded", "google-sans", "sec-roboto-light", "sans-serif-condensed")
+        else -> return null
+    }
+    val plain = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+    val base = names.asSequence().map { Typeface.create(it, Typeface.NORMAL) }.firstOrNull { it != plain }
+        ?: when (face) { "SERIF" -> Typeface.SERIF; "MONO" -> Typeface.MONOSPACE; else -> Typeface.create("sans-serif-condensed", Typeface.NORMAL) }
+    return runCatching { FontFamily(Typeface.create(base, weight.coerceIn(100, 900), false)) }.getOrNull()
 }
+
+/** Fixed clock colors offered in every case, including Android's own wallpaper where Folio can't suggest any (#330). */
+internal val ClockPalette = listOf(0xFFFFFFFF, 0xFF1C1C1E, 0xFFFF9F0A, 0xFFFFD60A, 0xFF30D158, 0xFF64D2FF, 0xFF0A84FF, 0xFFBF5AF2, 0xFFFF375F).map { it.toInt() }
 
 // ---- contrast math, ported from the Mockup Lab's adaptive-clock.js (same WCAG relative-luminance formula) ----
 private fun linearize(channel: Float): Float {
@@ -210,6 +226,7 @@ internal data class ClockInkResult(val color: Color, val shade: Boolean, val rat
 private val DarkInk = FolioColors.SecondaryBackground
 
 internal fun resolveClockInk(style: BigClockStyle, sample: ClockInkSample?, fallbackDark: Boolean): ClockInkResult {
+    if (style.mode == "FIXED") return ClockInkResult(Color(style.color), false, sample?.let { worstCase(luminance(style.color), it.under) } ?: 21f)
     // No picture to read (Android's own wallpaper, or still sampling): the whole-wallpaper ink, or White when asked for.
     if (sample == null) return ClockInkResult(if (style.mode != "WHITE" && fallbackDark) DarkInk else Color.White, false, 21f)
     when (style.mode) {
@@ -337,6 +354,10 @@ internal fun ClockEditBar(
                     onClick = { push(s.copy(mode = "CUSTOM", customIndex = i)) })
             }
             ColorDot(selected = s.mode == "WHITE", label = stringResource(R.string.white), color = Color.White, onClick = { push(s.copy(mode = "WHITE")) })
+            ClockPalette.drop(1).forEach { argb ->
+                ColorDot(selected = s.mode == "FIXED" && s.color == argb, label = "#%06X".format(argb and 0xFFFFFF), color = Color(argb),
+                    onClick = { push(s.copy(mode = "FIXED", color = argb)) })
+            }
         }
         if (systemWallpaper) Text(stringResource(R.string.wallpaper_from_folios_own_pictures_only), color = Color.White.copy(alpha = .6f), fontSize = FolioType.FOOTNOTE.sp)
         AnimatedVisibility(fine, enter = fadeIn(clockMotion<Float>()) + expandVertically(clockMotion<androidx.compose.ui.unit.IntSize>()),
