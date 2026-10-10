@@ -56,6 +56,9 @@ class MainActivity : ComponentActivity() {
     private val activitySheets = mutableIntStateOf(0)
     /** iOS "app closes into its icon": Home springs up from a little smaller when you come back from an app Folio opened. */
     private val homeReturn = androidx.compose.animation.core.Animatable(1f)
+    /** Cross-fade mask across fold/unfold: Home dips and comes back while icons spring to their new cells. */
+    private val foldFade = androidx.compose.animation.core.Animatable(1f)
+    private var lastWideDp = -1
     private var returningFromApp = false
     /** Opened from Android Settings (Home app gear / "Additional settings in the app"). */
     private val settingsRequests = mutableIntStateOf(0)
@@ -100,6 +103,7 @@ class MainActivity : ComponentActivity() {
         // The wallpaper theme must be chosen before the window exists (switching to it starts the screen again).
         if (usesSystemWallpaper(this)) setTheme(R.style.Theme_Duo_Wallpaper)
         super.onCreate(savedInstanceState)
+        lastWideDp = if (resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
         setupExperience = SetupExperience(this)
         Installs.start(this); NewApps.load(this)
         badgesGateOpen = FeatureGate.BADGES_WHEN_OPENED.isOpen(this)
@@ -342,6 +346,7 @@ class MainActivity : ComponentActivity() {
                     .graphicsLayer {
                     val back = homeReturn.value
                     if (back != 1f) { scaleX = back; scaleY = back; alpha = (.55f + (back - HOME_RETURN_FROM) / (1f - HOME_RETURN_FROM) * .45f).coerceIn(0f, 1f) }
+                    if (foldFade.value != 1f) alpha *= foldFade.value
                     val p = overlayProgress
                     // Fixed radius while any overlay is showing: a constant blur is cached by the RenderThread,
                     // whereas animating the radius re-blurred the whole Home every frame (~14ms of GPU per
@@ -822,6 +827,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
+        // Fold or unfold (cover <-> inner, across 600dp): fade Home in over the new layout instead of a hard flash.
+        val wideNow = if (newConfig.smallestScreenWidthDp >= 600) 1 else 0
+        if (lastWideDp != -1 && wideNow != lastWideDp && !reduceMotionEnabled(this)) lifecycleScope.launch(androidx.compose.ui.platform.AndroidUiDispatcher.Main) {
+            foldFade.snapTo(.35f); foldFade.animateTo(1f, androidx.compose.animation.core.tween(320))
+        }
+        lastWideDp = wideNow
         // A panel is drawn for the screen it opened on. Folding, unfolding or being resized leaves it laid out for a
         // screen that is no longer there, and on some phones it can't be dismissed at all (reported on r/GalaxyFold
         // from a Fold8 Ultra), so a real size change closes it and Home comes back clean.

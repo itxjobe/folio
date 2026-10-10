@@ -421,6 +421,10 @@ internal fun SharedHomeGrid(
         remember(savedSlots, pageWidgets, columns, page) {
             reflowHomePage(List(HOME_CELLS) { savedAt(pageStart + it) != null }, pageWidgets.filter { it.row < GRID_ROWS }, columns)
         } else null
+    // For a moment after the column count changes (fold/unfold: 4 <-> 5), icons spring from their old cells to the new ones.
+    var lastColumns by remember { mutableIntStateOf(columns) }
+    var refolding by remember { mutableStateOf(false) }
+    LaunchedEffect(columns) { if (columns != lastColumns) { lastColumns = columns; refolding = true; kotlinx.coroutines.delay(700); refolding = false } }
     fun colOf(local: Int) = reflow?.cells?.get(local)?.first ?: (local % GRID_COLUMNS)
     fun rowOf(local: Int) = reflow?.cells?.get(local)?.second ?: (local / GRID_COLUMNS)
     val renderedRows = maxOf(if (reflow != null) maxOf(reflow.rows, minOf(shownRows, 2)) else shownRows,
@@ -492,7 +496,7 @@ internal fun SharedHomeGrid(
                 // Slide only while rearranging; a new screen size (folding) must place icons immediately.
                 val animatedOffset by animateIntOffsetAsState(
                     with(density) { IntOffset(cellX(colOf(localIndex), row).toPx().roundToInt(), rowTop(row).dp.toPx().roundToInt()) },
-                    animationSpec = if (drag.active || edit.active) androidx.compose.animation.core.spring(visibilityThreshold = IntOffset(1, 1))
+                    animationSpec = if (drag.active || edit.active || refolding) androidx.compose.animation.core.spring(dampingRatio = .82f, stiffness = 380f, visibilityThreshold = IntOffset(1, 1))
                         else androidx.compose.animation.core.snap(),
                     label = "home insertion $id",
                 )
