@@ -172,6 +172,8 @@ internal object FolioType {
     const val FOOTNOTE = 13
     /** Uppercase group labels, SemiBold with .4sp tracking. */
     const val GROUP_LABEL = 12
+    /** Status-column captions (carrier, network type). */
+    const val CAPTION = 10
     /** Big widget figures (temperature, battery level). */
     const val WIDGET_FIGURE = 40
 }

@@ -38,6 +38,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.WifiTethering
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.VpnKey
+import androidx.compose.material.icons.rounded.ScreenShare
+import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.ScreenRotation
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
@@ -94,7 +108,7 @@ internal fun TopPanels(panel: ShadePanel?, progress: () -> Float, status: Device
     val lift = with(LocalDensity.current) { 28.dp.toPx() }
 
     // Scrim: tap or swipe up anywhere to close.
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = progress() }.background(FolioGlass.scrim)
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = progress() }.background(if (current == ShadePanel.QUICK_SETTINGS) CcScrim else FolioGlass.scrim)
         .then(if (open) Modifier.clickable(remember { MutableInteractionSource() }, null, onClick = onClose)
             .pointerInput(Unit) {
                 var total = 0f
@@ -115,11 +129,13 @@ internal fun TopPanels(panel: ShadePanel?, progress: () -> Float, status: Device
             split -> Alignment.TopEnd
             current == ShadePanel.NOTIFICATIONS -> if (wide) Alignment.TopCenter else Alignment.TopStart
             wide && ccCentered -> Alignment.TopCenter
+            current == ShadePanel.QUICK_SETTINGS && !wide -> Alignment.TopStart
             else -> Alignment.TopEnd
         }) {
         // Notification Center uses the width; Control Center is a compact fixed grid (like iPad) so it isn't oversized.
         val panelModifier = Modifier.widthIn(max = if (split) 540.dp else if (wide) 460.dp else 560.dp)
             .then(if (current == ShadePanel.NOTIFICATIONS) Modifier.fillMaxWidth() else Modifier)
+            .then(if (current == ShadePanel.QUICK_SETTINGS && !wide) Modifier.fillMaxSize() else Modifier)
             .then(if (split) Modifier.fillMaxHeight() else Modifier)
             // Taps on gaps inside the panel must not fall through to the scrim and close it.
             .pointerInput(Unit) { detectTapGestures() }
@@ -210,7 +226,7 @@ private fun NotificationCenter(modifier: Modifier, showClock: Boolean, grouped: 
                             .graphicsLayer { alpha = if (filterApp == null || selected) 1f else .45f }) }
                         if (group.size > 1) Box(Modifier.align(Alignment.TopEnd).offset(4.dp, (-4).dp).heightIn(min = 16.dp).widthIn(min = 16.dp)
                             .background(FolioColors.RedLight, CircleShape).padding(horizontal = FolioSpace.TINY.dp), contentAlignment = Alignment.Center) {
-                            Text("${group.size}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp)
+                            Text("${group.size}", color = Color.White, fontSize = FolioType.CAPTION.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp)
                         }
                     }
                 }
@@ -556,18 +572,26 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
     BoxWithConstraints(modifier.testTag("control-center")) {
         val gap = 12.dp
         // iPad-sized cells: a compact grid instead of stretching across the whole screen.
-        val rows = 5 + (if (focusModes.isNotEmpty()) 1 else 0) + (maxOf(0, chosen.size - 4) + 3) / 4
-        val byHeight = if (maxHeight == Dp.Infinity) Dp.Infinity else (maxHeight - 60.dp - gap * (rows - 1)) / rows
-        val cell = minOf(size.cell + if (wide) 8.dp else 0.dp, (maxWidth - gap * 3) / 4, byHeight).coerceAtLeast(44.dp)
+        // Rows as in the iPhone Fold mockup: connectivity + media (2), controls + focus beside the sliders (2),
+        // the rest of the small controls, and the colourful shortcuts row.
+        val rows = 5 + (maxOf(0, chosen.size - 2) + 3) / 4
+        // On the cover screen a status column stays visible at the right, as on iPhone.
+        val railW = if (wide) 0.dp else 64.dp
+        val byHeight = if (maxHeight == Dp.Infinity) Dp.Infinity else (maxHeight - 56.dp - gap * (rows - 1)) / rows
+        val byWidth = (maxWidth - railW - 32.dp - gap * 3) / 4
+        val cell = (if (wide) minOf(size.cell + 8.dp, byWidth, byHeight) else minOf(byWidth, byHeight)).coerceAtLeast(44.dp)
         fun span(n: Int): Dp = cell * n + gap * (n - 1)
         val gridWidth = span(4)
         ProvideJiggle(edit) {
         // The fade draws in its own layer, which clips: pad it so edit mode's remove and add badges past the grid's edges stay whole.
+        if (!wide) CcStatusColumn(status, Modifier.align(Alignment.TopEnd).width(railW))
         Column(Modifier.width(gridWidth + 32.dp).fadingVerticalScroll().padding(horizontal = FolioSpace.LARGE.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
             // iOS 18 header: edit on the left, power on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (edit.active) PanelPill(stringResource(R.string.done)) { edit.stop() }
                 else GlassIconButton(Icons.Rounded.Add, stringResource(R.string.edit_controls)) { edit.start() }
+                Spacer(Modifier.weight(1f))
+                PrivacyIndicator { open(Intent(Settings.ACTION_PRIVACY_SETTINGS)) }
                 Spacer(Modifier.weight(1f))
                 GlassIconButton(Icons.Rounded.PowerSettingsNew, stringResource(R.string.power_menu)) {
                     onClose(); if (!SystemShadeAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)) onSystem()
@@ -601,55 +625,30 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                 Module(Modifier.size(span(2)).combinedClickable(onClick = {}, onLongClick = {
                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); connectivityOpen = true
                 }, onLongClickLabel = stringResource(R.string.show_connectivity_details))) {
-                    Column(Modifier.fillMaxSize().padding(cell * .16f), verticalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.fillMaxSize().padding(cell * .14f), verticalArrangement = Arrangement.SpaceBetween) {
                         connectivity.chunked(2).forEach { pair ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                pair.forEach { RoundToggle(it.icon, it.label, it.on, it.accent, cell * .7f, it.onClick) }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                                pair.forEach { RoundToggle(it.icon, it.label, it.on, it.accent, cell * .62f, it.onClick) }
                             }
+                        }
+                        // iOS's extra mini row: hotspot, location and VPN.
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                            RoundToggle(Icons.Rounded.WifiTethering, stringResource(R.string.hotspot), false, AccentGreen, cell * .34f) {
+                                open(Intent("android.settings.TETHER_SETTINGS").takeIf { it.resolveActivity(context.packageManager) != null } ?: Intent(Settings.ACTION_WIRELESS_SETTINGS)) }
+                            RoundToggle(Icons.Rounded.LocationOn, stringResource(R.string.location), false, AccentBlue, cell * .34f) { open(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
+                            RoundToggle(Icons.Rounded.VpnKey, stringResource(R.string.vpn), false, AccentBlue, cell * .34f) { open(Intent(Settings.ACTION_VPN_SETTINGS)) }
                         }
                     }
                 }
                 MediaModule(media, Modifier.size(span(2)), cell, onOpen = { media?.let { onClose(); IslandListenerService.open(context, it) } })
             }
-            // Focus, like iOS: the Focus that's on (or "Focus"); the icon toggles it, the rest opens the list.
-            if (focusModes.isNotEmpty()) {
-                var focusOpen by remember { mutableStateOf(false) }
-                val current = focusModes.firstOrNull { it.id == activeFocus }
-                if (focusOpen) Module(Modifier.width(span(4))) {
-                    Column(Modifier.fillMaxWidth().padding(vertical = FolioSpace.SMALL.dp)) {
-                        focusModes.forEach { mode ->
-                            val on = mode.id == activeFocus
-                            Row(Modifier.fillMaxWidth().clickable { onFocus(if (on) null else mode.id); focusOpen = false }
-                                .padding(horizontal = FolioSpace.COMFY.dp, vertical = FolioSpace.SMALL.dp).testTag("cc-focus-${mode.id}"), verticalAlignment = Alignment.CenterVertically) {
-                                RoundToggle(mode.icon(), mode.name, on, Color(mode.color), 40.dp) { onFocus(if (on) null else mode.id); focusOpen = false }
-                                Spacer(Modifier.width(12.dp))
-                                Text(mode.name, color = Color.White, fontSize = FolioType.SUBHEAD.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                                if (on) Text(stringResource(R.string.on), color = FolioGlass.secondary, fontSize = FolioType.FOOTNOTE.sp)
-                            }
-                        }
-                    }
-                } else Module(Modifier.width(span(4)).height(cell).clickable(onClickLabel = stringResource(R.string.choose_a_focus)) { focusOpen = true }.testTag("cc-focus")) {
-                    Row(Modifier.fillMaxSize().padding(horizontal = cell * .14f), verticalAlignment = Alignment.CenterVertically) {
-                        val mode = current ?: focusModes.first()
-                        RoundToggle(mode.icon(), mode.name, current != null, Color(mode.color), cell * .7f) {
-                            onFocus(if (current != null) null else mode.id)
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(current?.name ?: stringResource(R.string.focus), color = Color.White, fontSize = FolioType.SUBHEAD.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            if (current != null) Text(stringResource(R.string.on), color = FolioGlass.secondary, fontSize = FolioType.FOOTNOTE.sp)
-                        }
-                    }
-                }
-            }
             // Row 3–4: the first four small controls (2×2) and brightness + volume sliders
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 Column(Modifier.width(span(2)), verticalArrangement = Arrangement.spacedBy(gap)) {
-                    chosen.take(4).chunked(2).forEach { pair ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                            pair.forEach { c -> EditableControl(c, isOn(c), accent(c), cell, edit, onRemove = { onControls(controlNames - c.name) }) { run(c) } }
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        chosen.take(2).forEach { c -> EditableControl(c, isOn(c), accent(c), cell, edit, onRemove = { onControls(controlNames - c.name) }) { run(c) } }
                     }
+                    CcFocusPill(focusModes, activeFocus, onFocus, span(2), cell)
                 }
                 TallSlider(if (controls.brightness < .35f) Icons.Rounded.BrightnessLow else Icons.Rounded.LightMode, stringResource(R.string.brightness), controls.brightness, cell, span(2),
                     onStart = { if (!android.provider.Settings.System.canWrite(context)) open(controls.writeSettingsIntent()) }) { value ->
@@ -661,10 +660,18 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                 }, stringResource(R.string.volume), controls.volume, cell, span(2)) { controls.changeVolume(it) }
             }
             // The rest, four per row
-            chosen.drop(4).chunked(4).forEach { row ->
+            chosen.drop(2).chunked(4).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     row.forEach { c -> EditableControl(c, isOn(c), accent(c), cell, edit, onRemove = { onControls(controlNames - c.name) }) { run(c) } }
                 }
+            }
+            // Colourful round shortcuts, like iOS's bottom row: screen mirroring, code scanner, rotation.
+            if (!edit.active) Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                RoundToggle(Icons.Rounded.ScreenShare, stringResource(R.string.screen_mirroring), true, AccentPurple, cell) { open(Intent(Settings.ACTION_CAST_SETTINGS)) }
+                RoundToggle(Icons.Rounded.QrCodeScanner, stringResource(R.string.code_scanner), true, AccentBlue, cell) {
+                    open(context.packageManager.getLaunchIntentForPackage("com.google.ar.lens") ?: Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)) }
+                RoundToggle(Icons.Rounded.ScreenRotation, stringResource(R.string.rotation_lock), !controls.rotationLocked, Color.White.copy(alpha = .35f), cell) {
+                    if (!controls.toggleRotationLock()) open(controls.writeSettingsIntent()) }
             }
             // Edit mode: gallery of controls that aren't in Control Center yet
             if (edit.active) {
@@ -680,7 +687,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                                     Box(Modifier.align(Alignment.TopEnd).offset(6.dp, (-6).dp).size(20.dp).clip(CircleShape).background(AccentGreen),
                                         contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
                                 }
-                                Text(stringResource(c.label), color = Color.White, fontSize = 10.sp, maxLines = 2, lineHeight = 12.sp,
+                                Text(stringResource(c.label), color = Color.White, fontSize = FolioType.CAPTION.sp, maxLines = 2, lineHeight = 12.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = FolioSpace.TINY.dp))
                             }
                         }
@@ -779,7 +786,7 @@ private fun RoundToggle(icon: ImageVector, label: String, on: Boolean, accent: C
 private fun SquareToggle(icon: ImageVector, label: String, on: Boolean, accent: Color, size: Dp, onClick: () -> Unit) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val state = stringResource(if (on) R.string.state_on else R.string.state_off)
-    Box(Modifier.size(size).clip(RoundedCornerShape(size * .3f)).background(if (on) accent else ModuleGlass)
+    Box(Modifier.size(size).clip(CircleShape).background(if (on) accent else ModuleGlass)
         .clickable(role = androidx.compose.ui.semantics.Role.Button) { haptic.toggle(!on); onClick() }
         .semantics { contentDescription = label; stateDescription = state }, contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = if (on && accent == Color.White) Color.Black else Color.White, modifier = Modifier.size(size * .4f))
@@ -791,7 +798,7 @@ private fun TallSlider(icon: ImageVector, label: String, value: Float, width: Dp
     onStart: () -> Unit = {}, onValue: (Float) -> Unit) {
     val shown by androidx.compose.animation.core.animateFloatAsState(value.coerceIn(0f, 1f), FolioMotion.spring(FolioMotion.Snap), label = label)
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    Box(Modifier.size(width, height).clip(RoundedCornerShape(width * .36f)).background(ModuleGlass)
+    Box(Modifier.size(width, height).clip(RoundedCornerShape(width / 2)).background(ModuleGlass)
         .pointerInput(Unit) {
             var last = -1f
             detectVerticalDragGestures(onDragStart = { onStart(); last = -1f }) { change, _ ->
@@ -838,8 +845,105 @@ private fun EmptyNote(text: String, action: String?, onAction: () -> Unit) {
     }
 }
 
-private val ModuleGlass = FolioGlass.module
+/** iOS 26 Control Center: light frosted modules over a dark, heavily blurred backdrop. */
+/**
+ * iOS's privacy line at the top of Control Center ("Camera & 2 more"): what's in use right now. Android only lets an
+ * app see that a camera is busy and that something is recording, so those two are shown; hidden when nothing is.
+ */
+@Composable
+private fun PrivacyIndicator(onClick: () -> Unit) {
+    val context = LocalContext.current
+    var cameraBusy by remember { mutableStateOf(false) }
+    var micBusy by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        val cam = context.getSystemService(CameraManager::class.java)
+        val busy = mutableSetOf<String>()
+        val cb = object : CameraManager.AvailabilityCallback() {
+            override fun onCameraAvailable(id: String) { busy -= id; cameraBusy = busy.isNotEmpty() }
+            override fun onCameraUnavailable(id: String) { busy += id; cameraBusy = true }
+        }
+        runCatching { cam?.registerAvailabilityCallback(cb, android.os.Handler(android.os.Looper.getMainLooper())) }
+        val audio = context.getSystemService(android.media.AudioManager::class.java)
+        val rec = object : android.media.AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: MutableList<android.media.AudioRecordingConfiguration>?) { micBusy = !configs.isNullOrEmpty() }
+        }
+        micBusy = runCatching { audio?.activeRecordingConfigurations?.isNotEmpty() == true }.getOrDefault(false)
+        runCatching { audio?.registerAudioRecordingCallback(rec, null) }
+        onDispose { runCatching { cam?.unregisterAvailabilityCallback(cb) }; runCatching { audio?.unregisterAudioRecordingCallback(rec) } }
+    }
+    val items = listOfNotNull(if (cameraBusy) Triple(Icons.Rounded.PhotoCamera, AccentGreen, R.string.camera) else null,
+        if (micBusy) Triple(Icons.Rounded.Mic, AccentOrange, R.string.microphone) else null)
+    if (items.isEmpty()) return
+    Row(Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp).testTag("cc-privacy"),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        items.forEach { (icon, color, _) ->
+            Box(Modifier.size(18.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(11.dp))
+            }
+        }
+        val first = stringResource(items.first().third)
+        Text(if (items.size > 1) stringResource(R.string.privacy_and_more, first, items.size - 1) else first,
+            color = Color.White, fontSize = FolioType.FOOTNOTE.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Icon(Icons.Rounded.ChevronRight, null, tint = FolioGlass.secondary, modifier = Modifier.size(14.dp))
+    }
+}
+
+/** Focus as iOS 26 draws it beside the sliders: a pill with the mode's icon; tap the icon to toggle, the rest to choose. */
+@Composable
+private fun CcFocusPill(modes: List<FocusMode>, active: String?, onFocus: (String?) -> Unit, width: Dp, cell: Dp) {
+    var choosing by remember { mutableStateOf(false) }
+    val current = modes.firstOrNull { it.id == active }
+    val mode = current ?: modes.firstOrNull()
+    Box(Modifier.size(width, cell).clip(RoundedCornerShape(cell / 2)).background(ModuleGlass).border(FolioGlass.edge, RoundedCornerShape(cell / 2))
+        .clickable(onClickLabel = stringResource(R.string.choose_a_focus)) { if (mode != null) choosing = true }.testTag("cc-focus")) {
+        Row(Modifier.fillMaxSize().padding(horizontal = cell * .12f), verticalAlignment = Alignment.CenterVertically) {
+            if (mode != null) RoundToggle(mode.icon(), mode.name, current != null, Color(mode.color), cell * .66f) { onFocus(if (current != null) null else mode.id) }
+            else Icon(Icons.Rounded.DarkMode, null, tint = Color.White, modifier = Modifier.size(cell * .4f))
+            Spacer(Modifier.width(8.dp))
+            Text(current?.name ?: stringResource(R.string.focus), color = Color.White, fontSize = FolioType.SUBHEAD.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        androidx.compose.material3.DropdownMenu(choosing, { choosing = false }) {
+            modes.forEach { m ->
+                androidx.compose.material3.DropdownMenuItem(text = { Text(m.name) }, leadingIcon = { Icon(m.icon(), null, tint = Color(m.color)) },
+                    onClick = { onFocus(if (m.id == active) null else m.id); choosing = false }, modifier = Modifier.testTag("cc-focus-${m.id}"))
+            }
+        }
+    }
+}
+
+/** The status column that stays at the right while Control Center is open: time, battery ring with %, Wi-Fi, carrier and network type. */
+@Composable
+private fun CcStatusColumn(status: DeviceStatus, modifier: Modifier) {
+    val context = LocalContext.current
+    val carrier = remember { runCatching { context.getSystemService(android.telephony.TelephonyManager::class.java)?.networkOperatorName }.getOrNull()?.takeIf { it.isNotBlank() } }
+    val time = currentTime()
+    val is24 = android.text.format.DateFormat.is24HourFormat(context)
+    Column(modifier.padding(top = FolioSpace.TINY.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(time.format(java.time.format.DateTimeFormatter.ofPattern(if (is24) "H:mm" else "h:mm")), color = Color.White, fontSize = FolioType.SUBHEAD.sp, fontWeight = FontWeight.SemiBold)
+        status.battery?.let { level ->
+            Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    val w = 3.dp.toPx(); val arc = androidx.compose.ui.geometry.Size(size.width - w, size.height - w); val o = androidx.compose.ui.geometry.Offset(w / 2, w / 2)
+                    drawArc(Color.White.copy(alpha = .25f), 0f, 360f, false, o, arc, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+                    drawArc(if (status.charging) AccentGreen else if (level <= 20) AccentRed else Color.White, -90f, 3.6f * level, false, o, arc,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(w, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+                Icon(if (status.charging) Icons.Rounded.Bolt else Icons.Rounded.PhoneAndroid, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            }
+            Text("$level%", color = Color.White, fontSize = FolioType.GROUP_LABEL.sp, fontWeight = FontWeight.SemiBold)
+        }
+        if (status.wifiConnected) Icon(Icons.Rounded.Wifi, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        if (carrier != null || status.networkType != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Rounded.SignalCellularAlt, null, tint = Color.White, modifier = Modifier.size(16.dp))
+            carrier?.let { Text(it, color = Color.White, fontSize = FolioType.CAPTION.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            status.networkType?.let { Text(it, color = Color.White, fontSize = FolioType.CAPTION.sp, fontWeight = FontWeight.SemiBold) }
+        }
+    }
+}
+
+private val ModuleGlass = Color.White.copy(alpha = .2f)
 private val NotifGlass = FolioGlass.card
+private val CcScrim = Color.Black.copy(alpha = .58f)
 private val AccentBlue = FolioColors.Blue
 private val AccentGreen = FolioColors.Green
 private val AccentOrange = FolioColors.Orange

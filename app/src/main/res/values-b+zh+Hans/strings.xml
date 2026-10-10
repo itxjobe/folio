@@ -1966,4 +1966,9 @@
     <string name="now_label">现在</string>
     <string name="inner_columns">展开时的列数</string>
     <string name="battery_phone">手机</string>
+    <string name="vpn">VPN</string>
+    <string name="screen_mirroring">屏幕镜像</string>
+    <string name="code_scanner">扫码器</string>
+    <string name="microphone">麦克风</string>
+    <string name="privacy_and_more">%1$s 等 %2$d 项</string>
 </resources>

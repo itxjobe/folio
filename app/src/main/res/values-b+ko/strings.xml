@@ -1987,4 +1987,9 @@
     <string name="now_label">지금</string>
     <string name="inner_columns">펼쳤을 때 열 수</string>
     <string name="battery_phone">휴대전화</string>
+    <string name="vpn">VPN</string>
+    <string name="screen_mirroring">화면 미러링</string>
+    <string name="code_scanner">코드 스캐너</string>
+    <string name="microphone">마이크</string>
+    <string name="privacy_and_more">%1$s 외 %2$d개</string>
 </resources>

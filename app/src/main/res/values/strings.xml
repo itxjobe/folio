@@ -2016,4 +2016,9 @@
     <string name="now_label">Now</string>
     <string name="inner_columns">Columns When Unfolded</string>
     <string name="battery_phone">Phone</string>
+    <string name="vpn">VPN</string>
+    <string name="screen_mirroring">Screen Mirroring</string>
+    <string name="code_scanner">Code Scanner</string>
+    <string name="microphone">Microphone</string>
+    <string name="privacy_and_more">%1$s &amp; %2$d more</string>
 </resources>
