@@ -980,7 +980,16 @@ fun LauncherScreen(
             // Background and border without clipping, so Harbor-style magnified icons can grow past the rail.
             // Portrait unfolded (iPhone Duo): a horizontal dock bar centered along the bottom, above the page controls.
             val dockPitch = geometry.dockPitch
-            val dockBarFull = (dockPitch * shownDock.size + 16f).dp
+            // iPadOS dock (#130): unfolded, the bottom dock bar adds a divider and up to three apps opened lately from
+            // Folio (its own launch history, no usage-access permission), refreshed whenever Home comes back.
+            var recentsTick by remember { mutableIntStateOf(0) }
+            androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { recentsTick++; onPauseOrDispose { } }
+            val dockRecents = if (geometry.horizontalDock && geometry.expanded && !drag.active && !homeEdit.active)
+                remember(recentsTick, state.dock, appsById) {
+                    RecentApps.load(launcherActivity).filter { id -> id !in state.dock }.mapNotNull(appsById::get).take(3)
+                } else emptyList()
+            val recentsWidth = if (dockRecents.isEmpty()) 0f else dockPitch * dockRecents.size + 17f
+            val dockBarFull = (dockPitch * shownDock.size + 16f + recentsWidth).dp
             // More dock apps than the window has room for: the bar stops at the room it has and scrolls.
             val fromRoom = if (geometry.dockBarRoom > 0f) minOf(dockBarFull, geometry.dockBarRoom.dp) else dockBarFull
             // Half folded like a book, the bar lives on the trailing half and must not reach across the hinge.
@@ -1070,13 +1079,22 @@ fun LauncherScreen(
                 .border(1.dp, LocalGlassLook.current.outlineColor, RoundedCornerShape(30.dp))
                 // The dock rail sits on the screen edge: keep Android's back swipe from taking drags that start on it.
                 .systemGestureExclusion().testTag("dock")) {
-                Column(if (geometry.horizontalDock) (if (dockBarScrolls) Modifier.fillMaxHeight().horizontalScroll(dockBarScroll) else Modifier.fillMaxSize()).padding(horizontal = FolioSpace.SMALL.dp) else Modifier.padding(vertical = FolioSpace.SMALL.dp).verticalScroll(dockScroll)) {
+                Column(if (geometry.horizontalDock) (if (dockBarScrolls) Modifier.fillMaxHeight().horizontalScroll(dockBarScroll) else Modifier.fillMaxSize()).padding(horizontal = FolioSpace.SMALL.dp).padding(end = recentsWidth.dp) else Modifier.padding(vertical = FolioSpace.SMALL.dp).verticalScroll(dockScroll)) {
                     DockAppColumn(shownDock, previewLayout.dock, appsById, dockPitchShown,
                         dockIconSize(geometry.iconSize), drag, insertionTarget,
                         onLaunch = onLaunchFrom, onChoose = { dockSlot = it; sheet = "dock" },
                         magnify = FeatureScopes.on(state.featureScopes, "dockMagnify", state.dockMagnify, screenFor(wide)) &&
                             !LocalReduceMotion.current, leftHanded = state.leftHanded, horizontal = geometry.horizontalDock,
                         magnifyAmount = TweakOptions.magnifyAmount(state.tweakOptions), magnifyTick = TweakOptions.on(state.tweakOptions, "dockMagnify", "tick"))
+                }
+                if (dockRecents.isNotEmpty()) Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(end = FolioSpace.SMALL.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.padding(horizontal = 8.dp).width(1.dp).fillMaxHeight(.6f).background(Color.White.copy(alpha = .3f)))
+                    dockRecents.forEach { app ->
+                        Box(Modifier.width(dockPitch.dp).fillMaxHeight().clickable { onLaunchFrom(app, null) }, contentAlignment = Alignment.Center) {
+                            AppIcon(app, app.label, Modifier.size(dockIconSize(geometry.iconSize).dp))
+                        }
+                    }
                 }
             }
             // Unfolded, the pager carries the extra left page beside Home, so a row centred on the whole pager lands
