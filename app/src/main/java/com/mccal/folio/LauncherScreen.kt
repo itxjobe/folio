@@ -1585,6 +1585,9 @@ fun LauncherScreen(
                                                 DATE_WIDGET -> stringResource(R.string.date)
                                                 UP_NEXT_WIDGET -> stringResource(R.string.up_next)
                                                 SUGGESTIONS_WIDGET -> stringResource(R.string.suggestions)
+                                                WEATHER_WIDGET -> "Weather"
+                                                BATTERY_WIDGET -> "Batteries"
+                                                NOW_PLAYING_WIDGET -> "Now Playing"
                                                 BIG_CLOCK_WIDGET -> stringResource(R.string.big_clock)
                                                 else -> stringResource(R.string.widget_panel)
                                             }, color = Ink,

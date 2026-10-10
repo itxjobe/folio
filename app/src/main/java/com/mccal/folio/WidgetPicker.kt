@@ -10,6 +10,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.BatteryFull
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -333,6 +336,9 @@ internal fun VisualWidgetPicker(
                 if (words.isEmpty() && (selectedApp == null || selectedApp == FOLIO_WIDGETS) && selectedProfile.isPersonal) {
                     val builtins = listOf(Triple(CLOCK_WIDGET, clockLabel, Icons.Rounded.Schedule), Triple(DATE_WIDGET, dateLabel, Icons.Rounded.CalendarToday),
                         Triple(UP_NEXT_WIDGET, upNextLabel, androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(BIG_CLOCK_WIDGET, bigClockLabel, Icons.Rounded.LockClock), Triple(SUGGESTIONS_WIDGET, suggestionsLabel, androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
+                        Triple(WEATHER_WIDGET, "Weather", Icons.Rounded.WbSunny),
+                        Triple(BATTERY_WIDGET, "Batteries", Icons.Rounded.BatteryFull),
+                        Triple(NOW_PLAYING_WIDGET, "Now Playing", Icons.Rounded.MusicNote),
                         Triple(INFO_WIDGET, widgetPanelLabel, Icons.Rounded.Widgets))
                     // Folio's own widgets follow the same rule as any app's: one row while browsing.
                     val cappedFolio = selectedApp == null && FOLIO_WIDGETS !in expandedApps && builtins.size > columns

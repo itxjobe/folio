@@ -225,6 +225,9 @@ internal fun widgetLabel(context: android.content.Context, id: Int, controller: 
     DATE_WIDGET -> context.getString(R.string.date)
     UP_NEXT_WIDGET -> context.getString(R.string.up_next)
     SUGGESTIONS_WIDGET -> context.getString(R.string.suggestions)
+    WEATHER_WIDGET -> "Weather"
+    BATTERY_WIDGET -> "Batteries"
+    NOW_PLAYING_WIDGET -> "Now Playing"
     BIG_CLOCK_WIDGET -> context.getString(R.string.big_clock)
     INFO_WIDGET -> context.getString(R.string.widget_panel)
     EMPTY_WIDGET -> context.getString(R.string.add_widget)
@@ -259,6 +262,8 @@ internal fun MovableWidget(id: Int, slot: Int, controller: WidgetController, dra
 internal fun builtinWidgetApp(id: Int): Intent? = when (id) {
     CLOCK_WIDGET, BIG_CLOCK_WIDGET -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
     DATE_WIDGET, UP_NEXT_WIDGET -> Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)
+    BATTERY_WIDGET -> Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
+    WEATHER_WIDGET -> Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/search?q=weather"))
     else -> null
 }
 
@@ -282,6 +287,9 @@ internal fun BuiltinWidgetCard(id: Int, slot: Int, opensApp: Boolean = false, on
         DATE_WIDGET -> DateCard(onTap)
         UP_NEXT_WIDGET -> UpNextCard(onTap)
         SUGGESTIONS_WIDGET -> SuggestionsCard(onAdd)
+        WEATHER_WIDGET -> WeatherCard(onTap)
+        BATTERY_WIDGET -> BatteryCard(onTap)
+        NOW_PLAYING_WIDGET -> NowPlayingCard(onTap)
         BIG_CLOCK_WIDGET -> BigClockCard(onTap, slot, home = opensApp)
         INFO_WIDGET -> if (slot % 3 == 2) ExpandedCard(onAdd) else GlassCard(onClick = onAdd) {
             Icon(Icons.Rounded.Widgets, null, tint = Color.White, modifier = Modifier.size(28.dp))
