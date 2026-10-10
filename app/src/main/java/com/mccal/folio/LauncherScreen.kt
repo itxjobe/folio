@@ -721,8 +721,8 @@ fun LauncherScreen(
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
                 // The rail's round controls, counted as the column at its bottom draws them: Search without the search
                 // pill or off the Home pages, and Back to Home on Discover. Home's own count anchors the dock.
-                railControls = (if (pager.currentPage == -1) 1 else 0) + (if (!state.searchPill || pager.currentPage !in 0 until homePages) 1 else 0),
-                homeRailControls = if (state.searchPill) 0 else 1, classScale = classScale, appRows = homeAppRows,
+                railControls = (if (pager.currentPage == -1) 1 else 0) + (if (state.cornerSearch || pager.currentPage !in 0 until homePages) 1 else 0),
+                homeRailControls = if (state.cornerSearch) 1 else 0, classScale = classScale, appRows = homeAppRows,
                 widgetsFillRows = fillRows,
                 foldAtCenter = hinge?.vertical == true, fillSpace = state.homeRows == 0)
             // Half folded like a laptop: the status (information) stays above the hinge and the dock (controls) goes
@@ -1177,7 +1177,7 @@ fun LauncherScreen(
                 val controlSize = dockIconSize(geometry.iconSize).dp
                 if (pager.currentPage == -1) CircleControl(Icons.Rounded.ArrowForward, stringResource(R.string.back_to_home), "discover-home", controlSize) { scope.launch { pager.animateScrollToPage(0) } }
                 val searchBounds = remember { android.graphics.Rect() }
-                if (!state.searchPill || pager.currentPage !in 0 until homePages) Box(Modifier.onGloballyPositioned { searchBounds.set(it.boundsInWindow().toAndroidBounds()) }) {
+                if (state.cornerSearch || pager.currentPage !in 0 until homePages) Box(Modifier.onGloballyPositioned { searchBounds.set(it.boundsInWindow().toAndroidBounds()) }) {
                     CircleControl(Icons.Rounded.Search, if (state.googleSearch) stringResource(R.string.search_google) else stringResource(R.string.search_apps), "search", controlSize) {
                         if (!state.googleSearch || !onGoogleSearch(searchBounds)) launcherActivity.openSpotlight()
                     }

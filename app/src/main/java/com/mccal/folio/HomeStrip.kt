@@ -23,6 +23,12 @@ enum class HomeStrip(val key: String, @StringRes val label: Int) {
 /** Whether the Search button is what sits above the dock (it also decides if the rail shows its own search control). */
 val LauncherState.searchPill get() = homeStrip == HomeStrip.SEARCH
 
+/**
+ * Whether Home's pages get the round Search control in the dock rail's corner. Only with Page dots: the Search button
+ * already is search, and Nothing means no search control on Home at all (#325, it used to fall into the corner).
+ */
+val LauncherState.cornerSearch get() = homeStrip == HomeStrip.DOTS
+
 /** What the strip draws this moment. */
 internal enum class StripView { PILL, DOTS, EMPTY }
 
