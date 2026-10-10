@@ -2014,4 +2014,5 @@
     <string name="apply_iphone_fold_layout">Apply iPhone Fold Layout</string>
     <string name="app_names_on_cover">App Names on Cover Screen</string>
     <string name="now_label">Now</string>
+    <string name="inner_columns">Columns When Unfolded</string>
 </resources>

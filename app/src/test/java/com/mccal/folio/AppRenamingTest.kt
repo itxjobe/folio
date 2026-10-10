@@ -26,7 +26,10 @@ class AppRenamingTest {
         val thumb = "N".repeat(MAX_APP_NAME - 1) + "\uD83D\uDC4D"
         assertEquals("N".repeat(MAX_APP_NAME - 1), thumb.takeAppName())
         val family = "N".repeat(MAX_APP_NAME - 4) + "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67"
-        assertEquals("N".repeat(MAX_APP_NAME - 4) + "\uD83D\uDC68", family.takeAppName())
+        // JDK 17's BreakIterator splits a ZWJ family into its people; JDK 21 (and Android's ICU) keep it as one
+        // character, so it goes whole. Either is a clean cut: never half a surrogate pair or a dangling joiner.
+        val cut = family.takeAppName()
+        assertTrue(cut, cut == "N".repeat(MAX_APP_NAME - 4) + "\uD83D\uDC68" || cut == "N".repeat(MAX_APP_NAME - 4))
         // Nothing to cut: a name inside the cap comes back whole, emoji and all.
         assertEquals("Mail \uD83D\uDC4D", "Mail \uD83D\uDC4D".takeAppName())
     }

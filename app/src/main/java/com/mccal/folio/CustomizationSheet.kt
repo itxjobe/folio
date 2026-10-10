@@ -577,6 +577,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         SettingsSwitch(stringResource(R.string.left_handed_layout_rail_on_the_left), state.leftHanded, model::setLeftHanded, "left-handed-switch")
                         SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
                         if (state.labels) SettingsSwitch(stringResource(R.string.app_names_on_cover), state.coverLabels, model::setCoverLabels, "cover-label-switch")
+                        IosMenuRow(stringResource(R.string.inner_columns), listOf(4 to "4", 5 to "5"), state.innerColumns, model::setInnerColumns, tag = "inner-columns")
                         if (state.labels) IosMenuRow(stringResource(R.string.name_size), LabelSize.entries.map { it to stringResource(it.label) }, state.labelSize, model::setLabelSize, tag = "label-size")
                         CardNote(stringResource(R.string.frost_and_outline_are_in_wallpaper_appea))
                     }
@@ -1478,6 +1479,7 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.arrange_like_iphone to CustomizationPage.HOME,
     R.string.apply_iphone_fold_layout to CustomizationPage.HOME,
     R.string.app_names_on_cover to CustomizationPage.HOME,
+    R.string.inner_columns to CustomizationPage.HOME,
     R.string.choose_home_apps to CustomizationPage.HOME,
     R.string.reset_this_layout to CustomizationPage.HOME,
     R.string.save_current_layout to CustomizationPage.BACKUP,

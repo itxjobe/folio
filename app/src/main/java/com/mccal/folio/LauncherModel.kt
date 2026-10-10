@@ -113,6 +113,8 @@ data class LauncherState(
     val labels: Boolean = true,
     /** App names on the cover screen too; iPhone Fold shows them only unfolded. */
     val coverLabels: Boolean = true,
+    /** Columns on the inner screen: 4 like the cover, or 5 like iPadOS (a reflow of the same layout, see [HomeReflow]). */
+    val innerColumns: Int = 5,
     val verticalStatus: Boolean = true,
     /**
      * What Full-Width Home replaced, so turning it off puts it back: the dock placement of each screen it was turned on
@@ -1230,8 +1232,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         else top.map { p -> if (p.page == 0 && p.row == 0) swap[p.id]?.let { p.copy(id = it) } ?: p else p }
         if (placements != top) commitLayout(s.layout.copy(widgetPlacements = placements.distinctBy { it.slot }))
         updateSettings(soon = false) {
-            it.copy(coverLabels = false, labels = true, homeStrip = HomeStrip.DOTS, iconShape = IconShape.SQUIRCLE,
-                statusStyle = it.statusStyle.copy(showDate = false, showBatteryPercent = false, glyph = StatusGlyph.MINIMAL, background = false),
+            it.copy(coverLabels = false, labels = true, innerColumns = 5, homeStrip = HomeStrip.DOTS, iconShape = IconShape.SQUIRCLE,
+                statusStyle = it.statusStyle.copy(showDate = false, showBatteryPercent = false, glyph = StatusGlyph.ICONS, background = false),
                 compact = it.compact.copy(iconSize = 62f, rowGap = 14f, columnGap = 18f, dockWidth = 60f, dockAlignToGrid = true,
                     dockPlacement = DockPlacement.SIDE, statusAlignToGrid = false, statusPosition = 0f, pageTop = true),
                 expanded = it.expanded.copy(iconSize = 58f, rowGap = 10f, dockWidth = 60f, dockPlacement = DockPlacement.SIDE,
@@ -1243,6 +1245,11 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     /** Runs [applyIPhoneFoldLayout] once after the upgrade that brought it, so an existing install switches over. */
     fun applyIPhoneFoldOnce() {
         val prefs = getApplication<Application>().getSharedPreferences("folio", 0)
+        if (!prefs.getBoolean(INNER_COLUMNS_SNAPSHOT, false) && !mutable.value.loading && mutable.value.apps.isNotEmpty()) {
+            // 5 columns unfolded only changes how the saved layout is shown, but keep a copy in Layout History anyway.
+            prefs.edit().putBoolean(INNER_COLUMNS_SNAPSHOT, true).apply()
+            saveLayoutSnapshot(INNER_COLUMNS_SNAPSHOT_NAME)
+        }
         if (prefs.getBoolean(IPHONE_FOLD_APPLIED, false) || mutable.value.loading || mutable.value.apps.isEmpty()) return
         prefs.edit().putBoolean(IPHONE_FOLD_APPLIED, true).apply()
         applyIPhoneFoldLayout()
@@ -1295,6 +1302,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         persist()
         return true
     }
+    fun setInnerColumns(value: Int) = updateSettings(soon = false) { it.copy(innerColumns = value.coerceIn(GRID_COLUMNS, 5)) }
     fun setCoverLabels(value: Boolean) = updateSettings(soon = false) { it.copy(coverLabels = value) }
     fun setLabels(value: Boolean) { if (statePayloadInvalid) return; undoLayout = null; undoImportSettings = null; mutable.update { it.copy(labels = value, canUndoEdit = false) }; persist() }
     /** Adds an empty Home page after the last one; returns its index. */
@@ -1551,7 +1559,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("sourceScope", restore.sourceScope)) } }
         val data = JSONObject().put("schema", stateSchemaFor(s)).put("pinned", JSONArray(s.order)).put("homeSlots", JSONArray(s.homeSlots))
             .put("leadingSlots", JSONArray(s.leadingSlots)).put("dock", JSONArray(s.dock))
-            .put("widgets", widgets).put("labels", s.labels).put("coverLabels", s.coverLabels)
+            .put("widgets", widgets).put("labels", s.labels).put("coverLabels", s.coverLabels).put("innerColumns", s.innerColumns)
             .put("folders", folders)
             .put("restores", restores)
             .put("googleSearch", s.googleSearch)
@@ -1801,7 +1809,7 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         dock = loadedDock,
         widgetPlacements = placements, folders = folders, widgetRestores = restores,
         googleSearch = j.optBoolean("googleSearch", true),
-        labels = j.optBoolean("labels", true), coverLabels = j.optBoolean("coverLabels", true), compact = preset("compact", LayoutPreset()),
+        labels = j.optBoolean("labels", true), coverLabels = j.optBoolean("coverLabels", true), innerColumns = j.optInt("innerColumns", 5).coerceIn(GRID_COLUMNS, 5), compact = preset("compact", LayoutPreset()),
         expanded = preset("expanded", LayoutPreset()), fullWidthRestore = j.optJSONObject("fullWidthRestore")?.let { o -> o.keys().asSequence().associateWith { o.optString(it) }.filterValues(String::isNotBlank) }.orEmpty(),
         portrait = j.optJSONObject("portrait")?.let { preset("portrait", LayoutPreset()) }, verticalStatus = j.optBoolean("verticalStatus", true),
         leftHanded = j.optBoolean("leftHanded", false),
@@ -2015,3 +2023,6 @@ internal fun LauncherState.labelsOn(expanded: Boolean) = labels && (expanded || 
 
 /** Layout History name for the layout saved before [LauncherModel.applyIPhoneFoldLayout]. */
 private const val IPHONE_FOLD_SNAPSHOT = "Before iPhone Fold layout"
+private const val INNER_COLUMNS_SNAPSHOT = "inner_columns_snapshot_saved"
+/** Layout History name for the copy saved when the inner screen first shows 5 columns. */
+private const val INNER_COLUMNS_SNAPSHOT_NAME = "Before 5 columns unfolded"

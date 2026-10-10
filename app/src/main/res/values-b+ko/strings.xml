@@ -1985,4 +1985,5 @@
     <string name="apply_iphone_fold_layout">iPhone Fold 레이아웃 적용</string>
     <string name="app_names_on_cover">커버 화면에 앱 이름 표시</string>
     <string name="now_label">지금</string>
+    <string name="inner_columns">펼쳤을 때 열 수</string>
 </resources>

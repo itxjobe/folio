@@ -339,7 +339,8 @@ internal fun HomePagePane(
                 appsById, geometry.copy(iconSize = pageIcon), pageLabels, widgets, drag, target,
                 folders = state.folders, onLaunch = onLaunch, onActions = onActions, onWidget = onWidget,
                 onFolder = onFolder, onEmptyWidget = onEmptyWidget, onMove = onMove,
-                onEmptyDoubleTap = if (doubleTapAction == FolioAction.NONE) null else ({ FolioActions.run(context, doubleTapAction) }))
+                onEmptyDoubleTap = if (doubleTapAction == FolioAction.NONE) null else ({ FolioActions.run(context, doubleTapAction) }),
+                columns = if (geometry.expanded) state.innerColumns else GRID_COLUMNS)
             if (!state.homeReady) LinearProgressIndicator(Modifier.fillMaxWidth().padding(FolioSpace.LARGE.dp))
             if (state.error != null) Text(state.error, color = Color.White,
                 modifier = Modifier.clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = stringResource(R.string.fix_saved_layout), onClick = onProblem)
@@ -381,6 +382,8 @@ internal fun SharedHomeGrid(
     onMove: (String, Int) -> Unit = { _, _ -> },
     /** The Double Tap action, for empty cells: each cell takes its own taps, so the page behind never sees them. */
     onEmptyDoubleTap: (() -> Unit)? = null,
+    /** Columns shown: 4, or more on the inner screen at rest (a reflow of the same saved layout, see [HomeReflow]). */
+    columns: Int = GRID_COLUMNS,
 ) {
     val rowHeight = geometry.rowHeight
     val iconSize = geometry.iconSize
@@ -413,9 +416,19 @@ internal fun SharedHomeGrid(
     // The retained overflow widget (stored under the grid) draws right after the shown rows.
     fun displayRow(row: Int) = if (row >= GRID_ROWS) shownRows + row - GRID_ROWS else row
     val widgetRows = pageWidgets.map { displayRow(it.row) to it.spanY }
-    val renderedRows = maxOf(shownRows, widgetRows.maxOfOrNull { it.first + it.second } ?: 0)
+    // Inner screen at rest: the same apps reflowed into more columns. Editing and dragging use the saved 4 columns.
+    val reflow = if (columns > GRID_COLUMNS && page >= 0 && !drag.active && !edit.active && !geometry.splitColumns && pending == null)
+        remember(savedSlots, pageWidgets, columns, page) {
+            reflowHomePage(List(HOME_CELLS) { savedAt(pageStart + it) != null }, pageWidgets.filter { it.row < GRID_ROWS }, columns)
+        } else null
+    fun colOf(local: Int) = reflow?.cells?.get(local)?.first ?: (local % GRID_COLUMNS)
+    fun rowOf(local: Int) = reflow?.cells?.get(local)?.second ?: (local / GRID_COLUMNS)
+    val renderedRows = maxOf(if (reflow != null) maxOf(reflow.rows, minOf(shownRows, 2)) else shownRows,
+        widgetRows.maxOfOrNull { it.first + it.second } ?: 0)
     // Stacked, or two columns side by side in a short, wide window (see HomeCellLayout).
-    val cells = remember(geometry, widgetRows) { HomeCellLayout.forPage(geometry, widgetRows) }
+    val cells = remember(geometry, widgetRows, reflow?.columns) {
+        HomeCellLayout.forPage(geometry, widgetRows).let { if (reflow != null) it.copy(cellWidth = it.cellWidth * GRID_COLUMNS / reflow.columns) else it }
+    }
     // Half folded like a laptop (phone upright): rows that would sit in the fold spring down past it, like iPhone Duo.
     val hinge = LocalHinge.current?.takeIf { it.active && !it.vertical }
     val density = LocalDensity.current
@@ -432,7 +445,7 @@ internal fun SharedHomeGrid(
         val cellWidth = cells.cellWidth.dp
         fun cellX(column: Int, row: Int) = cells.x(column, row).dp
 
-        repeat(shownRows * GRID_COLUMNS) { localIndex ->
+        if (reflow == null) repeat(shownRows * GRID_COLUMNS) { localIndex ->
             val globalIndex = pageStart + localIndex
             val cell = DropTarget.Home(globalIndex)
             val savedId = savedAt(globalIndex)
@@ -473,10 +486,10 @@ internal fun SharedHomeGrid(
             val app = appsById[id] ?: return@forEach
             key(id) {
                 val localIndex = renderIndex - pageStart
-                val row = localIndex / GRID_COLUMNS
+                val row = rowOf(localIndex)
                 // Slide only while rearranging; a new screen size (folding) must place icons immediately.
                 val animatedOffset by animateIntOffsetAsState(
-                    with(density) { IntOffset(cellX(localIndex % GRID_COLUMNS, row).toPx().roundToInt(), rowTop(row).dp.toPx().roundToInt()) },
+                    with(density) { IntOffset(cellX(colOf(localIndex), row).toPx().roundToInt(), rowTop(row).dp.toPx().roundToInt()) },
                     animationSpec = if (drag.active || edit.active) androidx.compose.animation.core.spring(visibilityThreshold = IntOffset(1, 1))
                         else androidx.compose.animation.core.snap(),
                     label = "home insertion $id",
@@ -499,8 +512,8 @@ internal fun SharedHomeGrid(
             val previewIndex = previewIndexOf(folder.id)
             val renderIndex = previewIndex?.takeIf { it in pageRange } ?: savedIndex?.takeIf { it in pageRange } ?: return@forEach
             val localIndex = renderIndex - pageStart
-            val row = localIndex / GRID_COLUMNS
-            val x = cellX(localIndex % GRID_COLUMNS, row)
+            val row = rowOf(localIndex)
+            val x = cellX(colOf(localIndex), row)
             val y = rowTop(row).dp
             FolderTile(folder, appsById, iconSize, labels, drag, page,
                 Modifier.offset(x = x, y = y).width(cellWidth).height(rowHeight.dp)
@@ -516,7 +529,7 @@ internal fun SharedHomeGrid(
                 // The distance a whole row is on the side the offset goes: a clock nudged up from row 2 sits in the half-height rows above it.
                 val rowPitch = if (placement.offsetY < 0f && row > 0) rowTop(row) - rowTop(row - 1)
                     else if (row + 1 < GRID_ROWS) rowTop(row + 1) - rowTop(row) else rowTop(row) - rowTop(row - 1)
-                val x = cellX(placement.column, row) + 5.dp + if (free) cellWidth * placement.offsetX else 0.dp
+                val x = cellX(reflow?.widgets?.get(placement.slot)?.first ?: placement.column, row) + 5.dp + if (free) cellWidth * placement.offsetX else 0.dp
                 val y = rowTop(row) + if (free) rowPitch * placement.offsetY else 0f
                 val height = (cells.spanHeight(row, placement.spanY) - 18f).coerceAtLeast(48f)
                 if (placement == pending) {
