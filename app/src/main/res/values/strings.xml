@@ -2011,4 +2011,7 @@
     <string name="weather_snow">Snow</string>
     <string name="weather_thunderstorms">Thunderstorms</string>
     <string name="weather_unknown">—</string>
+    <string name="apply_iphone_fold_layout">Apply iPhone Fold Layout</string>
+    <string name="app_names_on_cover">App Names on Cover Screen</string>
+    <string name="now_label">Now</string>
 </resources>

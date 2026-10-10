@@ -1961,4 +1961,7 @@
     <string name="weather_snow">雪</string>
     <string name="weather_thunderstorms">雷暴</string>
     <string name="weather_unknown">—</string>
+    <string name="apply_iphone_fold_layout">应用 iPhone Fold 布局</string>
+    <string name="app_names_on_cover">在封面屏幕上显示应用名称</string>
+    <string name="now_label">现在</string>
 </resources>

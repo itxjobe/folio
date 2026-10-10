@@ -151,6 +151,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             androidx.compose.runtime.CompositionLocalProvider(LocalSheetsOpen provides activitySheets) {
             val savedState = model.state.collectAsStateWithLifecycle().value
+            // Once, after the upgrade: switch an existing install to the iPhone Fold layout (Josh asked for it by default).
+            androidx.compose.runtime.LaunchedEffect(savedState.loading, savedState.apps.isEmpty()) { model.applyIPhoneFoldOnce() }
             // Home is fully drawn once its own apps are in; at a start they come ahead of the rest.
             androidx.activity.compose.ReportDrawnWhen { savedState.homeReady }
             val safeMode = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(SafeMode.active) }

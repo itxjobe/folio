@@ -32,7 +32,7 @@ data class WidgetRestore(val slot: Int, val providerComponent: String, val userS
 val DEFAULT_WIDGET_PLACEMENTS = listOf(
     // iPhone Fold's Home: Weather and Calendar (Up Next) across the top, real content instead of clock/date boxes.
     WidgetPlacement(0, WEATHER_WIDGET, 0, 0, 0, 2, 2),
-    WidgetPlacement(1, UP_NEXT_WIDGET, 0, 2, 0, 2, 2),
+    WidgetPlacement(1, LOCATION_WIDGET, 0, 2, 0, 2, 2),
 )
 
 fun homeCellPage(index: Int) = Math.floorDiv(index, HOME_CELLS)

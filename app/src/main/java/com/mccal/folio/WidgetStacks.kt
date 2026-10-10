@@ -62,7 +62,7 @@ enum class TodaySize(@androidx.annotation.StringRes val label: Int, val columns:
 /** One widget on the Today View: a bound app widget id (>= 0) or a Folio built-in card id (< 0). */
 data class TodayWidget(val id: Int, val size: TodaySize)
 
-internal val DEFAULT_TODAY_WIDGETS = listOf(TodayWidget(CLOCK_WIDGET, TodaySize.SMALL), TodayWidget(DATE_WIDGET, TodaySize.SMALL))
+internal val DEFAULT_TODAY_WIDGETS = IPHONE_FOLD_TODAY
 
 /** Pure edits for the Today View's widget list. */
 internal object TodayWidgets {

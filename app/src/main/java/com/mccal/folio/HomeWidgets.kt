@@ -230,6 +230,7 @@ internal fun widgetLabel(context: android.content.Context, id: Int, controller: 
     WEATHER_WIDGET -> context.getString(R.string.weather)
     BATTERY_WIDGET -> context.getString(R.string.batteries)
     NOW_PLAYING_WIDGET -> context.getString(R.string.now_playing)
+    LOCATION_WIDGET -> context.getString(R.string.location)
     BIG_CLOCK_WIDGET -> context.getString(R.string.big_clock)
     INFO_WIDGET -> context.getString(R.string.widget_panel)
     EMPTY_WIDGET -> context.getString(R.string.add_widget)
@@ -292,6 +293,7 @@ internal fun BuiltinWidgetCard(id: Int, slot: Int, opensApp: Boolean = false, on
         WEATHER_WIDGET -> WeatherCard(onTap)
         BATTERY_WIDGET -> BatteryCard(onTap)
         NOW_PLAYING_WIDGET -> NowPlayingCard(onTap)
+        LOCATION_WIDGET -> LocationCard(onTap)
         BIG_CLOCK_WIDGET -> BigClockCard(onTap, slot, home = opensApp)
         INFO_WIDGET -> if (slot % 3 == 2) ExpandedCard(onAdd) else GlassCard(onClick = onAdd) {
             Icon(Icons.Rounded.Widgets, null, tint = Color.White, modifier = Modifier.size(28.dp))

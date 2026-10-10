@@ -334,7 +334,7 @@ internal fun HomePagePane(
         val editRoom by animateDpAsState(if (roomWanted && !geometry.expanded) (JIGGLE_BAR_BOTTOM - geometry.contentTop.dp).coerceAtLeast(0.dp) else 0.dp, label = "jiggle room")
         Column(Modifier.offset(x = 16.dp).width(geometry.gridWidth.dp).fillMaxHeight()
             .verticalScroll(homeScroll).padding(top = geometry.contentTop.dp + editRoom, bottom = FolioSpace.SMALL.dp)) {
-            val (pageIcon, pageLabels) = (state.pageStyles[page] ?: PageStyle()).apply(geometry, state.labels)
+            val (pageIcon, pageLabels) = (state.pageStyles[page] ?: PageStyle()).apply(geometry, state.labelsOn(geometry.expanded))
             SharedHomeGrid(page, state.homeSlots, state.leadingSlots, previewSlots, previewLeadingSlots, previewWidgetPlacements,
                 appsById, geometry.copy(iconSize = pageIcon), pageLabels, widgets, drag, target,
                 folders = state.folders, onLaunch = onLaunch, onActions = onActions, onWidget = onWidget,

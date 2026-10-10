@@ -576,6 +576,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.side_rail)) {
                         SettingsSwitch(stringResource(R.string.left_handed_layout_rail_on_the_left), state.leftHanded, model::setLeftHanded, "left-handed-switch")
                         SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
+                        if (state.labels) SettingsSwitch(stringResource(R.string.app_names_on_cover), state.coverLabels, model::setCoverLabels, "cover-label-switch")
                         if (state.labels) IosMenuRow(stringResource(R.string.name_size), LabelSize.entries.map { it to stringResource(it.label) }, state.labelSize, model::setLabelSize, tag = "label-size")
                         CardNote(stringResource(R.string.frost_and_outline_are_in_wallpaper_appea))
                     }
@@ -1475,6 +1476,8 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.open_on to CustomizationPage.FOCUS,
     R.string.add_widget_to_this_page to CustomizationPage.HOME,
     R.string.arrange_like_iphone to CustomizationPage.HOME,
+    R.string.apply_iphone_fold_layout to CustomizationPage.HOME,
+    R.string.app_names_on_cover to CustomizationPage.HOME,
     R.string.choose_home_apps to CustomizationPage.HOME,
     R.string.reset_this_layout to CustomizationPage.HOME,
     R.string.save_current_layout to CustomizationPage.BACKUP,
@@ -2322,6 +2325,8 @@ private class DuetHome(val layer: androidx.compose.ui.graphics.layer.GraphicsLay
         IosActionRow(stringResource(R.string.choose_home_apps), onClick = onEditPins)
         MenuDivider()
         IosActionRow(stringResource(R.string.arrange_like_iphone), "arrange-like-iphone", onClick = { confirmIPhone = true })
+        // The iPhone Fold look from Josh's mockups, in one tap; apps stay put and Layout History keeps the old layout.
+        IosActionRow(stringResource(R.string.apply_iphone_fold_layout), "apply-iphone-fold", onClick = { model.applyIPhoneFoldLayout() })
     }
     if (confirmIPhone) AlertDialog(onDismissRequest = { confirmIPhone = false },
         title = { Text(stringResource(R.string.arrange_like_iphone_2)) },

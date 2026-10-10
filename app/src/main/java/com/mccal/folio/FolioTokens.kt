@@ -10,6 +10,10 @@ internal object FolioColors {
     /** iOS Weather widget sky, top and bottom of its gradient. */
     val WeatherSkyTop = androidx.compose.ui.graphics.Color(0xFF3E86D8)
     val WeatherSkyBottom = androidx.compose.ui.graphics.Color(0xFF1F5AA6)
+    /** Location widget: map land, park green and the pin. */
+    val MapLand = androidx.compose.ui.graphics.Color(0xFFEDEAE2)
+    val MapPark = androidx.compose.ui.graphics.Color(0xFFCBE6C3)
+    val MapPin = androidx.compose.ui.graphics.Color(0xFF34C759)
     /**
      * The palette as ARGB numbers, for the places that hold a color as a value rather than a `Color`: a tweak's
      * tint, a Focus mode, a saved layout's icon tint. One source of truth, so a number and a color can't drift.

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -240,6 +241,7 @@ internal fun VisualWidgetPicker(
     val weatherLabel = stringResource(R.string.weather)
     val batteriesLabel = stringResource(R.string.batteries)
     val nowPlayingLabel = stringResource(R.string.now_playing)
+    val locationLabel = stringResource(R.string.location)
     val folioLabel = stringResource(R.string.folio)
     var query by rememberSaveable { mutableStateOf("") }
     val latestDragStart by rememberUpdatedState(onDragStart)
@@ -342,6 +344,7 @@ internal fun VisualWidgetPicker(
                         Triple(WEATHER_WIDGET, weatherLabel, Icons.Rounded.WbSunny),
                         Triple(BATTERY_WIDGET, batteriesLabel, Icons.Rounded.BatteryFull),
                         Triple(NOW_PLAYING_WIDGET, nowPlayingLabel, Icons.Rounded.MusicNote),
+                        Triple(LOCATION_WIDGET, locationLabel, Icons.Rounded.Place),
                         Triple(INFO_WIDGET, widgetPanelLabel, Icons.Rounded.Widgets))
                     // Folio's own widgets follow the same rule as any app's: one row while browsing.
                     val cappedFolio = selectedApp == null && FOLIO_WIDGETS !in expandedApps && builtins.size > columns

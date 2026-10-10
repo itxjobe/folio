@@ -111,6 +111,8 @@ data class LauncherState(
     val portrait: LayoutPreset? = null,
     val expanded: LayoutPreset = LayoutPreset(),
     val labels: Boolean = true,
+    /** App names on the cover screen too; iPhone Fold shows them only unfolded. */
+    val coverLabels: Boolean = true,
     val verticalStatus: Boolean = true,
     /**
      * What Full-Width Home replaced, so turning it off puts it back: the dock placement of each screen it was turned on
@@ -1210,6 +1212,42 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun moveTodayWidget(id: Int, delta: Int) = updateSettings(soon = false) { it.copy(todayWidgets = TodayWidgets.move(it.todayWidgets, id, delta)) }
     fun removePlacement(source: DropTarget) = commitLayout(removePlacement(mutable.value.layout, source))
     /** Arranges Home's first page and dock like iPhone's with the matching installed apps (undoable). */
+    /**
+     * One tap to the iPhone Fold look from the mockups: Weather and Location across the top of the first Home page,
+     * no names on the cover's dense grid, a slim dock pill, the time and Wi-Fi alone under the camera, dots plus a
+     * round search button, squircle icons, and the inner screen's left side as Now Playing, Weather, Location and a big
+     * Calendar. Apps stay where they are. A layout snapshot is saved first so it can be undone from Layout History.
+     */
+    fun applyIPhoneFoldLayout() {
+        if (statePayloadInvalid) return
+        saveLayoutSnapshot(IPHONE_FOLD_SNAPSHOT)
+        val s = mutable.value
+        val swap = mapOf(CLOCK_WIDGET to WEATHER_WIDGET, DATE_WIDGET to LOCATION_WIDGET, BIG_CLOCK_WIDGET to WEATHER_WIDGET)
+        val top = s.layout.widgetPlacements
+        val firstRow = top.filter { it.page == 0 && it.row == 0 }
+        val placements = if (firstRow.isEmpty() && top.none { it.page == 0 && it.row < 2 })
+            top + DEFAULT_WIDGET_PLACEMENTS.map { it.copy(slot = (top.maxOfOrNull { p -> p.slot } ?: -1) + 1 + it.slot) }
+        else top.map { p -> if (p.page == 0 && p.row == 0) swap[p.id]?.let { p.copy(id = it) } ?: p else p }
+        if (placements != top) commitLayout(s.layout.copy(widgetPlacements = placements.distinctBy { it.slot }))
+        updateSettings(soon = false) {
+            it.copy(coverLabels = false, labels = true, homeStrip = HomeStrip.DOTS, iconShape = IconShape.SQUIRCLE,
+                statusStyle = it.statusStyle.copy(showDate = false, showBatteryPercent = false, glyph = StatusGlyph.MINIMAL, background = false),
+                compact = it.compact.copy(iconSize = 62f, rowGap = 14f, columnGap = 18f, dockWidth = 60f, dockAlignToGrid = true,
+                    dockPlacement = DockPlacement.SIDE, statusAlignToGrid = false, statusPosition = 0f, pageTop = true),
+                expanded = it.expanded.copy(iconSize = 58f, rowGap = 10f, dockWidth = 60f, dockPlacement = DockPlacement.SIDE,
+                    statusAlignToGrid = false, statusPosition = 0f, pageTop = true),
+                leftPage = "TODAY", todayWidgets = IPHONE_FOLD_TODAY)
+        }
+    }
+
+    /** Runs [applyIPhoneFoldLayout] once after the upgrade that brought it, so an existing install switches over. */
+    fun applyIPhoneFoldOnce() {
+        val prefs = getApplication<Application>().getSharedPreferences("folio", 0)
+        if (prefs.getBoolean(IPHONE_FOLD_APPLIED, false) || mutable.value.loading || mutable.value.apps.isEmpty()) return
+        prefs.edit().putBoolean(IPHONE_FOLD_APPLIED, true).apply()
+        applyIPhoneFoldLayout()
+    }
+
     fun arrangeLikeIPhone(): Boolean {
         saveLayoutSnapshot("Before Arrange Like iPhone")
         val state = mutable.value
@@ -1257,6 +1295,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
         persist()
         return true
     }
+    fun setCoverLabels(value: Boolean) = updateSettings(soon = false) { it.copy(coverLabels = value) }
     fun setLabels(value: Boolean) { if (statePayloadInvalid) return; undoLayout = null; undoImportSettings = null; mutable.update { it.copy(labels = value, canUndoEdit = false) }; persist() }
     /** Adds an empty Home page after the last one; returns its index. */
     fun addPage(): Int { if (statePayloadInvalid || FocusPages.lockingFocus(state.value) != null) return -1; val next = state.value.homePages
@@ -1512,7 +1551,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("sourceScope", restore.sourceScope)) } }
         val data = JSONObject().put("schema", stateSchemaFor(s)).put("pinned", JSONArray(s.order)).put("homeSlots", JSONArray(s.homeSlots))
             .put("leadingSlots", JSONArray(s.leadingSlots)).put("dock", JSONArray(s.dock))
-            .put("widgets", widgets).put("labels", s.labels)
+            .put("widgets", widgets).put("labels", s.labels).put("coverLabels", s.coverLabels)
             .put("folders", folders)
             .put("restores", restores)
             .put("googleSearch", s.googleSearch)
@@ -1762,7 +1801,7 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         dock = loadedDock,
         widgetPlacements = placements, folders = folders, widgetRestores = restores,
         googleSearch = j.optBoolean("googleSearch", true),
-        labels = j.optBoolean("labels", true), compact = preset("compact", LayoutPreset()),
+        labels = j.optBoolean("labels", true), coverLabels = j.optBoolean("coverLabels", true), compact = preset("compact", LayoutPreset()),
         expanded = preset("expanded", LayoutPreset()), fullWidthRestore = j.optJSONObject("fullWidthRestore")?.let { o -> o.keys().asSequence().associateWith { o.optString(it) }.filterValues(String::isNotBlank) }.orEmpty(),
         portrait = j.optJSONObject("portrait")?.let { preset("portrait", LayoutPreset()) }, verticalStatus = j.optBoolean("verticalStatus", true),
         leftHanded = j.optBoolean("leftHanded", false),
@@ -1964,3 +2003,15 @@ fun LauncherState.withSolidGlass(): LauncherState =
  */
 internal fun assetsSequence(configuration: String): Int =
     Regex("""\bas\.(\d+)""").find(configuration)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+private const val IPHONE_FOLD_APPLIED = "iphone_fold_layout_applied"
+
+/** The inner screen's widget side in the iPhone Fold mockup: Now Playing, then Weather and Location, then a big Calendar. */
+internal val IPHONE_FOLD_TODAY = listOf(TodayWidget(NOW_PLAYING_WIDGET, TodaySize.MEDIUM), TodayWidget(WEATHER_WIDGET, TodaySize.SMALL),
+    TodayWidget(LOCATION_WIDGET, TodaySize.SMALL), TodayWidget(UP_NEXT_WIDGET, TodaySize.LARGE))
+
+/** App names show on this screen: the inner screen follows [LauncherState.labels]; the cover also needs [LauncherState.coverLabels]. */
+internal fun LauncherState.labelsOn(expanded: Boolean) = labels && (expanded || coverLabels)
+
+/** Layout History name for the layout saved before [LauncherModel.applyIPhoneFoldLayout]. */
+private const val IPHONE_FOLD_SNAPSHOT = "Before iPhone Fold layout"

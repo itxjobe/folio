@@ -1982,4 +1982,7 @@
     <string name="weather_snow">눈</string>
     <string name="weather_thunderstorms">뇌우</string>
     <string name="weather_unknown">—</string>
+    <string name="apply_iphone_fold_layout">iPhone Fold 레이아웃 적용</string>
+    <string name="app_names_on_cover">커버 화면에 앱 이름 표시</string>
+    <string name="now_label">지금</string>
 </resources>

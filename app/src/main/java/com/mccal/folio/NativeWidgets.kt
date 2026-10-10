@@ -12,7 +12,13 @@ import android.media.session.PlaybackState
 import android.os.BatteryManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -48,9 +54,10 @@ import java.net.URL
 const val WEATHER_WIDGET = -9
 const val BATTERY_WIDGET = -10
 const val NOW_PLAYING_WIDGET = -11
+const val LOCATION_WIDGET = -12
 
 /** Folio's own glass widgets added in the polish pass. */
-internal val NativeWidgetIds = setOf(WEATHER_WIDGET, BATTERY_WIDGET, NOW_PLAYING_WIDGET)
+internal val NativeWidgetIds = setOf(WEATHER_WIDGET, BATTERY_WIDGET, NOW_PLAYING_WIDGET, LOCATION_WIDGET)
 
 internal data class Weather(val tempC: Double, val code: Int, val highC: Double, val lowC: Double, val place: String? = null)
 
@@ -202,3 +209,48 @@ internal fun NowPlayingCard(onClick: () -> Unit) {
 
 /** Lint id for calls guarded by a checkSelfPermission just above. */
 private const val PERMISSION_CHECKED = "MissingPermission"
+
+internal data class Place(val street: String?, val city: String?, val lat: Double, val lon: Double)
+
+@android.annotation.SuppressLint(PERMISSION_CHECKED)
+private suspend fun currentPlace(context: Context): Place? = withContext(Dispatchers.IO) {
+    if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return@withContext null
+    val lm = context.getSystemService(android.location.LocationManager::class.java) ?: return@withContext null
+    val loc = runCatching { lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time } }.getOrNull()
+        ?: return@withContext null
+    val a = runCatching {
+        @Suppress("DEPRECATION") android.location.Geocoder(context).getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()
+    }.getOrNull()
+    Place(a?.thoroughfare, listOfNotNull(a?.locality, a?.adminArea).joinToString(", ").ifBlank { null }, loc.latitude, loc.longitude)
+}
+
+/** Find My-style card: a map-tinted square with a pin, the street and the city. Taps open the map there. */
+@Composable
+internal fun LocationCard(onClick: () -> Unit) {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
+    var place by remember { mutableStateOf<Place?>(null) }
+    LaunchedEffect(allowed) { while (allowed) { currentPlace(context)?.let { place = it }; delay(15 * 60_000L) } }
+    val ink = HomeInk(dark = true)
+    GlassCard(onClick = {
+        val p = place
+        when {
+            !allowed -> ask.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+            p != null -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:${p.lat},${p.lon}?z=16"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { onClick() }
+            else -> onClick()
+        }
+    }, paint = androidx.compose.ui.graphics.Brush.linearGradient(listOf(FolioColors.MapLand, FolioColors.MapPark))) {
+        Box(Modifier.size(34.dp).background(FolioColors.MapPin, CircleShape).border(2.dp, androidx.compose.ui.graphics.Color.White, CircleShape),
+            contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Person, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+        }
+        Column {
+            Text(androidx.compose.ui.res.stringResource(R.string.now_label), color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1)
+            Text(place?.street ?: androidx.compose.ui.res.stringResource(if (allowed) R.string.location else R.string.allow_approximate_location),
+                color = ink.primary, fontWeight = FontWeight.SemiBold, fontSize = FolioType.SUBHEAD.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            place?.city?.let { Text(it, color = ink.secondary, fontSize = FolioType.GROUP_LABEL.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
