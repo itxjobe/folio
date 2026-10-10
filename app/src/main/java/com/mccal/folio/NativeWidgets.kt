@@ -72,6 +72,7 @@ internal fun parseOpenMeteo(json: String): Weather? = runCatching {
 @android.annotation.SuppressLint(PERMISSION_CHECKED) // Only called once ACCESS_COARSE_LOCATION is granted; runCatching covers revocation.
 private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispatchers.IO) {
     val lm = context.getSystemService(android.location.LocationManager::class.java) ?: return@withContext null
+    if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return@withContext null
     val loc = runCatching {
         lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
     }.getOrNull() ?: return@withContext null
