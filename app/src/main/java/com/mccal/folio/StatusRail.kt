@@ -224,8 +224,8 @@ fun StatusRail(
     val cellularVisual = cellularSignalVisual(status.cellularLevel, status.airplane)
     val activeDots = (cellularVisual as? CellularSignalVisual.Available)?.activeDots ?: 0
     val batteryColor = when {
+        status.charging -> charging // iOS always shows green while plugged in
         !style.colorfulBattery -> ink
-        status.charging -> charging
         (status.battery ?: 100) <= 20 -> low
         else -> ink
     }
@@ -417,7 +417,7 @@ fun StatusRail(
                         cellularBars = (cellularVisual as? CellularSignalVisual.Available)?.let { (activeDots * 4 + 4) / 5 },
                         wifiLevel = if (status.wifiConnected) ((status.wifiLevel ?: 4) * 3 + 3) / 4 else null,
                         networkType = status.networkType, battery = status.battery, ink = ink, faint = ink.copy(alpha = faint(.3f)),
-                        batteryFill = if (status.charging || (status.battery ?: 100) <= 20) batteryColor else ink,
+                        batteryFill = if (status.charging || (status.battery ?: 100) <= 20) batteryColor else ink, charging = status.charging,
                         signalTap = tap(onSignal), batteryTap = tap(onBattery))
                     StatusGlyph.NONE -> Unit
                 }

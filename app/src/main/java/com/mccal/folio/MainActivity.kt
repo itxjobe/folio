@@ -464,7 +464,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (returningFromApp) {
             returningFromApp = false
-            if (!reduceMotionEnabled(this)) lifecycleScope.launch {
+            // AndroidUiDispatcher.Main carries the frame clock Animatable needs; plain lifecycleScope has none and crashed (11:35).
+            if (!reduceMotionEnabled(this)) lifecycleScope.launch(androidx.compose.ui.platform.AndroidUiDispatcher.Main) {
                 homeReturn.snapTo(HOME_RETURN_FROM)
                 homeReturn.animateTo(1f, FolioMotion.spring(FolioMotion.Settle))
             }

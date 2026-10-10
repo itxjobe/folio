@@ -461,7 +461,9 @@ internal fun SharedHomeGrid(
                 .dropRegion(drag, cell, savedApp?.id ?: savedFolder?.id, page)
                 // Keyboard and switch focus goes to the app or folder itself, not the empty cell behind it.
                 .focusProperties { canFocus = false }
-                .combinedClickable(onClick = { if (savedFolder != null) onFolder(savedFolder.id) else if (edit.active) edit.stop() },
+                // Empty space gives no visual press feedback, like iOS: a long press goes straight to editing.
+                .combinedClickable(interactionSource = null, indication = null,
+                    onClick = { if (savedFolder != null) onFolder(savedFolder.id) else if (edit.active) edit.stop() },
                     onLongClick = { if (savedId == null && !drag.active) onEmptyWidget(globalIndex) },
                     // Only on an empty cell outside jiggle mode, so a tap on an app or folder isn't held back waiting
                     // for a second one.

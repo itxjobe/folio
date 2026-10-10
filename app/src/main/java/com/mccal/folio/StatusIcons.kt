@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
  * Proportions follow iOS (bars 17×11, Wi-Fi 15×11, battery 25×12).
  */
 @Composable
-internal fun IosStatusIcons(cellularBars: Int?, wifiLevel: Int?, networkType: String?, battery: Int?, ink: Color, faint: Color, batteryFill: Color,
+internal fun IosStatusIcons(cellularBars: Int?, wifiLevel: Int?, networkType: String?, battery: Int?, ink: Color, faint: Color, batteryFill: Color, charging: Boolean = false,
     signalTap: Modifier, batteryTap: Modifier) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier.padding(top = 2.dp)) {
@@ -63,6 +63,16 @@ internal fun IosStatusIcons(cellularBars: Int?, wifiLevel: Int?, networkType: St
                 val inset = line * 2.2f
                 drawRoundRect(batteryFill, Offset(inset, inset), Size((body.width - inset * 2) * battery.coerceIn(0, 100) / 100f, size.height - inset * 2),
                     CornerRadius(size.height * .18f))
+            }
+            if (charging) {
+                // iOS lightning bolt centred on the body, cut out of the fill with a thin ink outline.
+                val w = body.width; val h = size.height
+                val bolt = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * .56f, h * .08f); lineTo(w * .30f, h * .56f); lineTo(w * .48f, h * .56f)
+                    lineTo(w * .42f, h * .92f); lineTo(w * .70f, h * .42f); lineTo(w * .52f, h * .42f); close()
+                }
+                drawPath(bolt, Color.Black.copy(alpha = .55f), style = Stroke(line * 1.6f))
+                drawPath(bolt, Color.White)
             }
         }
     }
