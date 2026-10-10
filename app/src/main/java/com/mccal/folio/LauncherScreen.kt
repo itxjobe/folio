@@ -911,6 +911,8 @@ fun LauncherScreen(
                     // neighbors to avoid reinflating Home 2's RemoteViews during native exit.
                     beyondViewportPageCount = if (firstHome > 0) 2 else 1,
                     userScrollEnabled = !drag.active && !resize.active, flingBehavior = pageFling,
+                    // iOS rubber band past the first and last page instead of Android's stretch.
+                    overscrollEffect = rememberBounceOverscroll(),
                     key = { if (it < firstHome) "discover" else if (it - firstHome == visibleHomePages) "library" else "home-${it - firstHome}" }) { physicalPage ->
                     val page = physicalPage - firstHome
                     if (page == -1) {
