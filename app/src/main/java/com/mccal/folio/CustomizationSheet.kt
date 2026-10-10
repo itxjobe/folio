@@ -1941,6 +1941,21 @@ private fun riskLabel(risk: OperationRisk) = when (risk) {
             CardAction(stringResource(R.string.share_latest), Modifier.fillMaxWidth(), onClick = { runCatching { context.startActivity(CrashLog.shareIntent(latest).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } })
             CardAction(stringResource(R.string.clear), Modifier.fillMaxWidth(), destructive = true, onClick = { CrashLog.clear(context); reports = emptyList() })
         }
+        // Viewer: every saved report by name; tap one to read it in full and share that one.
+        var viewing by remember { mutableStateOf<java.io.File?>(null) }
+        reports.forEach { f ->
+            CardAction(f.name, Modifier.fillMaxWidth().testTag("crash-report-${f.name}"), onClick = { viewing = f })
+        }
+        viewing?.let { f ->
+            androidx.compose.material3.AlertDialog(onDismissRequest = { viewing = null },
+                title = { Text(f.name, style = MaterialTheme.typography.titleSmall) },
+                text = { androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    item { Text(remember(f) { runCatching { f.readText() }.getOrDefault("") }, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall) } } },
+                confirmButton = { androidx.compose.material3.TextButton({ runCatching { context.startActivity(CrashLog.shareIntent(f).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } }) {
+                    Text(stringResource(R.string.share)) } },
+                dismissButton = { androidx.compose.material3.TextButton({ viewing = null }) { Text(stringResource(R.string.done)) } })
+        }
         val shareScope = rememberCoroutineScope()
         CardAction(stringResource(R.string.share_diagnostics), onClick = {
             shareScope.launch { Diagnostics.send(context, email = false) }

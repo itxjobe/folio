@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     /** Cross-fade mask across fold/unfold: Home dips and comes back while icons spring to their new cells. */
     private val foldFade = androidx.compose.animation.core.Animatable(1f)
     private var lastWideDp = -1
+    private var duplicateHome = false
     private var returningFromApp = false
     /** Opened from Android Settings (Home app gear / "Additional settings in the app"). */
     private val settingsRequests = mutableIntStateOf(0)
@@ -103,6 +104,10 @@ class MainActivity : ComponentActivity() {
         // The wallpaper theme must be chosen before the window exists (switching to it starts the screen again).
         if (usesSystemWallpaper(this)) setTheme(R.style.Theme_Duo_Wallpaper)
         super.onCreate(savedInstanceState)
+        // A second Home in another task (seen in logs as two MainActivity windows, which left the shade stuck):
+        // if this one isn't its task's root and was started as Home/launcher, hand over to the existing one.
+        if (!isTaskRoot && intent?.action == Intent.ACTION_MAIN &&
+            (intent.hasCategory(Intent.CATEGORY_HOME) || intent.hasCategory(Intent.CATEGORY_LAUNCHER))) { duplicateHome = true; finish(); return }
         lastWideDp = if (resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
         setupExperience = SetupExperience(this)
         Installs.start(this); NewApps.load(this)
@@ -452,6 +457,7 @@ class MainActivity : ComponentActivity() {
         widgets.host.stopListening(); model.flushPending(); super.onStop()
     }
     override fun onDestroy() {
+        if (duplicateHome) { super.onDestroy(); return }
         runCatching { unregisterReceiver(unlockReceiver) }
         recreatingShadeSetup = isChangingConfigurations
         shadeSetupDialog?.dismiss()
