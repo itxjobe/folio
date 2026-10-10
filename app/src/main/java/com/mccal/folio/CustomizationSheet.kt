@@ -546,7 +546,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                             listOf<Pair<String?, String>>(p.packageName to p.label) + IconPacks.variants(iconContext, p.packageName).map { (c, l) -> c to iconContext.getString(R.string.icon_pack_variant, p.label, l) } } }
                         IosMenuRow(stringResource(R.string.icon_pack), listOf<Pair<String?, String>>(null to stringResource(R.string.app_icons)) + packChoices,
                             state.iconPack, { IconPacks.clear(); model.setIconPack(it) }, tag = "icon-pack")
-                        // A second pack for dark mode; "Same as light" keeps one pack for both.
+                        // A second pack for dark mode; the same-as-light choice keeps one pack for both.
                         IosMenuRow(stringResource(R.string.icon_pack_dark), listOf<Pair<String?, String>>(null to stringResource(R.string.same_as_light)) + packChoices,
                             state.iconPackDark, { IconPacks.clear(); model.setIconPackDark(it) }, tag = "icon-pack-dark")
                         CardNote(stringResource(R.string.icon_packs_and_themes_are_made_by_indepe))

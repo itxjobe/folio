@@ -449,7 +449,7 @@ class IslandListenerService : NotificationListenerService() {
             // even without a bar, like an Uber ETA. Ride-share and delivery apps that only post an ongoing card count too.
             (n.flags and FLAG_PROMOTED_ONGOING) != 0 || n.extras.getBoolean("android.requestPromotedOngoing") ||
             (n.flags and Notification.FLAG_ONGOING_EVENT != 0 && n.extras.getCharSequence(Notification.EXTRA_TITLE) != null &&
-                LIVE_TRIP_PACKAGES.any { pkg -> n.extras.getString("android.appInfo")?.contains(pkg) == true || currentPkg == pkg })
+                currentPkg in LIVE_TRIP_PACKAGES)
     }
 
     private fun watch(controllers: List<MediaController>) {

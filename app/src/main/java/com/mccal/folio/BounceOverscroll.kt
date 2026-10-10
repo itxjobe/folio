@@ -55,7 +55,7 @@ internal class BounceOverscroll(private val scope: CoroutineScope) : OverscrollE
 
     override suspend fun applyToFling(velocity: Velocity, performFling: suspend (Velocity) -> Velocity) {
         val left = performFling(velocity)
-        offset.animateTo(0f, spring(dampingRatio = .82f, stiffness = Spring.StiffnessMediumLow), initialVelocity = left.x * .1f)
+        offset.animateTo(0f, FolioMotion.spring(FolioMotion.Settle), initialVelocity = left.x * .1f)
     }
 
     override val node: DelegatableNode = object : Modifier.Node(), LayoutModifierNode {

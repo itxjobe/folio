@@ -237,6 +237,9 @@ internal fun VisualWidgetPicker(
     val upNextLabel = stringResource(R.string.up_next)
     val dateLabel = stringResource(R.string.date)
     val clockLabel = stringResource(R.string.clock)
+    val weatherLabel = stringResource(R.string.weather)
+    val batteriesLabel = stringResource(R.string.batteries)
+    val nowPlayingLabel = stringResource(R.string.now_playing)
     val folioLabel = stringResource(R.string.folio)
     var query by rememberSaveable { mutableStateOf("") }
     val latestDragStart by rememberUpdatedState(onDragStart)
@@ -336,9 +339,9 @@ internal fun VisualWidgetPicker(
                 if (words.isEmpty() && (selectedApp == null || selectedApp == FOLIO_WIDGETS) && selectedProfile.isPersonal) {
                     val builtins = listOf(Triple(CLOCK_WIDGET, clockLabel, Icons.Rounded.Schedule), Triple(DATE_WIDGET, dateLabel, Icons.Rounded.CalendarToday),
                         Triple(UP_NEXT_WIDGET, upNextLabel, androidx.compose.material.icons.Icons.AutoMirrored.Rounded.EventNote), Triple(BIG_CLOCK_WIDGET, bigClockLabel, Icons.Rounded.LockClock), Triple(SUGGESTIONS_WIDGET, suggestionsLabel, androidx.compose.material.icons.Icons.Rounded.AutoAwesome),
-                        Triple(WEATHER_WIDGET, "Weather", Icons.Rounded.WbSunny),
-                        Triple(BATTERY_WIDGET, "Batteries", Icons.Rounded.BatteryFull),
-                        Triple(NOW_PLAYING_WIDGET, "Now Playing", Icons.Rounded.MusicNote),
+                        Triple(WEATHER_WIDGET, weatherLabel, Icons.Rounded.WbSunny),
+                        Triple(BATTERY_WIDGET, batteriesLabel, Icons.Rounded.BatteryFull),
+                        Triple(NOW_PLAYING_WIDGET, nowPlayingLabel, Icons.Rounded.MusicNote),
                         Triple(INFO_WIDGET, widgetPanelLabel, Icons.Rounded.Widgets))
                     // Folio's own widgets follow the same rule as any app's: one row while browsing.
                     val cappedFolio = selectedApp == null && FOLIO_WIDGETS !in expandedApps && builtins.size > columns
