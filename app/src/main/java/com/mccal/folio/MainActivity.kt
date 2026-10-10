@@ -213,6 +213,14 @@ class MainActivity : ComponentActivity() {
             }
             val overlayProgress by rememberSettlingProgress(if (overlayOpen) 1f else 0f,
                 MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            // Notification/Control Center and Spotlight each fade by their own open state. They used to share the
+            // all-overlays progress, which also counts sheets through a process-wide counter: a sheet left open in a
+            // second MainActivity (a standard task beside the Home task) kept it at 1, so a closed panel stayed drawn
+            // and ignored taps and swipes, and the shade looked stuck open.
+            val panelProgress by rememberSettlingProgress(if (topPanel.value != null) 1f else 0f,
+                MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            val spotlightProgress by rememberSettlingProgress(if (spotlightVisible.value) 1f else 0f,
+                MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
             val backdropBlurPx = with(androidx.compose.ui.platform.LocalDensity.current) { (state.panelBlur * 32).dp.toPx() }
             val backdropBlur = androidx.compose.runtime.remember(backdropBlurPx) {
                 androidx.compose.ui.graphics.BlurEffect(backdropBlurPx, backdropBlurPx, androidx.compose.ui.graphics.TileMode.Clamp)
@@ -373,12 +381,12 @@ class MainActivity : ComponentActivity() {
                     ?.takeUnless { state.railActivities && state.verticalStatus && !overlayOpen }, state.islandEventsOff + "BLUETOOTH") {
                     IslandListenerService.open(this@MainActivity, it)
                 }
-                TopPanels(topPanel.value, { overlayProgress }, deviceStatus, onClose = { topPanel.value = null },
+                TopPanels(topPanel.value, { panelProgress }, deviceStatus, onClose = { topPanel.value = null },
                     onSystemPanel = { openAndroidShade(it) }, showClock = state.notificationClock, grouped = state.groupNotifications,
                     ccControls = state.ccControls, onCcControls = model::setCcControls,
                     ccSize = state.ccSize, ccCentered = state.ccCentered, ncSplit = state.ncSplit,
                     focusModes = state.focusModes, activeFocus = state.activeFocus, onFocus = model::setFocus)
-                SpotlightOverlay(spotlightVisible.value, { overlayProgress }, state, onClose = { spotlightVisible.value = false },
+                SpotlightOverlay(spotlightVisible.value, { spotlightProgress }, state, onClose = { spotlightVisible.value = false },
                     onLaunch = { launchApp(it) })
                 // Last, so the corners sit above everything in Home's window.
                 if (state.roundedCorners) RoundedScreenCorners(state.cornerRadius.dp)
