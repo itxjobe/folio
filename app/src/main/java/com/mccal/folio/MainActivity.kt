@@ -106,8 +106,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // A second Home in another task (seen in logs as two MainActivity windows, which left the shade stuck):
         // if this one isn't its task's root and was started as Home/launcher, hand over to the existing one.
-        if (!isTaskRoot && intent?.action == Intent.ACTION_MAIN &&
-            (intent.hasCategory(Intent.CATEGORY_HOME) || intent.hasCategory(Intent.CATEGORY_LAUNCHER))) { duplicateHome = true; finish(); return }
+        // Logs showed it as an ordinary (non-Home) task next to the Home one: launched as an app (icon, install, adb)
+        // while Folio is the Home app. Then bring Home forward instead of starting a second copy.
+        val main = intent?.action == Intent.ACTION_MAIN
+        val asApp = main && savedInstanceState == null && intent?.hasCategory(Intent.CATEGORY_HOME) != true && isDefaultHome()
+        if (asApp || (!isTaskRoot && main)) {
+            duplicateHome = true
+            if (asApp) runCatching { startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            finish(); return
+        }
         lastWideDp = if (resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
         setupExperience = SetupExperience(this)
         Installs.start(this); NewApps.load(this)
@@ -456,6 +463,11 @@ class MainActivity : ComponentActivity() {
         if (timeReceiverRegistered) { unregisterReceiver(timeReceiver); timeReceiverRegistered = false }
         widgets.host.stopListening(); model.flushPending(); super.onStop()
     }
+    private fun isDefaultHome(): Boolean = runCatching {
+        packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName == packageName
+    }.getOrDefault(false)
+
     override fun onDestroy() {
         if (duplicateHome) { super.onDestroy(); return }
         runCatching { unregisterReceiver(unlockReceiver) }
