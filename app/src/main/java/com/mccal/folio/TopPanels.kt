@@ -574,10 +574,13 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
         // iPad-sized cells: a compact grid instead of stretching across the whole screen.
         // Rows as in the iPhone Fold mockup: connectivity + media (2), controls + focus beside the sliders (2),
         // the rest of the small controls, and the colourful shortcuts row.
-        val rows = 5 + (maxOf(0, chosen.size - 2) + 3) / 4
+        // Every row counts: connectivity + media (2), controls/Focus beside the sliders (2), each row of the rest, and
+        // the shortcuts row. The header (48dp target) and the scroll fade at the bottom are reserved too, so the last
+        // row is never cut off.
+        val rows = 2 + 2 + (maxOf(0, chosen.size - 2) + 3) / 4 + (if (edit.active) 0 else 1)
         // On the cover screen a status column stays visible at the right, as on iPhone.
         val railW = if (wide) 0.dp else 64.dp
-        val byHeight = if (maxHeight == Dp.Infinity) Dp.Infinity else (maxHeight - 56.dp - gap * (rows - 1)) / rows
+        val byHeight = if (maxHeight == Dp.Infinity) Dp.Infinity else (maxHeight - 48.dp - CcBottomFade - gap * rows) / rows
         val byWidth = (maxWidth - railW - 32.dp - gap * 3) / 4
         val cell = (if (wide) minOf(size.cell + 8.dp, byWidth, byHeight) else minOf(byWidth, byHeight)).coerceAtLeast(44.dp)
         fun span(n: Int): Dp = cell * n + gap * (n - 1)
@@ -943,6 +946,7 @@ private fun CcStatusColumn(status: DeviceStatus, modifier: Modifier) {
 
 private val ModuleGlass = Color.White.copy(alpha = .2f)
 private val NotifGlass = FolioGlass.card
+private val CcBottomFade = 28.dp
 private val CcScrim = Color.Black.copy(alpha = .58f)
 private val AccentBlue = FolioColors.Blue
 private val AccentGreen = FolioColors.Green

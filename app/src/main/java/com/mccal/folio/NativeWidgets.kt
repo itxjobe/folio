@@ -88,12 +88,13 @@ internal fun weatherLabel(code: Int) = when (code) {
 
 internal fun parseOpenMeteo(json: String): Weather? = runCatching {
     val o = JSONObject(json); val cur = o.getJSONObject("current"); val d = o.getJSONObject("daily")
-    val hours = o.optJSONObject("hourly")?.let { h ->
+    // Extras never cost the basic reading: if the hourly or daily lists are odd, the card still shows today.
+    val hours = runCatching { o.optJSONObject("hourly")?.let { h ->
         val times = h.getJSONArray("time"); val temps = h.getJSONArray("temperature_2m"); val codes = h.getJSONArray("weather_code")
         val now = cur.optString("time").take(13)
         val start = (0 until times.length()).firstOrNull { times.getString(it).take(13) >= now } ?: 0
         (start until minOf(start + 6, times.length())).map { Triple(times.getString(it).substring(11, 13).toInt(), temps.getDouble(it), codes.getInt(it)) }
-    }.orEmpty()
+    } }.getOrNull().orEmpty()
     val days = d.optJSONArray("time")?.let { t ->
         (0 until t.length()).mapNotNull { i -> runCatching { WeatherDay(java.time.LocalDate.parse(t.getString(i)), d.getJSONArray("weather_code").getInt(i),
             d.getJSONArray("temperature_2m_max").getDouble(i), d.getJSONArray("temperature_2m_min").getDouble(i)) }.getOrNull() }
@@ -117,7 +118,8 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
             connectTimeout = 8000; readTimeout = 8000
             try { inputStream.bufferedReader().readText() } finally { disconnect() }
         }
-    }.getOrNull()?.let(::parseOpenMeteo)?.copy(place = runCatching {
+    }.onFailure { android.util.Log.w("FolioWeather", "Open-Meteo request failed", it) }.getOrNull()
+        ?.let { body -> parseOpenMeteo(body) ?: run { android.util.Log.w("FolioWeather", "Open-Meteo parse failed: ${body.take(200)}"); null } }?.copy(place = runCatching {
         @Suppress("DEPRECATION")
         android.location.Geocoder(context).getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()?.let { it.locality ?: it.subAdminArea }
     }.getOrNull())
@@ -136,7 +138,12 @@ internal fun WeatherCard(onClick: () -> Unit) {
     var weather by remember { mutableStateOf<Weather?>(null) }
     LaunchedEffect(allowed) {
         // Every 30 minutes while Home shows the card.
-        while (allowed) { fetchWeather(context)?.let { weather = it }; delay(30 * 60_000L) }
+        // A failed fetch (no network yet, a timeout) retries in a minute instead of leaving "—" for half an hour.
+        while (allowed) {
+            val w = fetchWeather(context)
+            if (w != null) weather = w else android.util.Log.w("FolioWeather", "weather fetch failed; retrying in 60s")
+            delay(if (w != null) 30 * 60_000L else 60_000L)
+        }
     }
     GlassCard(onClick = { if (!allowed) ask.launch(Manifest.permission.ACCESS_COARSE_LOCATION) else onClick() },
         paint = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(FolioColors.WeatherSkyTop, FolioColors.WeatherSkyBottom))) {
