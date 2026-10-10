@@ -340,6 +340,12 @@ fun LauncherScreen(
         previousEditRevision = state.editRevision
     }
     LaunchedEffect(pager.settledPage) { if (pager.settledPage != homePages) focus.clearFocus() }
+    // A light tick when a swipe settles on a new page, like iOS's page control. Android's touch-feedback setting
+    // still decides whether anything is felt (performHapticFeedback respects it). Not while dragging an app.
+    LaunchedEffect(pager) {
+        var last = pager.settledPage
+        snapshotFlow { pager.settledPage }.collect { page -> if (page != last && !drag.active) haptic.perform(FolioHaptic.Step); last = page }
+    }
     LaunchedEffect(pager.settledPage, visibleHomePages) { if (pager.settledPage !in 0 until visibleHomePages) homeEdit.stop() }
     LaunchedEffect(state.verticalStatus) { onStatusMode(state.verticalStatus) }
     LaunchedEffect(homeRequests) { if (homeRequests > 0) {
