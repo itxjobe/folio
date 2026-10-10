@@ -214,7 +214,7 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
                     onOpen = { replying = false; eventVisible = null; IslandListenerService.openKey(context, message.key, message.packageName) },
                     onDone = { replying = false; eventVisible = null },
                     onDismiss = { replying = false; eventVisible = null; IslandEvents.dismiss() })
-                else if (showCard && live != null) ExpandedCardContent(live, onOpen = { expanded = false; onOpen(live) })
+                else if (showCard && live != null) ExpandedCardContent(live, topInset = if (custom == null && cutout != null) pillH + FolioSpace.TINY.dp else FolioSpace.LARGE.dp, onOpen = { expanded = false; onOpen(live) })
                 else Box(Modifier.width(geometry.widthFor(content).dp).height(pillH)) { IslandPillContent(content, camW, pillH) }
             }
         }
@@ -496,8 +496,10 @@ private fun MessageCardContent(message: IslandEvent.Message, replying: Boolean, 
 }
 
 @Composable
-internal fun ExpandedCardContent(activity: IslandActivity, onOpen: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = FolioSpace.LARGE.dp, bottom = 18.dp),
+internal fun ExpandedCardContent(activity: IslandActivity, topInset: Dp = FolioSpace.LARGE.dp, onOpen: () -> Unit) {
+    // Anchored at the camera, the content starts below the lens band (topInset = pill height) so no title, artist or
+    // control ever sits under the punch-hole, on the cover screen or the inner screen's camera.
+    Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = topInset, bottom = 18.dp),
         verticalArrangement = Arrangement.spacedBy(FolioSpace.COMPACT.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)) {
             if (activity is IslandActivity.Call) CallAvatar(activity, 44.dp)

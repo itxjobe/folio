@@ -17,5 +17,6 @@ class DeviceStatusChargingTest {
         assertTrue(isCharging(BatteryManager.BATTERY_STATUS_FULL, BatteryManager.BATTERY_PLUGGED_AC))
         assertFalse(isCharging(BatteryManager.BATTERY_STATUS_DISCHARGING, 0))
         assertFalse(isCharging(BatteryManager.BATTERY_STATUS_NOT_CHARGING, 0))
+        assertFalse(isCharging(BatteryManager.BATTERY_STATUS_CHARGING, 0)) // adb "battery unplug" keeps status
     }
 }

@@ -40,7 +40,7 @@ data class DeviceStatus(
  * (StandBy dropping out with it). Plugged in counts now, as iOS shows the bolt while charging is on hold.
  */
 internal fun isCharging(status: Int, plugged: Int): Boolean =
-    plugged != 0 || status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+    plugged != 0 && status != BatteryManager.BATTERY_STATUS_DISCHARGING
 
 /** Observe only while visible. No location, phone-state, or notification access required. */
 class DeviceStatusMonitor(private val context: Context) : DefaultLifecycleObserver {
