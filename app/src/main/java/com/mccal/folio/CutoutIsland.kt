@@ -92,7 +92,7 @@ internal fun CutoutIsland(activity: IslandActivity?, eventsOff: Set<String> = em
             windowWidth = view.rootView.width
             windowHeight = view.rootView.height
             // Reported cutout first; otherwise a known under-display camera (e.g. Galaxy Z Fold8 inner screen).
-            cutout = view.rootWindowInsets?.displayCutout?.boundingRects?.filter { !it.isEmpty }?.minByOrNull { it.top }?.let(::Rect)
+            cutout = view.rootWindowInsets?.displayCutout?.let(::lensRect)
                 ?: CameraArea.hiddenCamera(view.display)
         }
         view.viewTreeObserver.addOnGlobalLayoutListener(update)
@@ -636,3 +636,29 @@ private const val ISLAND_CAMERA_MARGIN = 5f
 /** The least the island reaches past the camera's top edge. */
 private const val ISLAND_CAMERA_MIN_OVERLAP = 2f
 private const val ISLAND_MIN_HEIGHT = 34f
+
+/**
+ * The camera lens inside the reported cutout. Samsung reports the cover screen's punch-hole as a rect running from the top
+ * of the screen down to the lens, so wrapping that rect made the island far too tall at the camera (#61). Prefer the
+ * cutout's own path (a circle around the lens) where Android gives one; otherwise, for a rect much taller than it is
+ * wide, take the square at its bottom, which is where a punch-hole lens sits.
+ */
+internal fun lensRect(cutout: android.view.DisplayCutout): Rect? {
+    val rect = cutout.boundingRects.filter { !it.isEmpty }.minByOrNull { it.top } ?: return null
+    if (android.os.Build.VERSION.SDK_INT >= 31) {
+        val path = cutout.cutoutPath
+        if (path != null && !path.isEmpty) {
+            val b = android.graphics.RectF().also { path.computeBounds(it, true) }
+            if (b.width() > 0f && b.height() > 0f && b.intersects(rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat()))
+                return lensLtrb(intArrayOf(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())).let { Rect(it[0], it[1], it[2], it[3]) }
+        }
+    }
+    return lensLtrb(intArrayOf(rect.left, rect.top, rect.right, rect.bottom)).let { Rect(it[0], it[1], it[2], it[3]) }
+}
+
+/** Pure part of [lensRect]: a rect much taller than wide keeps only the square at its bottom. */
+internal fun lensLtrb(ltrb: IntArray): IntArray {
+    val w = ltrb[2] - ltrb[0]; val h = ltrb[3] - ltrb[1]
+    val top = if (w > 0 && h > w * 1.2f) ltrb[3] - w else ltrb[1]
+    return intArrayOf(ltrb[0], top, ltrb[2], ltrb[3])
+}
