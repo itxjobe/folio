@@ -1107,9 +1107,7 @@ fun LauncherScreen(
                 // Discover or app-list buttons; the Search choice keeps the old pill row.
                 val iosStrip = state.homeStrip == HomeStrip.DOTS
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (iosStrip && !drag.active && !homeEdit.active) HomeSearchButton(Modifier.align(if (state.leftHanded) Alignment.CenterStart else Alignment.CenterEnd)) {
-                    if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight()
-                }
+                // The rail's own round search button already sits at the bottom corner, so the strip adds no second one.
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     // Only when there is a page to the left of Home: with Today View and Discover both off, the
                     // button led nowhere (reported on r/GalaxyFold, 18 Sep 2026).

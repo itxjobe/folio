@@ -54,7 +54,7 @@ data class StatusStyle(
     // iPhone Fold: just the time and Wi-Fi, small, under the camera; no date, percentage or ring.
     val showDate: Boolean = false,
     val showBatteryPercent: Boolean = false,
-    val glyph: StatusGlyph = StatusGlyph.MINIMAL,
+    val glyph: StatusGlyph = StatusGlyph.ICONS,
     val colorfulBattery: Boolean = true,
     /** Frost strength shared by the status, dock and island capsules (0 = clear, 1 = solid). */
     val railGlass: Float = .26f,
@@ -412,7 +412,7 @@ fun StatusRail(
                         }
                     }
                     StatusGlyph.ICONS -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FolioSpace.SNUG.dp),
-                        modifier = Modifier.padding(top = FolioSpace.HAIR.dp)) {
+                        modifier = Modifier.padding(top = FolioSpace.HAIR.dp).then(tap(onSignal))) {
                         // Wi-Fi when joined (in Home's text color, so it reads on light wallpapers), an airplane in Airplane Mode;
                         // otherwise nothing, and the cellular bars below say how you're connected.
                         if (wifiVisual is WifiSignalVisual.Connected) Canvas(Modifier.size(width = 22.dp, height = 16.dp)) { drawWifiFan(size.width, wifiVisual, centered = true, ink = ink, onLight = onLight) }
@@ -426,7 +426,7 @@ fun StatusRail(
                                     androidx.compose.ui.geometry.CornerRadius(bar / 2))
                             }
                         }
-                        Canvas(Modifier.size(width = 26.dp, height = 12.dp)) {
+                        Canvas(Modifier.then(tap(onBattery)).size(width = 26.dp, height = 12.dp)) {
                             val body = Size(size.width * .86f, size.height)
                             drawRoundRect(ink.copy(alpha = if (onLight) .75f else .55f), Offset.Zero, body, androidx.compose.ui.geometry.CornerRadius(size.height * .3f),
                                 style = Stroke(size.height * .1f))
