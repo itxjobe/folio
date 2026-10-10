@@ -723,7 +723,7 @@ fun LauncherScreen(
                 state.dock.size < MAX_DOCK_SLOTS && state.dock.none { it == null }
             val shownDock = if (dockOpenPlace) state.dock + null else state.dock
             val fillRows = remember(launcherActivity) { FeatureGate.WIDGETS_FILL_ROWS.isOpen(launcherActivity) }
-            val geometry = homeGeometry(maxWidth.value, maxHeight.value, preset, state.labels, dockSlots = shownDock.size, statusRail = state.verticalStatus,
+            val geometry = homeGeometry(maxWidth.value, maxHeight.value, preset, state.labelsOn(wide), dockSlots = shownDock.size, statusRail = state.verticalStatus,
                 statusHeight = if (state.verticalStatus) statusHeight + 22f else 0f,
                 labelHeight = with(density) { LocalLabelSize.current.lineSp.sp.toDp().value } + 6f, inLibrary = inLibrary,
                 homeBottomSpace = if (isDefaultHome) 44f else 88f,
@@ -883,6 +883,7 @@ fun LauncherScreen(
                 .semantics { stateDescription = if (pager.currentPage == -1) launcherActivity.getString(R.string.discover) else if (pager.currentPage == visibleHomePages) launcherActivity.getString(R.string.all_apps) else launcherActivity.getString(R.string.home_page_1_d_of_2_d, pager.currentPage + 1, visibleHomePages)
                     // Polite: TalkBack says the new page when a swipe lands, without cutting off what it was reading (A11Y-7).
                     liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
+            OwnMethod {
             if (geometry.expanded) {
                 Box(pagerModifier) {
                     // PagerState remains the source of truth for native Discover progress,
@@ -961,6 +962,8 @@ fun LauncherScreen(
                     }
                 }
             }
+            }
+            OwnMethod {
             if (state.verticalStatus) StatusRail(deviceStatus,
                 Modifier.align(railTop(state.leftHanded)).railEdge(state.leftHanded, 12.dp).offset(y = statusTopShown.dp)
                     .width(preset.dockWidth.dp).onSizeChanged {
@@ -979,15 +982,11 @@ fun LauncherScreen(
                 }) else null)
             // Background and border without clipping, so Harbor-style magnified icons can grow past the rail.
             // Portrait unfolded (iPhone Duo): a horizontal dock bar centered along the bottom, above the page controls.
+            }
             val dockPitch = geometry.dockPitch
             // iPadOS dock (#130): unfolded, the bottom dock bar adds a divider and up to three apps opened lately from
             // Folio (its own launch history, no usage-access permission), refreshed whenever Home comes back.
-            var recentsTick by remember { mutableIntStateOf(0) }
-            androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { recentsTick++; onPauseOrDispose { } }
-            val dockRecents = if (geometry.horizontalDock && geometry.expanded && !drag.active && !homeEdit.active)
-                remember(recentsTick, state.dock, appsById) {
-                    RecentApps.load(launcherActivity).filter { id -> id !in state.dock }.mapNotNull(appsById::get).take(3)
-                } else emptyList()
+            val dockRecents = rememberDockRecents(geometry.horizontalDock && geometry.expanded && !drag.active && !homeEdit.active, state.dock, appsById)
             val recentsWidth = if (dockRecents.isEmpty()) 0f else dockPitch * dockRecents.size + 17f
             val dockBarFull = (dockPitch * shownDock.size + 16f + recentsWidth).dp
             // More dock apps than the window has room for: the bar stops at the room it has and scrolls.
@@ -1013,6 +1012,7 @@ fun LauncherScreen(
             }
             // Edit mode: a grabber under the Side Bar dock to drag it up or down (#21). Only where the dock follows a saved
             // position rather than the grid, and below the dock so it never takes a drag meant for a dock app.
+            OwnMethod {
             if (homeEdit.active && sheet.isEmpty() && !geometry.horizontalDock && !geometry.dockBesideRail && !geometry.splitColumns &&
                 !preset.dockAlignToGrid && FeatureGate.DOCK_GRABBERS.isOpen(launcherActivity)) {
                 // Read through updated state: folding, unfolding or resizing keeps edit mode, and the drag below must use the new screen and height.
@@ -1052,6 +1052,8 @@ fun LauncherScreen(
                     }
                 }
             }
+            }
+            OwnMethod {
             if (!dockAwayForToday) Box((if (geometry.horizontalDock) (if (hinge?.active == true && hinge.vertical)
                     // Half folded like a book: the bar sits centered on the trailing half, off the hinge.
                     Modifier.align(Alignment.BottomEnd).padding(end = ((contentWidth / 2 - dockBarWidthShown) / 2).coerceAtLeast(0.dp))
@@ -1087,20 +1089,14 @@ fun LauncherScreen(
                             !LocalReduceMotion.current, leftHanded = state.leftHanded, horizontal = geometry.horizontalDock,
                         magnifyAmount = TweakOptions.magnifyAmount(state.tweakOptions), magnifyTick = TweakOptions.on(state.tweakOptions, "dockMagnify", "tick"))
                 }
-                if (dockRecents.isNotEmpty()) Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(end = FolioSpace.SMALL.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.padding(horizontal = 8.dp).width(1.dp).fillMaxHeight(.6f).background(Color.White.copy(alpha = .3f)))
-                    dockRecents.forEach { app ->
-                        Box(Modifier.width(dockPitch.dp).fillMaxHeight().clickable { onLaunchFrom(app, null) }, contentAlignment = Alignment.Center) {
-                            AppIcon(app, app.label, Modifier.size(dockIconSize(geometry.iconSize).dp))
-                        }
-                    }
-                }
+                if (dockRecents.isNotEmpty()) DockRecents(dockRecents, dockPitch, dockIconSize(geometry.iconSize), onLaunchFrom, Modifier.align(Alignment.CenterEnd))
             }
             // Unfolded, the pager carries the extra left page beside Home, so a row centred on the whole pager lands
             // over that page's widgets rather than under the Home it belongs to (reported 20 Sep 2026). The extra
             // page's width is held out of the row, leaving it centred on Home on both screens.
+            }
             val besideHome = if (geometry.expanded) panelWidth.coerceAtLeast(0.dp) else 0.dp
+            OwnMethod {
             Column(Modifier.align(if (state.leftHanded) Alignment.BottomEnd else Alignment.BottomStart).width(pagerWidth)
                 .onSizeChanged { bottomControlsHeight = with(density) { it.height.toDp() } }
                 .padding(start = if (state.leftHanded) 0.dp else besideHome + FolioSpace.LARGE.dp,
@@ -1111,13 +1107,8 @@ fun LauncherScreen(
                 // Discover or app-list buttons; the Search choice keeps the old pill row.
                 val iosStrip = state.homeStrip == HomeStrip.DOTS
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (iosStrip && !drag.active && !homeEdit.active) Box(Modifier.align(if (state.leftHanded) Alignment.CenterStart else Alignment.CenterEnd)
-                    .size(FolioTouch.MIN.dp).clip(CircleShape).clickable { if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight() }
-                    .testTag("home-search-button"), contentAlignment = Alignment.Center) {
-                    Box(Modifier.size(34.dp).background(LocalGlassLook.current.fill(Glass), CircleShape)
-                        .border(1.dp, LocalGlassLook.current.outlineColor, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.Search, stringResource(R.string.search), tint = LocalHomeInk.current.primary, modifier = Modifier.size(18.dp))
-                    }
+                if (iosStrip && !drag.active && !homeEdit.active) HomeSearchButton(Modifier.align(if (state.leftHanded) Alignment.CenterStart else Alignment.CenterEnd)) {
+                    if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight()
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     // Only when there is a page to the left of Home: with Today View and Discover both off, the
@@ -1127,72 +1118,15 @@ fun LauncherScreen(
                     }
                     // iOS: a "Search" capsule where the page dots are; the dots come back while paging or editing.
                     // iOS: drag sideways along the Search pill or the dots to scrub through Home pages, a tick per page.
-                    var scrubbing by remember { mutableStateOf(false) }
-                    val scrubStep = with(density) { 34.dp.toPx() }
-                    // Home is at rest on a page: the strip shows the Search button, nothing, or the dots, as chosen. Away from
-                    // rest the dots always show, so there is always a way to tell where you are.
-                    val atRest = !homeEdit.active && !drag.active && !scrubbing &&
-                        !nativePager.isScrollInProgress && pager.currentPage in 0 until homePages
-                    val nothingOpen = remember(launcherActivity) { FeatureGate.HOME_STRIP_NOTHING.isOpen(launcherActivity) }
-                    val stripNow = stripView(state.homeStrip, atRest, nothingOpen)
-                    androidx.compose.animation.AnimatedContent(stripNow, label = "search pill",
-                        // Cover screen only: unfolded, Home already shows two pages side by side.
-                        modifier = if (geometry.expanded || homePages < 2 || !state.pageScrub) Modifier else Modifier.onGloballyPositioned { scrubberBounds = it.boundsInRoot() }.pointerInput(homePages) {
-                            var startPage = 0
-                            var travel = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = { scrubbing = true; travel = 0f; startPage = pager.currentPage.coerceIn(0, homePages - 1) },
-                                onDragEnd = { scrubbing = false }, onDragCancel = { scrubbing = false },
-                            ) { change, amount ->
-                                change.consume()
-                                travel += amount
-                                val page = (startPage + (travel / scrubStep).roundToInt()).coerceIn(0, homePages - 1)
-                                if (page != pager.currentPage) {
-                                    haptic.perform(FolioHaptic.Step)
-                                    scope.launch { pager.scrollToPage(page) }
-                                }
-                            }
-                        }.description(R.string.page_scrubber)
-                            // Near the bottom edge: a drag along the dots stays Folio's, not the system's edge gesture.
-                            .systemGestureExclusion(),
-                        transitionSpec = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) togetherWith
-                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) },
-                        contentAlignment = Alignment.Center) { view ->
-                        if (view == StripView.PILL) HomeSearchPill { if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight() }
-                        // Nothing at rest, but the strip keeps its height and width so Home never shifts and dragging
-                        // along it still moves between pages.
-                        else if (view == StripView.EMPTY) Box(Modifier.height(FolioTouch.MIN.dp).widthIn(min = 120.dp))
-                        // iOS's page control: the dots stay small and the strip around them takes the tap, so a
-                        // finger has 48 dp of height without the dots spacing apart (A11Y-1).
-                        else Box(Modifier.height(FolioTouch.MIN.dp), contentAlignment = Alignment.Center) {
-                            Row(Modifier.heightIn(min = 30.dp).background(if (scrubbing) Color.White.copy(alpha = .18f) else Color.Transparent, CircleShape)
-                                .padding(horizontal = if (scrubbing) FolioSpace.SNUG.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (visibleHomePages <= 6) repeat(visibleHomePages) { index ->
-                                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                                    if (index == homePages) Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                    else Box(Modifier.size(if (index == pager.currentPage) 6.dp else 4.dp).background(if (index == pager.currentPage) LocalHomeInk.current.primary else LocalHomeInk.current.faint, CircleShape))
-                                }
-                            } else Text("${minOf(pager.currentPage + 1, homePages)} / $homePages", color = Color.White, fontSize = FolioType.GROUP_LABEL.sp)
-                            }
-                            // The taps live here, a slice per dot, the full height of the strip. Each slice keeps its
-                            // own name, so TalkBack still reads and activates one page at a time.
-                            if (visibleHomePages <= 6) Row(Modifier.matchParentSize()
-                                .padding(horizontal = if (scrubbing) FolioSpace.SNUG.dp else 0.dp)) {
-                                repeat(visibleHomePages) { index ->
-                                    val dotLabel = if (index == homePages) stringResource(R.string.new_home_page) else stringResource(R.string.home_page, index + 1)
-                                    Box(Modifier.width(28.dp).fillMaxHeight()
-                                        .clickable(role = Role.Button, onClickLabel = dotLabel) { scope.launch { pager.animateScrollToPage(index) } }
-                                        .semantics { contentDescription = dotLabel }.testTag("home-page-dot-$index"))
-                                }
-                            }
-                        }
-                    }
+                    HomePageStrip(state, homeEdit, drag, nativePager, pager, homePages, visibleHomePages, geometry.expanded, { scrubberBounds = it }, onGoogleSearch)
                     if (!iosStrip) IconButton(onClick = openLibrary, Modifier.size(FolioTouch.MIN.dp).testTag("library-page-link")) {
                         Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.all_apps_page), tint = Color.White.copy(alpha = if (pager.currentPage == homePages) 1f else .6f), modifier = Modifier.size(17.dp))
                     }
                 }
                 }
             }
+            }
+            OwnMethod {
             androidx.compose.animation.AnimatedVisibility(homeEdit.active && sheet.isEmpty(),
                 // Unfolded, the bar sits in the free strip at the bottom of the Home half beside the page dots, so it neither
                 // covers the widget row nor pushes the grid; folded, it's at the top, clear of the Dynamic Island.
@@ -1219,6 +1153,8 @@ fun LauncherScreen(
                     JigglePill(stringResource(R.string.done), emphasized = true) { haptic.perform(FolioHaptic.Commit); homeEdit.stop() }
                 }
             }
+            }
+            OwnMethod {
             if (!inLibrary && !drag.active) Column(Modifier.align(railBottom(state.leftHanded)).railEdge(state.leftHanded, 12.dp).padding(bottom = FolioSpace.SNUG.dp)
                 .width(preset.dockWidth.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(FolioSpace.SMALL.dp)) {
@@ -1230,6 +1166,7 @@ fun LauncherScreen(
                         if (!state.googleSearch || !onGoogleSearch(searchBounds)) launcherActivity.openSpotlight()
                     }
                 }
+            }
             }
             if (sheet.isNotEmpty() && sheet != "widgets") OwnMethod {
                 val activeCustomizationPage = if (sheet == "settings:wallpaper") CustomizationPage.WALLPAPER else customizationPage
@@ -1353,6 +1290,7 @@ fun LauncherScreen(
             }
             // iOS-style notice when editing is locked by a Focus.
             FocusLockNotice(lockNotice, focusLock?.mode, Modifier.align(Alignment.TopCenter))
+            OwnMethod {
             if (showFirstRun) {
                 // Full-screen, iOS Setup Assistant style; Back steps back, Skip Setup or Get Started finishes.
                 ModalBottomSheet(onDismissRequest = onFinishFirstRun, modifier = Modifier.testTag("first-run-setup"), fullScreen = true) {
@@ -1368,6 +1306,7 @@ fun LauncherScreen(
                             sheet = sheetForAppIcon(CustomizationPage.SYSTEM_BRIDGE, customizationPage, MarketAccess.isOpen(launcherActivity))
                         })
                 }
+            }
             }
             if (sheet == "widgets") OwnMethod {
                 val catalogProfiles = remember(state.profiles) { state.profiles.filter { it.isPersonal || it.isWork } }
@@ -1601,6 +1540,7 @@ fun LauncherScreen(
                                                 WEATHER_WIDGET -> stringResource(R.string.weather)
                                                 BATTERY_WIDGET -> stringResource(R.string.batteries)
                                                 NOW_PLAYING_WIDGET -> stringResource(R.string.now_playing)
+                                                LOCATION_WIDGET -> stringResource(R.string.location)
                                                 BIG_CLOCK_WIDGET -> stringResource(R.string.big_clock)
                                                 else -> stringResource(R.string.widget_panel)
                                             }, color = Ink,
@@ -1985,3 +1925,74 @@ private fun PreviewBar(onUseAsHome: () -> Unit, onExit: () -> Unit) {
 
 /** A backup message this short is shown as an island notice; longer ones stay a dialog, because they have to be read. */
 private const val SHORT_CONFIRMATION = 48
+
+/** Home's page strip: the dots, the Search pill or nothing, with page scrubbing. Its own function to keep LauncherScreen's lambda under ART's limits. */
+@Composable
+internal fun HomePageStrip(state: LauncherState, homeEdit: HomeEditMode, drag: HomeDragState, nativePager: androidx.compose.foundation.pager.PagerState,
+    pager: LauncherPager, homePages: Int, visibleHomePages: Int, expanded: Boolean,
+    onScrubberBounds: (androidx.compose.ui.geometry.Rect) -> Unit, onGoogleSearch: (android.graphics.Rect?) -> Boolean) {
+    val launcherActivity = androidx.activity.compose.LocalActivity.current as MainActivity
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    var scrubbing by remember { mutableStateOf(false) }
+    val scrubStep = with(density) { 34.dp.toPx() }
+    // Home is at rest on a page: the strip shows the Search button, nothing, or the dots, as chosen. Away from
+    // rest the dots always show, so there is always a way to tell where you are.
+    val atRest = !homeEdit.active && !drag.active && !scrubbing &&
+        !nativePager.isScrollInProgress && pager.currentPage in 0 until homePages
+    val nothingOpen = remember(launcherActivity) { FeatureGate.HOME_STRIP_NOTHING.isOpen(launcherActivity) }
+    val stripNow = stripView(state.homeStrip, atRest, nothingOpen)
+    androidx.compose.animation.AnimatedContent(stripNow, label = "search pill",
+        // Cover screen only: unfolded, Home already shows two pages side by side.
+        modifier = if (expanded || homePages < 2 || !state.pageScrub) Modifier else Modifier.onGloballyPositioned { onScrubberBounds(it.boundsInRoot()) }.pointerInput(homePages) {
+            var startPage = 0
+            var travel = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { scrubbing = true; travel = 0f; startPage = pager.currentPage.coerceIn(0, homePages - 1) },
+                onDragEnd = { scrubbing = false }, onDragCancel = { scrubbing = false },
+            ) { change, amount ->
+                change.consume()
+                travel += amount
+                val page = (startPage + (travel / scrubStep).roundToInt()).coerceIn(0, homePages - 1)
+                if (page != pager.currentPage) {
+                    haptic.perform(FolioHaptic.Step)
+                    scope.launch { pager.scrollToPage(page) }
+                }
+            }
+        }.description(R.string.page_scrubber)
+            // Near the bottom edge: a drag along the dots stays Folio's, not the system's edge gesture.
+            .systemGestureExclusion(),
+        transitionSpec = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) togetherWith
+            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) },
+        contentAlignment = Alignment.Center) { view ->
+        if (view == StripView.PILL) HomeSearchPill { if (!state.googleSearch || !onGoogleSearch(null)) launcherActivity.openSpotlight() }
+        // Nothing at rest, but the strip keeps its height and width so Home never shifts and dragging
+        // along it still moves between pages.
+        else if (view == StripView.EMPTY) Box(Modifier.height(FolioTouch.MIN.dp).widthIn(min = 120.dp))
+        // iOS's page control: the dots stay small and the strip around them takes the tap, so a
+        // finger has 48 dp of height without the dots spacing apart (A11Y-1).
+        else Box(Modifier.height(FolioTouch.MIN.dp), contentAlignment = Alignment.Center) {
+            Row(Modifier.heightIn(min = 30.dp).background(if (scrubbing) Color.White.copy(alpha = .18f) else Color.Transparent, CircleShape)
+                .padding(horizontal = if (scrubbing) FolioSpace.SNUG.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (visibleHomePages <= 6) repeat(visibleHomePages) { index ->
+                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                    if (index == homePages) Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    else Box(Modifier.size(if (index == pager.currentPage) 6.dp else 4.dp).background(if (index == pager.currentPage) LocalHomeInk.current.primary else LocalHomeInk.current.faint, CircleShape))
+                }
+            } else Text("${minOf(pager.currentPage + 1, homePages)} / $homePages", color = Color.White, fontSize = FolioType.GROUP_LABEL.sp)
+            }
+            // The taps live here, a slice per dot, the full height of the strip. Each slice keeps its
+            // own name, so TalkBack still reads and activates one page at a time.
+            if (visibleHomePages <= 6) Row(Modifier.matchParentSize()
+                .padding(horizontal = if (scrubbing) FolioSpace.SNUG.dp else 0.dp)) {
+                repeat(visibleHomePages) { index ->
+                    val dotLabel = if (index == homePages) stringResource(R.string.new_home_page) else stringResource(R.string.home_page, index + 1)
+                    Box(Modifier.width(28.dp).fillMaxHeight()
+                        .clickable(role = Role.Button, onClickLabel = dotLabel) { scope.launch { pager.animateScrollToPage(index) } }
+                        .semantics { contentDescription = dotLabel }.testTag("home-page-dot-$index"))
+                }
+            }
+        }
+    }
+}
