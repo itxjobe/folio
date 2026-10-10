@@ -541,8 +541,14 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                                     .description(R.string.tint_color).semantics { selected = !state.iconTintFromWallpaper && state.iconTint == c })
                             }
                         }
-                        IosMenuRow(stringResource(R.string.icon_pack), listOf<Pair<String?, String>>(null to stringResource(R.string.app_icons)) + packs.map { it.packageName to it.label },
+                        // Each pack, plus its iOS eras when it ships them (iOSIconPack: Liquid Glass, iOS 18…).
+                        val packChoices = androidx.compose.runtime.remember(packs) { packs.flatMap { p ->
+                            listOf<Pair<String?, String>>(p.packageName to p.label) + IconPacks.variants(iconContext, p.packageName).map { (c, l) -> c to iconContext.getString(R.string.icon_pack_variant, p.label, l) } } }
+                        IosMenuRow(stringResource(R.string.icon_pack), listOf<Pair<String?, String>>(null to stringResource(R.string.app_icons)) + packChoices,
                             state.iconPack, { IconPacks.clear(); model.setIconPack(it) }, tag = "icon-pack")
+                        // A second pack for dark mode; "Same as light" keeps one pack for both.
+                        IosMenuRow(stringResource(R.string.icon_pack_dark), listOf<Pair<String?, String>>(null to stringResource(R.string.same_as_light)) + packChoices,
+                            state.iconPackDark, { IconPacks.clear(); model.setIconPackDark(it) }, tag = "icon-pack-dark")
                         CardNote(stringResource(R.string.icon_packs_and_themes_are_made_by_indepe))
                         if (packs.isEmpty()) CardNote(stringResource(R.string.install_any_icon_pack_made_for_nova_styl))
                         IosMenuRow(stringResource(R.string.shape), IconShape.entries.map { it to stringResource(it.label) }, state.iconShape, model::setIconShape, tag = "icon-shape")
@@ -1443,6 +1449,7 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.badge_look to CustomizationPage.STATUS,
     R.string.date to CustomizationPage.STATUS,
     R.string.icon_pack to CustomizationPage.STATUS,
+    R.string.icon_pack_dark to CustomizationPage.STATUS,
     R.string.icon_style to CustomizationPage.STATUS,
     R.string.name_size to CustomizationPage.STATUS,
     R.string.shape to CustomizationPage.STATUS,

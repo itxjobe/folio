@@ -76,7 +76,9 @@ internal object LiveIcons {
     }
 }
 
-enum class IconStyle(@androidx.annotation.StringRes val label: Int) { DEFAULT(R.string.default_choice), DARK(R.string.dark), TINTED(R.string.tinted), CLEAR(R.string.clear) }
+enum class IconStyle(@androidx.annotation.StringRes val label: Int) { DEFAULT(R.string.default_choice), DARK(R.string.dark), TINTED(R.string.tinted), CLEAR(R.string.clear),
+    /** Glass: the squircle-masked look with app art kept, used as-is when no icon pack is set. */
+    GLASS(R.string.glass) }
 
 enum class IconShape(@androidx.annotation.StringRes val label: Int) { DEFAULT(R.string.default_choice), SQUIRCLE(R.string.squircle), CIRCLE(R.string.circle), ROUNDED(R.string.rounded_square) }
 /**
@@ -163,7 +165,7 @@ internal val LocalIconLook = androidx.compose.runtime.staticCompositionLocalOf {
 internal val LocalIconsAreDark = androidx.compose.runtime.staticCompositionLocalOf<Boolean?> { null }
 
 private fun filterFor(look: IconLook): androidx.compose.ui.graphics.ColorFilter? = when (look.style) {
-    IconStyle.DEFAULT -> null
+    IconStyle.DEFAULT, IconStyle.GLASS -> null
     // Dimmer and a little less saturated, so bright icons sit calmly on a dark Home.
     IconStyle.DARK -> androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(
         .62f, .08f, .05f, 0f, -6f,

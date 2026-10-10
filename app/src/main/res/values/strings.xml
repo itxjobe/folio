@@ -1988,4 +1988,13 @@
     <string name="action_a11y_shade">Android notification shade</string>
     <string name="action_a11y_splitscreen">Split screen</string>
     <string name="action_a11y_mediaplaypause">Play or pause (system)</string>
+    <string name="icon_pack_dark">Icon pack in Dark mode</string>
+    <string name="same_as_light">Same as light</string>
+    <string name="icon_pack_variant">%1$s · %2$s</string>
+    <string name="icon_era_liquid_glass">Liquid Glass (iOS 26)</string>
+    <string name="icon_era_ios18">iOS 18</string>
+    <string name="icon_era_ios17">iOS 17</string>
+    <string name="icon_era_ios16">iOS 16</string>
+    <string name="icon_era_ios15">iOS 15</string>
+    <string name="icon_era_ios14">iOS 14</string>
 </resources>

@@ -72,7 +72,7 @@ data class FolioTheme(
 
 internal fun LauncherState.withTheme(theme: FolioTheme, installedPacks: Set<String>) = copy(
     iconStyle = theme.iconStyle, iconTint = theme.iconTint, iconTintFromWallpaper = theme.iconTintFromWallpaper,
-    iconShape = theme.iconShape, iconPack = theme.iconPack?.takeIf { it in installedPacks },
+    iconShape = theme.iconShape, iconPack = theme.iconPack?.takeIf { splitIconPackChoice(it).first in installedPacks },
     badgeStyle = theme.badgeStyle, badgeColor = theme.badgeColor, liveIcons = theme.liveIcons, homeInk = theme.homeInk,
     tintedGlass = theme.tintedGlass, dimWallpaperDark = theme.dimWallpaperDark, statusStyle = theme.statusStyle,
     badgeLook = theme.badgeLook, badgeSize = theme.badgeSize,

@@ -281,6 +281,16 @@ class MainActivity : ComponentActivity() {
             val reduceMotionState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(reduceMotionEnabled(this@MainActivity)) }
             androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { reduceMotionState.value = reduceMotionEnabled(this@MainActivity); onPauseOrDispose { } }
             val reduceMotion = reduceMotionState.value
+            // Icon packs per theme: a separate pack for dark mode, switching live with the appearance (no pack adapts by itself).
+            val iosPackInstalled = androidx.compose.runtime.remember(state.iconPackChosen) {
+                !state.iconPackChosen && runCatching { packageManager.getPackageInfo(IconPacks.IOS_ICON_PACK, 0) }.isSuccess
+            }
+            val activePack = if (!state.iconPackChosen && iosPackInstalled) IconPacks.IOS_LIQUID_GLASS
+                else if (appearance.state.dark) state.iconPackDark ?: state.iconPack else state.iconPack
+            androidx.compose.runtime.LaunchedEffect(activePack) { IconPacks.clear() }
+            // Glass: Clear's light, colorless art in the squircle when no pack is set; with a pack, its own art in the squircle.
+            val lookStyle = if (state.iconStyle == IconStyle.GLASS) (if (activePack == null) IconStyle.CLEAR else IconStyle.DEFAULT) else state.iconStyle
+            val lookShape = if (state.iconStyle == IconStyle.GLASS) IconShape.SQUIRCLE else state.iconShape
             val iconTint = if (state.iconTintFromWallpaper) wallpaperTone.primary?.let(::vividTint)?.toLong()?.and(0xFFFFFFFFL) ?: state.iconTint else state.iconTint
             androidx.compose.runtime.CompositionLocalProvider(
                 LocalWallpaperTone provides wallpaperTone,
@@ -308,7 +318,7 @@ class MainActivity : ComponentActivity() {
                         FeatureScopes.on(state.featureScopes, "tintMedia", state.tintMedia, screen) && TweakOptions.on(state.tweakOptions, "tintMedia", "island"))
                 },
                 androidx.compose.ui.platform.LocalHapticFeedback provides (if (state.haptics) androidx.compose.ui.platform.LocalHapticFeedback.current else NoHaptics),
-                LocalIconLook provides IconLook(state.iconStyle, androidx.compose.ui.graphics.Color(iconTint), state.iconShape, state.iconPack, state.badgeStyle, state.badgeColor, state.liveIcons, state.liveIconLook, state.badgeLook, state.badgeSize),
+                LocalIconLook provides IconLook(lookStyle, androidx.compose.ui.graphics.Color(iconTint), lookShape, activePack, state.badgeStyle, state.badgeColor, state.liveIcons, state.liveIconLook, state.badgeLook, state.badgeSize),
                 LocalFocusLock provides FocusPages.lockingFocus(savedState)?.let { FocusLock(it, savedState.layout.pageCount) },
                 LocalAppIconStyles provides state.appIconStyles,
                 LocalIconsAreDark provides iconsAreDark,

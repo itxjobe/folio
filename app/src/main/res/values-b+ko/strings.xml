@@ -1959,4 +1959,13 @@
     <string name="action_a11y_shade">Android 알림 창</string>
     <string name="action_a11y_splitscreen">화면 분할</string>
     <string name="action_a11y_mediaplaypause">재생 또는 일시 정지(시스템)</string>
+    <string name="icon_pack_dark">다크 모드 아이콘 팩</string>
+    <string name="same_as_light">라이트와 동일</string>
+    <string name="icon_pack_variant">%1$s · %2$s</string>
+    <string name="icon_era_liquid_glass">리퀴드 글래스 (iOS 26)</string>
+    <string name="icon_era_ios18">iOS 18</string>
+    <string name="icon_era_ios17">iOS 17</string>
+    <string name="icon_era_ios16">iOS 16</string>
+    <string name="icon_era_ios15">iOS 15</string>
+    <string name="icon_era_ios14">iOS 14</string>
 </resources>

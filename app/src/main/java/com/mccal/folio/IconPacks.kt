@@ -36,13 +36,17 @@ internal object IconPacks {
     }
 
     /** Pack icon for [component], or null when the pack has none. Call off the main thread. */
-    fun icon(context: Context, pack: String, component: ComponentName, sizePx: Int): Bitmap? {
-        val key = "$pack|${component.flattenToString()}"
+    fun icon(context: Context, packChoice: String, component: ComponentName, sizePx: Int): Bitmap? {
+        val key = "$packChoice|${component.flattenToString()}"
         icons.get(key)?.let { return it }
+        val (pack, variant) = splitChoice(packChoice)
         val name = mapping(context, pack)[component.flattenToString()] ?: return null
         return runCatching {
             val res = context.packageManager.getResourcesForApplication(pack)
-            val id = res.getIdentifier(name, "drawable", pack).takeIf { it != 0 } ?: return null
+            // An era variant (iOSIconPack: appfilter maps "ios18_phone"; "ios26_lg_phone" is the Liquid Glass art):
+            // swap the era prefix when the pack has that drawable, else keep the pack's own mapping.
+            val id = variant?.let { v -> eraName(name, v)?.let { res.getIdentifier(it, "drawable", pack) }?.takeIf { it != 0 } }
+                ?: res.getIdentifier(name, "drawable", pack).takeIf { it != 0 } ?: return null
             ResourcesCompat.getDrawable(res, id, null)?.toBitmap(sizePx, sizePx)
         }.getOrNull()?.also { icons.put(key, it) }
     }
@@ -87,5 +91,26 @@ internal object IconPacks {
             }
     }
 
+    fun splitChoice(choice: String) = splitIconPackChoice(choice)
+
+    /** The drawable for [name] in another iOS era: "ios18_phone" + "ios26_lg_" -> "ios26_lg_phone". */
+    internal fun eraName(name: String, variant: String): String? =
+        Regex("^ios\\d+_(?:lg_)?(.+)$").matchEntire(name)?.groupValues?.get(1)?.let { variant + it }
+
+    /** Era variants a pack ships under the iOS-era naming (iOSIconPack), as (choice, label suffix). */
+    fun variants(context: Context, pack: String): List<Pair<String, String>> = runCatching {
+        val res = context.packageManager.getResourcesForApplication(pack)
+        ERAS.filter { (prefix, _) -> res.getIdentifier(prefix + "phone", "drawable", pack) != 0 }.map { (prefix, label) -> "$pack#$prefix" to context.getString(label) }
+    }.getOrDefault(emptyList())
+    private val ERAS = listOf("ios26_lg_" to R.string.icon_era_liquid_glass, "ios18_" to R.string.icon_era_ios18, "ios17_" to R.string.icon_era_ios17,
+        "ios16_" to R.string.icon_era_ios16, "ios15_" to R.string.icon_era_ios15, "ios14_" to R.string.icon_era_ios14)
+    /** iOSIconPack (SysAdminDoc): defaulted to its Liquid Glass era when installed and no pack was chosen. */
+    const val IOS_ICON_PACK = "com.sysadmindoc.iosicons"
+    const val IOS_LIQUID_GLASS = "$IOS_ICON_PACK#ios26_lg_"
+
     fun clear() { icons.evictAll(); synchronized(this) { mappings.clear(); failedAt.clear() } }
 }
+
+/** "pkg" or "pkg#variantPrefix" as saved in settings. Top level so pure code and tests don't load [IconPacks]. */
+internal fun splitIconPackChoice(choice: String): Pair<String, String?> =
+    choice.substringBefore('#') to choice.substringAfter('#', "").takeIf { it.isNotEmpty() }

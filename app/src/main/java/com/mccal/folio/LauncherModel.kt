@@ -170,6 +170,10 @@ data class LauncherState(
     val iconShape: IconShape = IconShape.DEFAULT,
     /** Package of the selected third-party icon pack, or null for app icons. */
     val iconPack: String? = null,
+    /** Icon pack used while Folio is in dark mode; null = the same pack as light ([iconPack]). */
+    val iconPackDark: String? = null,
+    /** A pack (or "App icons") was picked by hand; until then an installed iOSIconPack is used in its Liquid Glass era. */
+    val iconPackChosen: Boolean = false,
     val badgeStyle: BadgeStyle = BadgeStyle.DOT,
     val badgeColor: BadgeColor = BadgeColor.RED,
     val badgeLook: BadgeLook = BadgeLook.IOS,
@@ -1275,7 +1279,8 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setStandByTent(value: Boolean) = updateSettings(soon = false) { it.copy(standByTent = value) }
     fun setIconStyle(style: IconStyle, tint: Long) = updateSettings(soon = false) { it.copy(iconStyle = style, iconTint = tint) }
     fun setIconShape(shape: IconShape) = updateSettings(soon = false) { it.copy(iconShape = shape) }
-    fun setIconPack(pack: String?) = updateSettings(soon = false) { it.copy(iconPack = pack) }
+    fun setIconPack(pack: String?) = updateSettings(soon = false) { it.copy(iconPack = pack, iconPackChosen = true) }
+    fun setIconPackDark(pack: String?) = updateSettings(soon = false) { it.copy(iconPackDark = pack, iconPackChosen = true) }
     fun setBadgeStyle(style: BadgeStyle) = updateSettings(soon = false) { it.copy(badgeStyle = style) }
     fun setBadgeColor(color: BadgeColor) = updateSettings(soon = false) { it.copy(badgeColor = color) }
     fun setBadgeLook(look: BadgeLook) = updateSettings(soon = false) { it.copy(badgeLook = look) }
@@ -1523,7 +1528,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("panelBlur", s.panelBlur.toDouble()).put("notificationClock", s.notificationClock).put("groupNotifications", s.groupNotifications)
             .put("searchCustomUrl", s.searchCustomUrl).put("standBy", s.standBy).put("standByCharging", s.standByCharging).put("standByTent", s.standByTent).put("spotlightHidden", JSONArray(s.spotlightHidden.toList())).put("searchEngine", s.searchEngine)
             .put(SettingKeys.ISLAND_EVENTS_OFF, JSONArray(s.islandEventsOff.toList())).put("libraryCategories", s.libraryCategories).put("libraryWork", s.libraryWork).put("iconStyle", s.iconStyle.name).put("iconTint", s.iconTint)
-            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("badgeLook", s.badgeLook.name).put("badgeSize", s.badgeSize.name).put("badgesWhenOpened", s.badgesWhenOpened)
+            .put("iconShape", s.iconShape.name).put("iconPack", s.iconPack ?: JSONObject.NULL).put("iconPackDark", s.iconPackDark ?: JSONObject.NULL).put("iconPackChosen", s.iconPackChosen).put("badgeStyle", s.badgeStyle.name).put("badgeColor", s.badgeColor.name).put("badgeLook", s.badgeLook.name).put("badgeSize", s.badgeSize.name).put("badgesWhenOpened", s.badgesWhenOpened)
             .put("badgesSeen", JSONObject().apply { s.badgesSeen.forEach { (pkg, count) -> put(pkg, count) } }).put("searchPill", s.searchPill).put("homeStrip", s.homeStrip.key).put("swipeDownHome", s.swipeDownHome).put("messagesApp", s.messagesApp ?: JSONObject.NULL).put(SettingKeys.MESSAGES_AVOID_DOUBLE, s.messagesAvoidDouble)
             .put(SettingKeys.ISLAND_ALERTS, s.islandAlerts).put(SettingKeys.ISLAND_ALERT_APPS_OFF, JSONArray(s.islandAlertAppsOff.toList())).put("ccControls", JSONArray(s.ccControls))
             .put("ccSize", s.ccSize.name).put("ccCentered", s.ccCentered).put("ncSplit", s.ncSplit)
@@ -1784,6 +1789,8 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         iconTint = j.optLong("iconTint", FolioColors.Value.Warning),
         iconShape = runCatching { IconShape.valueOf(j.optString("iconShape")) }.getOrDefault(IconShape.DEFAULT),
         iconPack = j.optString("iconPack").takeIf { it.isNotBlank() && it != "null" },
+        iconPackDark = j.optString("iconPackDark").takeIf { it.isNotBlank() && it != "null" },
+        iconPackChosen = j.optBoolean("iconPackChosen", j.optString("iconPack").let { it.isNotBlank() && it != "null" }),
         badgeStyle = runCatching { BadgeStyle.valueOf(j.optString("badgeStyle")) }.getOrDefault(BadgeStyle.DOT),
         badgeColor = runCatching { BadgeColor.valueOf(j.optString("badgeColor")) }.getOrDefault(BadgeColor.RED),
         badgeLook = runCatching { BadgeLook.valueOf(j.optString("badgeLook")) }.getOrDefault(BadgeLook.IOS),

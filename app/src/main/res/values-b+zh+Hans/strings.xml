@@ -1938,4 +1938,13 @@
     <string name="action_a11y_shade">Android 通知栏</string>
     <string name="action_a11y_splitscreen">分屏</string>
     <string name="action_a11y_mediaplaypause">播放或暂停（系统）</string>
+    <string name="icon_pack_dark">深色模式图标包</string>
+    <string name="same_as_light">与浅色相同</string>
+    <string name="icon_pack_variant">%1$s · %2$s</string>
+    <string name="icon_era_liquid_glass">液态玻璃 (iOS 26)</string>
+    <string name="icon_era_ios18">iOS 18</string>
+    <string name="icon_era_ios17">iOS 17</string>
+    <string name="icon_era_ios16">iOS 16</string>
+    <string name="icon_era_ios15">iOS 15</string>
+    <string name="icon_era_ios14">iOS 14</string>
 </resources>
