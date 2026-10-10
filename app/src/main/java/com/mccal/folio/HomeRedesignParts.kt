@@ -62,3 +62,14 @@ internal fun HomeSearchButton(modifier: Modifier, onClick: () -> Unit) {
         }
     }
 }
+
+/** A firm tick when something you were dragging lands, like iOS's drop. Android's touch-feedback setting still decides. */
+@Composable
+internal fun DropHaptic(drag: HomeDragState) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var carrying by remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(drag.active, drag.moved) {
+        if (drag.active && drag.moved) carrying = true
+        else if (!drag.active && carrying) { carrying = false; haptic.perform(FolioHaptic.Commit) }
+    }
+}

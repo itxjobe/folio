@@ -340,6 +340,7 @@ fun LauncherScreen(
         previousEditRevision = state.editRevision
     }
     LaunchedEffect(pager.settledPage) { if (pager.settledPage != homePages) focus.clearFocus() }
+    DropHaptic(drag)
     // A light tick when a swipe settles on a new page, like iOS's page control. Android's touch-feedback setting
     // still decides whether anything is felt (performHapticFeedback respects it). Not while dragging an app.
     LaunchedEffect(pager) {

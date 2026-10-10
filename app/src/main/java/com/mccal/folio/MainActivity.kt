@@ -54,6 +54,9 @@ class MainActivity : ComponentActivity() {
     private val searchRequests = mutableIntStateOf(0)
     /** Sheets open in this activity only (see [LocalSheetsOpen]). */
     private val activitySheets = mutableIntStateOf(0)
+    /** iOS "app closes into its icon": Home springs up from a little smaller when you come back from an app Folio opened. */
+    private val homeReturn = androidx.compose.animation.core.Animatable(1f)
+    private var returningFromApp = false
     /** Opened from Android Settings (Home app gear / "Additional settings in the app"). */
     private val settingsRequests = mutableIntStateOf(0)
     private val defaultHome = mutableStateOf(false)
@@ -337,6 +340,8 @@ class MainActivity : ComponentActivity() {
                 // The launcher blurs behind every overlay with the same spring the overlay uses.
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()
                     .graphicsLayer {
+                    val back = homeReturn.value
+                    if (back != 1f) { scaleX = back; scaleY = back; alpha = (.55f + (back - HOME_RETURN_FROM) / (1f - HOME_RETURN_FROM) * .45f).coerceIn(0f, 1f) }
                     val p = overlayProgress
                     // Fixed radius while any overlay is showing: a constant blur is cached by the RenderThread,
                     // whereas animating the radius re-blurred the whole Home every frame (~14ms of GPU per
@@ -457,6 +462,13 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        if (returningFromApp) {
+            returningFromApp = false
+            if (!reduceMotionEnabled(this)) lifecycleScope.launch {
+                homeReturn.snapTo(HOME_RETURN_FROM)
+                homeReturn.animateTo(1f, FolioMotion.spring(FolioMotion.Settle))
+            }
+        }
         SoftwareUpdate.afterUpdate(this)
         SoftwareUpdate.startCheckIfDue(this)
         FolioForeground.visible.value = true
@@ -676,6 +688,7 @@ class MainActivity : ComponentActivity() {
             val shortcut = app.shortcutId
             if (shortcut != null) launcherApps.startShortcut(app.packageName, shortcut, screenBounds(bounds), launchOptions(bounds), user)
             else launcherApps.startMainActivity(app.component, user, screenBounds(bounds), launchOptions(bounds))
+            returningFromApp = true
         } catch (_: Exception) { IslandEvents.notice(this, getString(R.string.app_is_unavailable, app.label), app.icon); model.refresh() }
     }
 
@@ -857,3 +870,6 @@ class MainActivity : ComponentActivity() {
 }
 
 internal enum class StatusTarget { CLOCK, BATTERY }
+
+/** How small Home starts when an app closes back into it (iOS-like zoom-in). */
+private const val HOME_RETURN_FROM = .92f
