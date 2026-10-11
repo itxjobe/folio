@@ -135,7 +135,7 @@ androidComponents {
             variant.sources.assets?.addGeneratedSourceDirectory(generateDevBuildInfo, DevBuildInfoTask::outputDir)
         }
         if (variant.buildType == "nonMinifiedRelease" || variant.buildType == "benchmarkRelease") {
-            variant.applicationId.set("com.mccal.folio.profile")
+            variant.applicationId.set("com.joshreid.bifold.profile")
         }
     }
 }
@@ -144,7 +144,7 @@ android {
     namespace = "com.mccal.folio"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.mccal.folio"
+        applicationId = "com.joshreid.bifold"
         minSdk = 31
         targetSdk = 36
         // Semantic version; see CHANGELOG.md and docs/adr/0007-release-trains.md.
@@ -182,7 +182,7 @@ android {
                 "proguard-rules.pro",
             )
             if (releaseStoreFile != null) signingConfig = signingConfigs.getByName("release")
-            manifestPlaceholders["appLabel"] = "Folio"
+            manifestPlaceholders["appLabel"] = "Bifold"
         }
         // Optimized like release (R8, no debuggable JIT slowdown) but signed with the local debug key, so it
         // installs over a debug build and keeps Folio's data. Use this to judge real smoothness on the phone.
@@ -192,14 +192,14 @@ android {
             matchingFallbacks += "release"
             // Its own app ("Folio Dev") so test builds install next to the signed release instead of over it.
             applicationIdSuffix = ".dev"
-            manifestPlaceholders["appLabel"] = "Folio Dev"
+            manifestPlaceholders["appLabel"] = "Bifold Dev"
         }
         // Same app id as "fast", so one build installs over the other and Folio Dev keeps its layout and settings.
         // Only the name differs, because that is the one place you can tell them apart on the phone, and it matters:
         // a debug build is far slower, so frame numbers taken on one mean nothing next to numbers from the other.
+        // Bifold ships the debug build as com.joshreid.bifold itself, alongside an installed Folio.
         getByName("debug") {
-            applicationIdSuffix = ".dev"
-            manifestPlaceholders["appLabel"] = "Folio Debug"
+            manifestPlaceholders["appLabel"] = "Bifold"
         }
     }
     // "fast" uses release's no-op tracing/diagnostic sources.

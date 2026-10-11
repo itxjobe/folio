@@ -1262,7 +1262,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun arrangeLikeIPhone(): Boolean {
-        saveLayoutSnapshot("Before Arrange Like iPhone")
+        saveLayoutSnapshot("Before Arrange Classic")
         val state = mutable.value
         return commitLayout(arrangeLikeIPhone(state.layout, resolveIPhoneApps(getApplication(), state.apps, state.messagesApp), state.homeAppRows))
     }
@@ -2028,7 +2028,7 @@ internal val IPHONE_FOLD_TODAY = listOf(TodayWidget(NOW_PLAYING_WIDGET, TodaySiz
 internal fun LauncherState.labelsOn(expanded: Boolean) = labels && (expanded || coverLabels)
 
 /** Layout History name for the layout saved before [LauncherModel.applyIPhoneFoldLayout]. */
-private const val IPHONE_FOLD_SNAPSHOT = "Before iPhone Fold layout"
+private const val IPHONE_FOLD_SNAPSHOT = "Before Fold Classic layout"
 private const val INNER_COLUMNS_SNAPSHOT = "inner_columns_snapshot_saved"
 /** Layout History name for the copy saved when the inner screen first shows 5 columns. */
 private const val INNER_COLUMNS_SNAPSHOT_NAME = "Before 5 columns unfolded"

@@ -1936,6 +1936,7 @@ private fun riskLabel(risk: OperationRisk) = when (risk) {
 
 @Composable private fun CreditsPage() {
     val credits = listOf(
+        "Folio" to "McCal-Codes (github.com/McCal-Codes/folio) · MIT · Bifold's starting codebase", // english-only
         stringResource(R.string.duolauncher) to "jakesgoodapps (github.com/jakesgoodapps/DuoLauncher) · MIT · Folio’s starting codebase: iPhone Duo-style Home layouts for both screens, widgets, folders, work profile, wallpapers and Discover",
         "iphone-duo" to "chuspeeism · MIT · fold blur and darkening model",
         "Duo Fold Live" to stringResource(R.string.credit_duo_fold_live), // english-only
