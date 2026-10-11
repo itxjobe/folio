@@ -38,7 +38,7 @@
     <string name="preview_as_phone_wallpaper">Preview as phone wallpaper</string>
     <string name="gestures">Gestures</string>
     <string name="pull_down_from_the_top_left_for_notifica">Pull down from the top-left for notifications, top-right for Control Center. Swipe sideways to change pages. A swipe down lower on Home does what you pick above: set it to Notification Center for the usual Android pull-down, from anywhere on the page.</string>
-    <string name="iphone_style_control_center_and_notifica">Use Bifold's Control Center &amp; Notifications</string>
+    <string name="iphone_style_control_center_and_notifica">Use Bifold\'s Control Center &amp; Notifications</string>
     <string name="panels">Panels</string>
     <string name="big_clock_in_notification_center">Big clock in Notification Center</string>
     <string name="stack_notifications_by_app">Stack notifications by app</string>
