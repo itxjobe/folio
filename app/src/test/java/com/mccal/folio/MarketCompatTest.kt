@@ -73,8 +73,8 @@ class MarketCompatTest {
     @Test fun `the card shows each line's title and its reason`() {
         val lines = compatLines(listOf(CompatCheck.Release(FolioVersion(0, 8, 0), have), CompatCheck.Screens(setOf(Screen.INNER), setOf(Screen.COVER, Screen.INNER))))
         compose.setContent { CompatibilityCard(lines) }
-        compose.onNodeWithText("Needs Folio 0.8.0").assertIsDisplayed()
-        compose.onNodeWithText("This phone has Folio 0.6.8. Update Folio, then it can be installed.").assertIsDisplayed()
+        compose.onNodeWithText("Needs Bifold 0.8.0").assertIsDisplayed()
+        compose.onNodeWithText("This phone has Bifold 0.6.8. Update Bifold, then it can be installed.").assertIsDisplayed()
         compose.onNodeWithText("Inner screen only").assertIsDisplayed()
     }
 }

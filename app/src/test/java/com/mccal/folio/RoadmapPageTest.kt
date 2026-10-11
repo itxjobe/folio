@@ -83,9 +83,9 @@ class RoadmapPageTest {
         compose.onNodeWithText("Earlier releases").assertHasClickAction()
         compose.onNodeWithText("Old thing").assertDoesNotExist()
         compose.onNodeWithText("Earlier releases").performClick()
-        compose.onNodeWithText("Folio 0.0.1").performClick()
+        compose.onNodeWithText("Bifold 0.0.1").performClick()
         compose.onNodeWithText("Old thing").assertExists()
-        compose.onNodeWithText("Folio $release").performClick()
+        compose.onNodeWithText("Bifold $release").performClick()
         compose.onNodeWithText("Mine").assertExists()
     }
 

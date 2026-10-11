@@ -180,7 +180,7 @@ class MarketScreenRenderTest {
     @Test fun `an effect's page says it works with Flipbook, and without Flipbook Get waits for it`() {
         val session = session()
         session.prefs.introductionSeen = true
-        addCachedSource("https://mccal-codes.github.io/folio-tweaks/", "Folio Tweaks", effectIndex())
+        addCachedSource("https://mccal-codes.github.io/folio-tweaks/", "Bifold Tweaks", effectIndex())
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-packages").performClick()
         compose.onNodeWithText("Tilt").performScrollTo().performClick()
@@ -222,7 +222,7 @@ class MarketScreenRenderTest {
         session.prefs.introductionSeen = true
         val tilt = "com.mccal.folio.effect.tilt"
         assertEquals(true, kotlinx.coroutines.runBlocking { session.installFile(tiltPackage()) } is com.mccal.folio.market.InstallResult.Installed)
-        session.disable(tilt, "Folio stopped twice just after this package changed.")
+        session.disable(tilt, "Bifold stopped twice just after this package changed.")
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-installed").performClick()
         compose.onNode(androidx.compose.ui.test.hasScrollToNodeAction())
@@ -238,7 +238,7 @@ class MarketScreenRenderTest {
         val session = session()
         session.prefs.introductionSeen = false
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
-        compose.onNodeWithText("Welcome to the Folio Market").assertIsDisplayed()
+        compose.onNodeWithText("Welcome to the Bifold Market").assertIsDisplayed()
         compose.onNodeWithText("Skip").performClick()
         compose.onNodeWithText("Cabinet").assertIsDisplayed()
     }
@@ -287,7 +287,7 @@ class MarketScreenRenderTest {
         assertEquals("the tweak is on", setOf("appPanels"), launcher.state.installedTweaks)
 
         // What Safe Mode does after two crashes: the changes come off Home, the record stays.
-        session.disable(cabinet.id, "Folio stopped twice just after this package changed.")
+        session.disable(cabinet.id, "Bifold stopped twice just after this package changed.")
         assertEquals("off means off", emptySet<String>(), launcher.state.installedTweaks)
 
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
@@ -310,7 +310,7 @@ class MarketScreenRenderTest {
         // Settings is the last tab; it offers the style choice and a way back to Folio's own settings.
         compose.onNodeWithText("Carousel").assertIsDisplayed()
         compose.onNodeWithText("Calm").assertIsDisplayed()
-        compose.onNodeWithText("Open Folio Settings").assertIsDisplayed()
+        compose.onNodeWithText("Open Bifold Settings").assertIsDisplayed()
     }
 
     @Test fun `Sources lists Folio's own and offers to add one`() {
@@ -328,10 +328,10 @@ class MarketScreenRenderTest {
         val session = session()
         session.prefs.introductionSeen = true
         compose.setContent {
-            MarketScreen(session, emptySet(), onClose = {}, settingsContent = { androidx.compose.material3.Text("Folio settings live here") })
+            MarketScreen(session, emptySet(), onClose = {}, settingsContent = { androidx.compose.material3.Text("Bifold settings live here") })
         }
         compose.onNodeWithTag("market-tab-settings").performClick()
-        compose.onNodeWithText("Folio settings live here").assertIsDisplayed()
+        compose.onNodeWithText("Bifold settings live here").assertIsDisplayed()
     }
 
     @Test fun `the app icon opens the Market, unless something asked for a Settings page`() {
@@ -350,7 +350,7 @@ class MarketScreenRenderTest {
         compose.onNodeWithContentDescription("Get Cabinet").performClick()
         // Nothing has been applied yet: this is the confirm step.
         compose.onNodeWithTag("market-install-sheet", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("Changes Folio tweaks").assertExists()
+        compose.onNodeWithText("Changes Bifold tweaks").assertExists()
         compose.onNodeWithText("Your apps or their data").assertExists()
         assertEquals(emptyList<com.mccal.folio.market.InstalledPackage>(), session.installed())
         compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()
@@ -393,7 +393,7 @@ class MarketScreenRenderTest {
         compose.setContent { MarketScreen(session, emptySet(), onClose = {}) }
         compose.onNodeWithTag("market-tab-packages").performClick()
         compose.onNodeWithText("Sunset Icons").assertExists()
-        compose.onNodeWithText("Needs Folio 9.0.0").assertExists()
+        compose.onNodeWithText("Needs Bifold 9.0.0").assertExists()
         compose.onNodeWithContentDescription("Get Sunset Icons").assertDoesNotExist()
         compose.onNodeWithText("Sunset Icons").performClick()
         compose.waitForIdle()
@@ -414,7 +414,7 @@ class MarketScreenRenderTest {
         // The page offers no Get at all, rather than one that opens a blank sheet.
         compose.onNodeWithContentDescription("Get Sunset Icons").assertDoesNotExist()
         // The row and the page both say why (the list sits beside the page at this width).
-        compose.onAllNodesWithText("Needs a newer Folio").assertCountEquals(2)
+        compose.onAllNodesWithText("Needs a newer Bifold").assertCountEquals(2)
     }
 
     @Test fun `a source is a place with its packages in it`() {
