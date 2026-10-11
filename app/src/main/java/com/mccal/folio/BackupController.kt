@@ -77,7 +77,7 @@ class BackupController(
         } else onExternalResultChanged(false)
     }
 
-    fun startExport(fileName: String = "folio-layout.json") {
+    fun startExport(fileName: String = "bifold-layout.json") {
         val state = model.state.value
         val raw = runCatching { encodeBackup(state) }.getOrElse {
             errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_prepared); return
