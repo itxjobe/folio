@@ -479,6 +479,12 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                                 else -> stringResource(R.string.swipe_right_from_your_first_home_page_to)
                             })
                             SettingsSwitch(stringResource(R.string.suggestions), state.todaySuggestions, model::setTodaySuggestions, "today-suggestions-switch")
+                            run {
+                                val unitsContext = androidx.compose.ui.platform.LocalContext.current
+                                IosMenuRow(stringResource(R.string.weather_units), listOf(WeatherUnits.AUTO to stringResource(R.string.automatic),
+                                    WeatherUnits.F to stringResource(R.string.fahrenheit), WeatherUnits.C to stringResource(R.string.celsius)),
+                                    WeatherUnits.mode, { WeatherUnits.set(unitsContext, it) }, tag = "weather-units")
+                            }
                             CardNote(stringResource(R.string.today_suggestions_note))
                         }
                     }
@@ -565,10 +571,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.side_rail)) {
                         SettingsSwitch(stringResource(R.string.left_handed_layout_rail_on_the_left), state.leftHanded, model::setLeftHanded, "left-handed-switch")
-                        SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
-                        if (state.labels) SettingsSwitch(stringResource(R.string.app_names_on_cover), state.coverLabels, model::setCoverLabels, "cover-label-switch")
-                        IosMenuRow(stringResource(R.string.inner_columns), listOf(4 to "4", 5 to "5"), state.innerColumns, model::setInnerColumns, tag = "inner-columns")
-                        if (state.labels) IosMenuRow(stringResource(R.string.name_size), LabelSize.entries.map { it to stringResource(it.label) }, state.labelSize, model::setLabelSize, tag = "label-size")
                         CardNote(stringResource(R.string.frost_and_outline_are_in_wallpaper_appea))
                     }
                     if (page == CustomizationPage.STATUS) SettingsCard(stringResource(R.string.status)) {
@@ -1349,6 +1351,9 @@ internal val SettingsIndex: List<Triple<Int, Int, CustomizationPage>> = listOf(
  * SettingsSearchCoverageTest fails when a switch, menu or slider is on a page and neither list has it.
  */
 internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
+    R.string.grid to CustomizationPage.HOME,
+    R.string.dock_recents to CustomizationPage.HOME,
+    R.string.weather_units to CustomizationPage.TODAY,
     R.string.align_dock_with_app_rows to CustomizationPage.HOME,
     R.string.app_icon_size to CustomizationPage.HOME,
     R.string.dock_height to CustomizationPage.HOME,
@@ -2303,6 +2308,18 @@ private class DuetHome(val layer: androidx.compose.ui.graphics.layer.GraphicsLay
             SettingsSwitch(stringResource(R.string.separate_upright_layout), state.portrait != null, { on -> model.setSeparatePortrait(on); onUpright(on) }, "separate-portrait-switch")
             CardNote(stringResource(R.string.separate_upright_layout_note))
         }
+    }
+    // Grid, per screen: the columns and app names for the screen picked above, in one place.
+    SettingsCard(stringResource(R.string.grid)) {
+        if (!wide) {
+            SettingsSwitch(stringResource(R.string.show_app_names), state.labels && state.coverLabels,
+                { on -> if (on) { model.setLabels(true); model.setCoverLabels(true) } else model.setCoverLabels(false) }, "cover-label-switch")
+        } else {
+            IosMenuRow(stringResource(R.string.columns), listOf(4 to "4", 5 to "5"), state.innerColumns, model::setInnerColumns, tag = "inner-columns")
+            SettingsSwitch(stringResource(R.string.show_app_names), state.labels, model::setLabels, "label-switch")
+            SettingsSwitch(stringResource(R.string.dock_recents), state.dockRecents, model::setDockRecents, "dock-recents-switch")
+        }
+        if (state.labels) IosMenuRow(stringResource(R.string.name_size), LabelSize.entries.map { it to stringResource(it.label) }, state.labelSize, model::setLabelSize, tag = "label-size")
     }
     var confirmIPhone by remember { mutableStateOf(false) }
     SheetGroup {

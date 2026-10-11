@@ -125,12 +125,25 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
     }.getOrNull())
 }
 
-private fun usesFahrenheit() = java.util.Locale.getDefault().country in setOf("US", "LR", "MM", "BS", "BZ", "KY", "PW")
+/** Weather units: Automatic follows the phone's region; °F or °C override it (Settings › Today View). */
+internal object WeatherUnits {
+    const val AUTO = 0; const val F = 1; const val C = 2
+    private const val KEY = "weather_units"
+    var mode by androidx.compose.runtime.mutableIntStateOf(AUTO)
+        private set
+    fun load(context: Context) { mode = context.getSharedPreferences("folio_widgets", 0).getInt(KEY, AUTO) }
+    fun set(context: Context, value: Int) { mode = value; context.getSharedPreferences("folio_widgets", 0).edit().putInt(KEY, value).apply() }
+}
+private fun usesFahrenheit() = when (WeatherUnits.mode) {
+    WeatherUnits.F -> true; WeatherUnits.C -> false
+    else -> java.util.Locale.getDefault().country in setOf("US", "LR", "MM", "BS", "BZ", "KY", "PW")
+}
 private fun deg(c: Double) = if (usesFahrenheit()) "${Math.round(c * 9 / 5 + 32)}°" else "${Math.round(c)}°"
 
 @Composable
 internal fun WeatherCard(onClick: () -> Unit) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) { WeatherUnits.load(context) }
     // White on the blue sky whatever Home's ink is, like iOS.
     val ink = HomeInk(dark = false)
     var allowed by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) }

@@ -1992,4 +1992,9 @@
     <string name="code_scanner">코드 스캐너</string>
     <string name="microphone">마이크</string>
     <string name="privacy_and_more">%1$s 외 %2$d개</string>
+    <string name="grid">격자</string>
+    <string name="dock_recents">Dock의 최근 앱</string>
+    <string name="weather_units">날씨 단위</string>
+    <string name="fahrenheit">°F</string>
+    <string name="celsius">°C</string>
 </resources>

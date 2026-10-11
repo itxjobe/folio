@@ -1971,4 +1971,9 @@
     <string name="code_scanner">扫码器</string>
     <string name="microphone">麦克风</string>
     <string name="privacy_and_more">%1$s 等 %2$d 项</string>
+    <string name="grid">网格</string>
+    <string name="dock_recents">程序坞中的最近使用 App</string>
+    <string name="weather_units">天气单位</string>
+    <string name="fahrenheit">°F</string>
+    <string name="celsius">°C</string>
 </resources>

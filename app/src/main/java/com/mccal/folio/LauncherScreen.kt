@@ -987,7 +987,7 @@ fun LauncherScreen(
             val dockPitch = geometry.dockPitch
             // iPadOS dock (#130): unfolded, the bottom dock bar adds a divider and up to three apps opened lately from
             // Folio (its own launch history, no usage-access permission), refreshed whenever Home comes back.
-            val dockRecents = rememberDockRecents(geometry.horizontalDock && geometry.expanded && !drag.active && !homeEdit.active, state.dock, appsById)
+            val dockRecents = rememberDockRecents(state.dockRecents && geometry.horizontalDock && geometry.expanded && !drag.active && !homeEdit.active, state.dock, appsById)
             val recentsWidth = if (dockRecents.isEmpty()) 0f else dockPitch * dockRecents.size + 17f
             val dockBarFull = (dockPitch * shownDock.size + 16f + recentsWidth).dp
             // More dock apps than the window has room for: the bar stops at the room it has and scrolls.

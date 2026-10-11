@@ -215,6 +215,8 @@ data class LauncherState(
     val layoutHistory: Boolean = false,
     /** Beta: a dot under dock apps used in the last hour (needs Usage Access). */
     val dockRecentDots: Boolean = false,
+    /** Inner screen's horizontal dock shows recent apps after a divider (tablet-style). */
+    val dockRecents: Boolean = true,
     val focusModes: List<FocusMode> = DEFAULT_FOCUS_MODES,
     /** The Focus that's on, by id; null when none. */
     val activeFocus: String? = null,
@@ -1036,6 +1038,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
     fun setAddNewAppsToHome(value: Boolean) = updateSettings(soon = false) { it.copy(addNewAppsToHome = value) }
     fun setLayoutHistory(value: Boolean) = updateSettings(soon = false) { it.copy(layoutHistory = value) }
     fun setDockRecentDots(value: Boolean) = updateSettings(soon = false) { it.copy(dockRecentDots = value) }
+    fun setDockRecents(value: Boolean) = updateSettings(soon = false) { it.copy(dockRecents = value) }
 
     /** Saves the current Home to Layout History when it's on (or always, when [force] is set). */
     fun saveLayoutSnapshot(reason: String, force: Boolean = false) {
@@ -1587,7 +1590,7 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .put("ccSize", s.ccSize.name).put("ccCentered", s.ccCentered).put("ncSplit", s.ncSplit)
             .put("widgetStacks", JSONObject().apply { s.widgetStacks.forEach { (slot, ids) -> put(slot.toString(), JSONArray(ids)) } })
             .put("stackRotate", s.stackRotate).put("railActivitiesUnderStatus", s.railActivities).put("addNewAppsToHome", s.addNewAppsToHome)
-            .put("layoutHistory", s.layoutHistory).put("dockRecentDots", s.dockRecentDots)
+            .put("layoutHistory", s.layoutHistory).put("dockRecentDots", s.dockRecentDots).put("dockRecents", s.dockRecents)
             .put("installedTweaks", JSONArray(s.installedTweaks.toList()))
             .put("folderColumns", s.folderColumns).put("folderBackground", s.folderBackground.name)
             .put("labelSize", s.labelSize.name).put("motionSpeed", s.motionSpeed.name).put("holdDelay", s.holdDelay.name).put("pageEffect", s.pageEffect.name)
@@ -1868,7 +1871,7 @@ internal fun decodeLauncherState(raw: String, legacyRaw: String?): LauncherState
         stackRotate = j.optBoolean("stackRotate", true),
         railActivities = j.optBoolean("railActivitiesUnderStatus", false),
         addNewAppsToHome = j.optBoolean("addNewAppsToHome", false),
-        layoutHistory = j.optBoolean("layoutHistory", false), dockRecentDots = j.optBoolean("dockRecentDots", false),
+        layoutHistory = j.optBoolean("layoutHistory", false), dockRecentDots = j.optBoolean("dockRecentDots", false), dockRecents = j.optBoolean("dockRecents", true),
         folderColumns = j.optInt("folderColumns", 0).takeIf { it in setOf(0, 3, 4) } ?: 0,
         folderBackground = runCatching { FolderBackground.valueOf(j.optString("folderBackground")) }.getOrDefault(FolderBackground.GLASS),
         labelSize = runCatching { LabelSize.valueOf(j.optString("labelSize")) }.getOrDefault(LabelSize.STANDARD),
