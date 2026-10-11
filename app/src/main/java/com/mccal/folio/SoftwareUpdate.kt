@@ -95,7 +95,8 @@ internal object SoftwareUpdate {
         scope.launch { try { block() } finally { busy.set(false) } }
     }
 
-    fun supported(context: Context) = context.packageName == FOLIO_CLASSES
+    // Bifold: never offers upstream Folio releases (they would replace this build). Updates come from Josh's own builds.
+    @Suppress("UNUSED_PARAMETER") fun supported(context: Context) = false
 
     /**
      * The chosen mode. Earlier versions stored separate switches; a choice made there carries over. Where there was

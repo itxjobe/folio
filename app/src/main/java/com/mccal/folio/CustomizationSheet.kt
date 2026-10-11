@@ -103,7 +103,7 @@ internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS
         // The pages you open once live under General, as iOS keeps them under General › About.
         SOFTWARE_UPDATE, ADVANCED, BACKUP, HELP, COMING_SOON, CREDITS -> GENERAL
         SUPPORTER, SUPPORTERS -> SUPPORT
-        SYSTEM_BRIDGE -> ADVANCED
+        SYSTEM_BRIDGE -> DEVELOPER
         WHAT_TO_TEST -> HELP
         DEVELOPER -> ADVANCED
         MARKET -> TWEAKS // where tweaks come from
@@ -264,18 +264,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.Lock, FolioColors.Value.Green, stringResource(R.string.lock_cover), "customization-lock",
                             if (state.lockCover) stringResource(R.string.on) else stringResource(R.string.off), selected = pick(CustomizationPage.LOCK), chevron = !sidebar) { onPage(CustomizationPage.LOCK) }
                     }
-                    // The Market sits inside Tweaks, where tweaks come from (McCal, 28 Sep 2026).
-                    SheetGroup {
-                        TweakRow(Icons.Rounded.AutoAwesome, FolioColors.Value.Purple, stringResource(R.string.tweaks), "customization-tweaks",
-                            pluralStringResource(R.plurals.count_installed, state.installedTweaks.size, state.installedTweaks.size), selected = pick(CustomizationPage.TWEAKS), chevron = !sidebar) { onPage(CustomizationPage.TWEAKS) }
-                    }
                     SheetGroup {
                         TweakRow(Icons.Rounded.PanTool, FolioColors.Value.Blue, stringResource(R.string.privacy_permissions), "customization-permissions", selected = pick(CustomizationPage.PERMISSIONS), chevron = !sidebar) { onPage(CustomizationPage.PERMISSIONS) }
-                    }
-                    // One row for Ko-fi, the supporter code and the Supporters list: a page of its own, not three rows here.
-                    SheetGroup {
-                        TweakRow(Icons.Rounded.LocalCafe, 0xFFFF5E5B, stringResource(R.string.support_folio), "customization-support-folio",
-                            selected = pick(CustomizationPage.SUPPORT), chevron = !sidebar) { onPage(CustomizationPage.SUPPORT) }
                     }
     }
     // Home-app actions and the setup reminder: above the list on the phone, on Folio's own page in the split view.
@@ -761,10 +751,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 CustomizationPage.GENERAL -> {
                     val generalContext = androidx.compose.ui.platform.LocalContext.current
                     SheetGroup {
-                        val updateStatus by SoftwareUpdate.status.collectAsState()
-                        TweakRow(Icons.Rounded.SystemUpdate, FolioColors.Value.Gray, stringResource(R.string.software_update), "customization-software-update",
-                            if (updateStatus is SoftwareUpdate.Status.Available) "1" else null) { onPage(CustomizationPage.SOFTWARE_UPDATE) }
-                        MenuDivider()
                         TweakRow(Icons.Rounded.NewReleases, FolioColors.Value.Green, stringResource(R.string.what_s_new), "customization-whats-new",
                             "v" + WhatsNew.currentVersion(generalContext)) { onClose(); onShowWhatsNew() }
                         if (DevBuild.isDevApp(generalContext) && DevBuild.load(generalContext) != null) {
@@ -789,8 +775,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.HelpOutline, FolioColors.Value.Blue, stringResource(R.string.help), "customization-help") { onPage(CustomizationPage.HELP) }
-                        MenuDivider()
-                        TweakRow(Icons.Rounded.Map, FolioColors.Value.Indigo, stringResource(R.string.roadmap), "customization-coming-soon") { onPage(CustomizationPage.COMING_SOON) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.Favorite, FolioColors.Value.Red, stringResource(R.string.credits), "customization-credits") { onPage(CustomizationPage.CREDITS) }
                     }
@@ -863,17 +847,13 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         CardNote(if (SafeMode.active) stringResource(R.string.folio_is_running_in_safe_mode_optional_f)
                             else stringResource(R.string.if_folio_closes_unexpectedly_twice_right))
                     }
-                    SettingsCard(null) {
-                        IosNavRow(stringResource(R.string.system_bridge), null, { onPage(CustomizationPage.SYSTEM_BRIDGE) }, "system-bridge-row")
-                    }
                     CapabilitiesCard()
                     RecentActivityCard()
-                    // Folio Dev only: the passphrase-locked developer actions. A release build never shows this row.
-                    if (DevBuild.isDevApp(androidx.compose.ui.platform.LocalContext.current)) SettingsCard(null) {
+                    // Developer: root System Bridge, the performance log and the dev-build actions live there.
+                    SettingsCard(null) {
                         IosNavRow(DevBuild.DEVELOPER_LABEL, null, { onPage(CustomizationPage.DEVELOPER) }, "developer-row")
                     }
                     CrashReportsCard()
-                    PerformanceCard()
                 }
                 CustomizationPage.MARKET -> {
                     Text(stringResource(R.string.market_page_intro),
@@ -983,7 +963,13 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 CustomizationPage.SOFTWARE_UPDATE -> SoftwareUpdatePage()
                 CustomizationPage.SUPPORTER -> SupporterPage()
                 CustomizationPage.SYSTEM_BRIDGE -> SystemBridgePage()
-                CustomizationPage.DEVELOPER -> DeveloperPage(onShowBuild = { onClose(); DevBuild.reopen.intValue++ })
+                CustomizationPage.DEVELOPER -> {
+                    SettingsCard(null) {
+                        IosNavRow(stringResource(R.string.system_bridge), null, { onPage(CustomizationPage.SYSTEM_BRIDGE) }, "system-bridge-row")
+                    }
+                    PerformanceCard()
+                    if (DevBuild.isDevApp(androidx.compose.ui.platform.LocalContext.current)) DeveloperPage(onShowBuild = { onClose(); DevBuild.reopen.intValue++ })
+                }
                 CustomizationPage.PERMISSIONS -> PermissionsPage(isDefaultHome, onMakeDefault, onShadeSetup)
                 CustomizationPage.THEMES -> ThemesPage(state, model, backgrounds.previewBitmap)
                 CustomizationPage.FOCUS -> FocusListPage(state, model) { focusId = it; onPage(CustomizationPage.FOCUS_MODE) }
@@ -1174,14 +1160,6 @@ private fun LauncherHelp(
     SheetGroup {
         IosActionRow(stringResource(R.string.add_widget_to_this_page_2), "help-add-widget", onClick = onAddWidget)
     }
-    // The person behind Folio, for anything a bug report doesn't cover.
-    val helpContext = androidx.compose.ui.platform.LocalContext.current
-    SheetGroup {
-        IosActionRow(stringResource(R.string.email_the_developer), "help-contact-email") {
-            runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:contact@mcc-cal.com"))
-                .putExtra(android.content.Intent.EXTRA_SUBJECT, "Folio").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }
-    }
 }
 
 @Composable
@@ -1315,7 +1293,6 @@ internal val SettingsIndex: List<Triple<Int, Int, CustomizationPage>> = listOf(
     Triple(R.string.settings_rounded_screen_corners, R.string.settings_keywords_rounded_screen_corners, CustomizationPage.WALLPAPER),
     Triple(R.string.glass, R.string.settings_keywords_glass, CustomizationPage.WALLPAPER),
     Triple(R.string.folders, R.string.settings_keywords_folders, CustomizationPage.HOME),
-    Triple(R.string.software_update, R.string.settings_keywords_software_update, CustomizationPage.SOFTWARE_UPDATE),
     Triple(R.string.tweak_library, R.string.settings_keywords_tweak_library, CustomizationPage.TWEAK_LIBRARY),
     Triple(R.string.settings_animation_speed, R.string.settings_keywords_animation_speed, CustomizationPage.GESTURES),
     Triple(R.string.settings_app_name_size, R.string.settings_keywords_app_name_size, CustomizationPage.STATUS),
@@ -1354,7 +1331,6 @@ internal val SettingsIndex: List<Triple<Int, Int, CustomizationPage>> = listOf(
     Triple(R.string.standby, R.string.settings_keywords_standby, CustomizationPage.FOLD),
     Triple(R.string.themes, R.string.settings_keywords_themes, CustomizationPage.THEMES),
     Triple(R.string.focus, R.string.settings_keywords_focus, CustomizationPage.FOCUS),
-    Triple(R.string.tweaks, R.string.settings_keywords_tweaks, CustomizationPage.TWEAKS),
     Triple(R.string.general, R.string.settings_keywords_general, CustomizationPage.GENERAL),
     Triple(R.string.language, R.string.settings_keywords_language, CustomizationPage.GENERAL),
     Triple(R.string.privacy_permissions, R.string.settings_keywords_privacy_permissions, CustomizationPage.PERMISSIONS),
@@ -1362,8 +1338,6 @@ internal val SettingsIndex: List<Triple<Int, Int, CustomizationPage>> = listOf(
     Triple(R.string.screenshot_mode, R.string.settings_keywords_screenshot_mode, CustomizationPage.ADVANCED),
     Triple(R.string.system_bridge, R.string.settings_keywords_system_bridge, CustomizationPage.SYSTEM_BRIDGE),
     Triple(R.string.settings_backup_restore, R.string.settings_keywords_backup_restore, CustomizationPage.BACKUP),
-    Triple(R.string.settings_supporter_code, R.string.settings_keywords_supporter_code, CustomizationPage.SUPPORTER),
-    Triple(R.string.roadmap, R.string.settings_keywords_roadmap, CustomizationPage.COMING_SOON),
     Triple(R.string.what_to_test, R.string.settings_keywords_what_to_test, CustomizationPage.WHAT_TO_TEST),
     Triple(R.string.help, R.string.settings_keywords_help, CustomizationPage.HELP),
     Triple(R.string.credits, R.string.settings_keywords_credits, CustomizationPage.CREDITS),
@@ -1382,8 +1356,6 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.separate_upright_layout to CustomizationPage.HOME,
     R.string.space_between_rows to CustomizationPage.HOME,
     R.string.status_height to CustomizationPage.HOME,
-    R.string.automatic_updates to CustomizationPage.SOFTWARE_UPDATE,
-    R.string.beta_updates to CustomizationPage.SOFTWARE_UPDATE,
     R.string.background_blur to CustomizationPage.NOTIFICATIONS,
     R.string.big_clock_in_notification_center to CustomizationPage.NOTIFICATIONS,
     R.string.iphone_style_control_center_and_notifica to CustomizationPage.NOTIFICATIONS,
@@ -1436,7 +1408,6 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.home_screen_dock to CustomizationPage.HOME,
     R.string.icons_side_bar to CustomizationPage.STATUS,
     R.string.search_app_library to CustomizationPage.SEARCH,
-    R.string.support_folio to CustomizationPage.SUPPORT,
     R.string.animation_speed to CustomizationPage.GESTURES,
     R.string.haptic_feedback to CustomizationPage.GESTURES,
     R.string.swipe_down_on_home to CustomizationPage.GESTURES,
@@ -1483,18 +1454,14 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.choose_home_apps to CustomizationPage.HOME,
     R.string.reset_this_layout to CustomizationPage.HOME,
     R.string.save_current_layout to CustomizationPage.BACKUP,
-    R.string.email_the_developer to CustomizationPage.HELP,
     R.string.show_welcome_again to CustomizationPage.HELP,
     R.string.allow_do_not_disturb_access to CustomizationPage.FOCUS,
     R.string.allow_notification_access to CustomizationPage.ISLAND,
     R.string.put_the_island_back_at_the_camera to CustomizationPage.ISLAND,
     R.string.also_set_as_phone_wallpaper to CustomizationPage.WALLPAPER,
     R.string.change_android_wallpaper to CustomizationPage.WALLPAPER,
-    R.string.check_for_updates to CustomizationPage.SOFTWARE_UPDATE,
     R.string.import_theme to CustomizationPage.THEMES,
     R.string.save_current_look_as_theme to CustomizationPage.THEMES,
-    R.string.market to CustomizationPage.TWEAKS,
-    R.string.open_the_market to CustomizationPage.TWEAKS,
     R.string.put_the_buttons_back_at_the_bottom to CustomizationPage.ACCESSIBILITY,
     R.string.refresh_icons to CustomizationPage.STATUS,
     R.string.reset_fold_timing to CustomizationPage.FOLD,
@@ -1521,12 +1488,11 @@ internal val SettingsRows: List<Pair<Int, CustomizationPage>> = listOf(
     R.string.bridge_grant_copy_revoke to CustomizationPage.SYSTEM_BRIDGE,
     R.string.copy_diagnostics to CustomizationPage.ADVANCED,
     R.string.share_latest to CustomizationPage.ADVANCED,
-    R.string.performance_log to CustomizationPage.ADVANCED,
-    R.string.performance_start to CustomizationPage.ADVANCED,
-    R.string.performance_stop to CustomizationPage.ADVANCED,
-    R.string.performance_copy to CustomizationPage.ADVANCED,
-    R.string.performance_share to CustomizationPage.ADVANCED,
-    R.string.suggest_a_feature to CustomizationPage.COMING_SOON,
+    R.string.performance_log to CustomizationPage.DEVELOPER,
+    R.string.performance_start to CustomizationPage.DEVELOPER,
+    R.string.performance_stop to CustomizationPage.DEVELOPER,
+    R.string.performance_copy to CustomizationPage.DEVELOPER,
+    R.string.performance_share to CustomizationPage.DEVELOPER,
 )
 
 internal val SettingsEntries: List<Triple<Int, Int?, CustomizationPage>> = SettingsIndex + SettingsRows.map { (title, page) -> Triple(title, null, page) }
