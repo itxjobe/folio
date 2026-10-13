@@ -350,7 +350,7 @@ class MarketScreenRenderTest {
         compose.onNodeWithContentDescription("Get Cabinet").performClick()
         // Nothing has been applied yet: this is the confirm step.
         compose.onNodeWithTag("market-install-sheet", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("Changes Bifold tweaks").assertExists()
+        compose.onNodeWithText("Changes Folio tweaks").assertExists()
         compose.onNodeWithText("Your apps or their data").assertExists()
         assertEquals(emptyList<com.mccal.folio.market.InstalledPackage>(), session.installed())
         compose.onNodeWithTag("market-install-confirm").performScrollTo().performClick()

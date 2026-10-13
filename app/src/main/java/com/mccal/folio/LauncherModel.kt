@@ -1653,6 +1653,21 @@ class LauncherModel(application: Application) : AndroidViewModel(application) {
             .putBoolean(SettingKeys.SYSTEM_WALLPAPER, s.systemWallpaper).apply()
     }
 
+    /** Every saved setting, exactly as this phone stores it: what a Bifold backup carries besides the layout. */
+    fun exportSettingsState(): String { flushPending(); writeState(); return prefs.getString("state", null) ?: "{}" }
+
+    /**
+     * Puts back every setting from a saved state (a Bifold backup's "settings", or Folio's own saved state file), while
+     * the Home layout, the apps on this phone and anything only true right now stay as they are; the layout comes back
+     * through [applyImportedLayout]. Returns false if the file could not be read.
+     */
+    fun applyImportedSettings(raw: String): Boolean {
+        val decoded = runCatching { decodeLauncherState(raw, null) }.getOrNull() ?: return false
+        mutable.update { cur -> settingsOnto(decoded, cur) }
+        persist()
+        return true
+    }
+
     private fun load(): LauncherState = traced("Folio.decodeState") { runCatching {
         decodeLauncherState(prefs.getString("state", "{}") ?: "{}", legacyRaw)
     }.getOrElse {
@@ -2036,3 +2051,15 @@ private const val INNER_COLUMNS_SNAPSHOT = "inner_columns_snapshot_saved"
 /** Layout History name for the copy saved when the inner screen first shows 5 columns. */
 private const val INNER_COLUMNS_SNAPSHOT_NAME = "Before 5 columns unfolded"
 private const val STATUS_ICONS_APPLIED = "status_icons_applied"
+
+
+/** [from]'s settings over [onto]'s layout and runtime state: the half of a settings import that is pure. */
+internal fun settingsOnto(from: LauncherState, onto: LauncherState): LauncherState = from.copy(
+    apps = onto.apps, profiles = onto.profiles, folders = onto.folders, homeSlots = onto.homeSlots,
+    leadingSlots = onto.leadingSlots, editRevision = onto.editRevision, canUndoEdit = onto.canUndoEdit, dock = onto.dock,
+    widgetPlacements = onto.widgetPlacements, widgetRestores = onto.widgetRestores, fullWidthRestore = onto.fullWidthRestore,
+    widgetStacks = onto.widgetStacks, iconStacks = onto.iconStacks, badgesSeen = onto.badgesSeen, activeFocus = onto.activeFocus,
+    loading = onto.loading, homeAppsLoaded = onto.homeAppsLoaded, error = onto.error,
+    // Installed tweaks and Market effects came from the original developer's store, which Bifold doesn't have.
+    installedTweaks = onto.installedTweaks, packagedEffects = onto.packagedEffects, packagedEffectId = onto.packagedEffectId,
+)

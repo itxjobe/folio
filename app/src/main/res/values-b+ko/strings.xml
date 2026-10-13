@@ -1997,4 +1997,11 @@
     <string name="weather_units">날씨 단위</string>
     <string name="fahrenheit">°F</string>
     <string name="celsius">°C</string>
+    <string name="cc_controls">제어 센터 컨트롤</string>
+    <string name="cc_controls_reset">기본 컨트롤로 재설정</string>
+    <string name="onboarding_notify_title">Island용 알림</string>
+    <string name="onboarding_notify_detail">Dynamic Island, 지금 재생 중, 앱 배지와 알림 센터가 작동하도록 Bifold가 알림을 읽게 허용하세요. 정보는 휴대전화 밖으로 나가지 않습니다.</string>
+    <string name="onboarding_location_title">내 주변 날씨</string>
+    <string name="onboarding_location_detail">날씨 위젯은 대략적인 위치로 현지 날씨를 표시합니다. 건너뛸 수 있습니다.</string>
+    <string name="onboarding_allow">허용</string>
 </resources>

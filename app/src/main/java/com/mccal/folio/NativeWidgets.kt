@@ -108,9 +108,10 @@ internal fun parseOpenMeteo(json: String): Weather? = runCatching {
 private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispatchers.IO) {
     val lm = context.getSystemService(android.location.LocationManager::class.java) ?: return@withContext null
     if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return@withContext null
+    // A new phone (or one that hasn't used location lately) has no last fix at all, so ask for a fresh one then.
     val loc = runCatching {
         lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
-    }.getOrNull() ?: return@withContext null
+    }.getOrNull() ?: currentLocation(lm) ?: run { android.util.Log.w("FolioWeather", "no location fix yet"); return@withContext null }
     val url = URL("https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f".format(java.util.Locale.US, loc.latitude, loc.longitude) +
         "&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6")
     runCatching {
@@ -123,6 +124,21 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
         @Suppress("DEPRECATION")
         android.location.Geocoder(context).getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()?.let { it.locality ?: it.subAdminArea }
     }.getOrNull())
+}
+
+/** One fresh coarse fix (network first), or null after 15 s. Callers check the location permission first. */
+@android.annotation.SuppressLint("MissingPermission")
+private suspend fun currentLocation(lm: android.location.LocationManager): android.location.Location? {
+    val provider = listOf(android.location.LocationManager.NETWORK_PROVIDER, android.location.LocationManager.FUSED_PROVIDER,
+        android.location.LocationManager.GPS_PROVIDER).firstOrNull { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) } ?: return null
+    return kotlinx.coroutines.withTimeoutOrNull(15_000) {
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            val cancel = android.os.CancellationSignal()
+            cont.invokeOnCancellation { cancel.cancel() }
+            runCatching { lm.getCurrentLocation(provider, cancel, java.util.concurrent.Executors.newSingleThreadExecutor()) { if (cont.isActive) cont.resumeWith(Result.success(it)) } }
+                .onFailure { if (cont.isActive) cont.resumeWith(Result.success(null)) }
+        }
+    }
 }
 
 /** Weather units: Automatic follows the phone's region; °F or °C override it (Settings › Today View). */

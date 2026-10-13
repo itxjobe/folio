@@ -103,7 +103,7 @@ class BackupController(
 
     fun startImport() {
         begin(OP_IMPORT)
-        try { openDocument.launch(arrayOf("application/json", "text/json", "text/plain")) }
+        try { openDocument.launch(arrayOf("application/json", "text/json", "text/plain", "text/xml", "application/xml")) }
         catch (error: Exception) { errorMessage = error.message ?: "The document picker is unavailable."; clearTransaction(false) }
     }
 
@@ -123,7 +123,9 @@ class BackupController(
                 var changed = false
                 // Taken before the Market removes anything, so Undo and Layout History hold the Home the user had.
                 val before = model.state.value
-                val putLayoutBack = { changed = model.applyImportedLayout(imported, before) }
+                // Settings first, so the layout lands on the look it was arranged with.
+                val settingsApplied = backupSettings(raw)?.let { model.applyImportedSettings(it) } == true
+                val putLayoutBack = { changed = model.applyImportedLayout(imported, model.state.value) || settingsApplied }
                 val packages = if (marketOpen) imported.packages else null
                 val restored = caught("Backup: restoring Market packages") { market.restorePackages(packages, activity.getString(R.string.folio_couldn_t_put_this_package_back), putLayoutBack) }.getOrElse {
                     // The Market failing is no reason to lose the layout the user asked for.
@@ -142,7 +144,7 @@ class BackupController(
 
     fun resumePendingPicker(): Boolean = when (operation) {
         OP_EXPORT -> runCatching { createDocument.launch("folio-layout.json") }.isSuccess
-        OP_IMPORT -> runCatching { openDocument.launch(arrayOf("application/json", "text/json", "text/plain")) }.isSuccess
+        OP_IMPORT -> runCatching { openDocument.launch(arrayOf("application/json", "text/json", "text/plain", "text/xml", "application/xml")) }.isSuccess
         else -> false
     }
 
@@ -153,10 +155,13 @@ class BackupController(
     private fun encodeBackup(state: LauncherState): String {
         val descriptors = widgetDescriptors(state)
         val packages = savedPackages()
-        return caught("Backup: saving with Market packages") { encodeLayoutBackup(state, descriptors, scope, packages) }.getOrElse { error ->
+        val layout = caught("Backup: saving with Market packages") { encodeLayoutBackup(state, descriptors, scope, packages) }.getOrElse { error ->
             if (packages == null) throw error
             encodeLayoutBackup(state, descriptors, scope, null)
         }
+        // Every setting rides along (gestures, island, notifications, Control Center, icons…), unless it would push the
+        // file past the size every import checks; then the layout alone is still a backup.
+        return caught("Backup: adding settings") { withSettings(layout, model.exportSettingsState()) }.getOrDefault(layout)
     }
 
     /** What this phone has installed from the Market, for the backup to carry. */
@@ -224,10 +229,13 @@ class BackupController(
         }
     }
 
-    private fun parsePreview(raw: String, persist: Boolean) {
+    private fun parsePreview(given: String, persist: Boolean) {
         val token = generation
         activity.lifecycleScope.launch {
             val state = model.state.first { !it.loading }
+            // Folio's own saved state (copied off the phone) is turned into a backup with its settings attached.
+            val raw = runCatching { withContext(Dispatchers.Default) { val given = stateFromPreferencesXml(given) ?: given; if (isSavedStateFile(given)) backupFromSavedState(given, state, scope) else given } }
+                .getOrDefault(given)
             val result = runCatching { withContext(Dispatchers.Default) {
                 val imported = decodeLayoutBackup(raw, state.apps, state.profiles, scope)
                 // Only the Market can read what it wrote, so the count is filled in here rather than in the decoder,
@@ -295,4 +303,43 @@ class BackupController(
         private const val OP_PREVIEW = "preview"
 
     }
+}
+
+
+/** The backup [layout] with [settingsState] (the saved state JSON) attached as "settings", within the import size limit. */
+internal fun withSettings(layout: String, settingsState: String): String {
+    val text = org.json.JSONObject(layout).put("settings", org.json.JSONObject(settingsState)).toString(2)
+    require(text.toByteArray(Charsets.UTF_8).size <= MAX_LAYOUT_BACKUP_BYTES) { "Settings make the backup too large" }
+    return text
+}
+
+/** The settings a backup carries, as saved state JSON, or null for a layout-only backup (every Folio backup). */
+internal fun backupSettings(raw: String): String? = runCatching { org.json.JSONObject(raw).optJSONObject("settings")?.toString() }.getOrNull()
+
+/** Folio's or Bifold's saved state ("state" in its preferences) rather than a layout backup. */
+internal fun isSavedStateFile(raw: String): Boolean = runCatching {
+    val o = org.json.JSONObject(raw); !o.has("version") && o.has("schema") && (o.has("homeSlots") || o.has("pinned"))
+}.getOrDefault(false)
+
+/** A saved state file as a layout backup with every setting attached; widgets that can't travel are left out. */
+internal fun backupFromSavedState(raw: String, current: LauncherState, scope: String): String {
+    val saved = decodeLauncherState(raw, null).copy(apps = current.apps, profiles = current.profiles)
+    val layout = runCatching { encodeLayoutBackup(saved, emptyList(), scope, null) }.getOrElse {
+        encodeLayoutBackup(saved.copy(widgetPlacements = saved.widgetPlacements.filter { it.id in NativeWidgetIds }), emptyList(), scope, null)
+    }
+    return withSettings(layout, raw)
+}
+
+/** Folio's whole preferences file (shared_prefs/launcher.xml, as `adb shell run-as` prints it): its saved "state" string. */
+internal fun stateFromPreferencesXml(raw: String): String? {
+    if (!raw.trimStart().startsWith("<")) return null
+    return runCatching {
+        val parser = android.util.Xml.newPullParser().apply { setInput(java.io.StringReader(raw)) }
+        var found: String? = null
+        while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT && found == null) {
+            if (parser.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name == "string" && parser.getAttributeValue(null, "name") == "state")
+                found = parser.nextText()
+        }
+        found
+    }.getOrNull()
 }

@@ -227,10 +227,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     // Only the sidebar has an open page to mark; on the phone the rows are just places to go.
                     val pick = { row: CustomizationPage -> if (sidebar) selected == row else null }
                     SheetGroup {
-                        // General holds what you open once: updates, what's new, language, help, the roadmap, credits.
-                        val updateWaiting by SoftwareUpdate.status.collectAsState()
+                        // General holds what you open once: language, backup, help, credits.
                         TweakRow(Icons.Rounded.Settings, FolioColors.Value.Gray, stringResource(R.string.general), "customization-general",
-                            if (updateWaiting is SoftwareUpdate.Status.Available) "1" else null, selected = pick(CustomizationPage.GENERAL), chevron = !sidebar) { onPage(CustomizationPage.GENERAL) }
+                            null, selected = pick(CustomizationPage.GENERAL), chevron = !sidebar) { onPage(CustomizationPage.GENERAL) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.Accessibility, FolioColors.Value.Blue, stringResource(R.string.accessibility), "customization-accessibility", selected = pick(CustomizationPage.ACCESSIBILITY), chevron = !sidebar) { onPage(CustomizationPage.ACCESSIBILITY) }
                     }
@@ -243,6 +242,8 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         TweakRow(Icons.Rounded.Apps, FolioColors.Value.Indigo, stringResource(R.string.icons_side_bar), "customization-status", selected = pick(CustomizationPage.STATUS), chevron = !sidebar) { onPage(CustomizationPage.STATUS) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.Today, FolioColors.Value.Orange, stringResource(R.string.today_view), "customization-today", selected = pick(CustomizationPage.TODAY), chevron = !sidebar) { onPage(CustomizationPage.TODAY) }
+                        MenuDivider()
+                        TweakRow(Icons.Rounded.Search, FolioColors.Value.Gray, stringResource(R.string.search_app_library), "customization-search", selected = pick(CustomizationPage.SEARCH), chevron = !sidebar) { onPage(CustomizationPage.SEARCH) }
                     }
                     SheetGroup {
                         TweakRow(Icons.Rounded.Circle, FolioColors.Value.SecondaryBackground, stringResource(R.string.dynamic_island), "customization-island", selected = pick(CustomizationPage.ISLAND), chevron = !sidebar) { onPage(CustomizationPage.ISLAND) }
@@ -251,12 +252,10 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         MenuDivider()
                         TweakRow(Icons.Rounded.DarkMode, FolioColors.Value.Indigo, stringResource(R.string.focus), "customization-focus",
                             state.focusModes.firstOrNull { it.id == state.activeFocus }?.name, selected = pick(CustomizationPage.FOCUS), chevron = !sidebar) { onPage(CustomizationPage.FOCUS) }
-                        MenuDivider()
-                        TweakRow(Icons.Rounded.Search, FolioColors.Value.Gray, stringResource(R.string.search_app_library), "customization-search", selected = pick(CustomizationPage.SEARCH), chevron = !sidebar) { onPage(CustomizationPage.SEARCH) }
-                        MenuDivider()
-                        TweakRow(Icons.Rounded.Gesture, FolioColors.Value.Teal, stringResource(R.string.gestures_actions), "customization-gestures", selected = pick(CustomizationPage.GESTURES), chevron = !sidebar) { onPage(CustomizationPage.GESTURES) }
                     }
                     SheetGroup {
+                        TweakRow(Icons.Rounded.Gesture, FolioColors.Value.Teal, stringResource(R.string.gestures_actions), "customization-gestures", selected = pick(CustomizationPage.GESTURES), chevron = !sidebar) { onPage(CustomizationPage.GESTURES) }
+                        MenuDivider()
                         TweakRow(Icons.Rounded.Devices, FolioColors.Value.Pink, stringResource(R.string.fold_displays), "customization-fold", selected = pick(CustomizationPage.FOLD), chevron = !sidebar) { onPage(CustomizationPage.FOLD) }
                         MenuDivider()
                         TweakRow(Icons.Rounded.TouchApp, FolioColors.Value.Orange, stringResource(R.string.side_key), "customization-side-key", selected = pick(CustomizationPage.SIDE_KEY), chevron = !sidebar) { onPage(CustomizationPage.SIDE_KEY) }
@@ -425,6 +424,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         CardNote(stringResource(R.string.touch_and_hold_note))
                     }
                     // One page for the panels: the on/off switch and, when on, their options.
+                    if (page == CustomizationPage.NOTIFICATIONS) CcOrderSettings(state.ccControls, model::setCcControls)
                     if (page == CustomizationPage.NOTIFICATIONS) SettingsCard(stringResource(R.string.panels)) {
                         SettingsSwitch(stringResource(R.string.iphone_style_control_center_and_notifica), state.folioPanels, model::setFolioPanels, "folio-panels-switch")
                         if (state.folioPanels) {
@@ -753,15 +753,6 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 CustomizationPage.GENERAL -> {
                     val generalContext = androidx.compose.ui.platform.LocalContext.current
                     SheetGroup {
-                        TweakRow(Icons.Rounded.NewReleases, FolioColors.Value.Green, stringResource(R.string.what_s_new), "customization-whats-new",
-                            "v" + WhatsNew.currentVersion(generalContext)) { onClose(); onShowWhatsNew() }
-                        if (DevBuild.isDevApp(generalContext) && DevBuild.load(generalContext) != null) {
-                            MenuDivider()
-                            TweakRow(Icons.Rounded.Build, FolioColors.Value.Orange, DevBuild.THIS_BUILD_LABEL, "customization-dev-build",
-                                DevBuild.load(generalContext)?.sha) { onClose(); DevBuild.reopen.intValue++ }
-                        }
-                    }
-                    SheetGroup {
                         // Android's own per-app language screen (13+), which lists every language Folio ships, as iOS does.
                         if (android.os.Build.VERSION.SDK_INT >= 33) {
                             TweakRow(Icons.Rounded.Translate, FolioColors.Value.Blue, stringResource(R.string.language), "customization-language",
@@ -805,33 +796,16 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                     // Getting help lives here rather than as more rows in the main list (fewer choices there).
                     val helpContext = androidx.compose.ui.platform.LocalContext.current
                     SheetGroup {
-                        var askDiagnostics by remember { mutableStateOf(false) }
-                        // Outside the dialog on purpose: closing the dialog is the first thing either button does, and
+                                                // Outside the dialog on purpose: closing the dialog is the first thing either button does, and
                         // a scope that went with it cancelled the report before it had been written.
                         val reportScope = rememberCoroutineScope()
-                        TweakRow(Icons.Rounded.BugReport, FolioColors.Value.Red, stringResource(R.string.report_a_bug), "customization-report-bug") { askDiagnostics = true }
-                        if (askDiagnostics) {
-                            fun openForm() { runCatching { helpContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(BugReport.url(helpContext)))) } }
-                            AlertDialog(onDismissRequest = { askDiagnostics = false },
-                                title = { Text(stringResource(R.string.how_should_this_report_go)) },
-                                text = { Text(stringResource(R.string.email_needs_no_account)) },
-                                confirmButton = { TextButton(onClick = { askDiagnostics = false
-                                    reportScope.launch { Diagnostics.send(helpContext, email = true) } },
-                                    modifier = Modifier.testTag("report-email")) { Text(stringResource(R.string.email_a_report)) } },
-                                dismissButton = { TextButton(onClick = { askDiagnostics = false
-                                    // Copied off the main thread first, so the form opens with the details ready to paste.
-                                    reportScope.launch { Diagnostics.copy(helpContext); openForm() } },
-                                    modifier = Modifier.testTag("report-copy-diagnostics")) { Text(stringResource(R.string.use_github_instead)) } })
+                        // Bifold has no developer inbox: the report goes wherever you share it (a message to a friend, your own email…).
+                        TweakRow(Icons.Rounded.BugReport, FolioColors.Value.Red, stringResource(R.string.report_a_bug), "customization-report-bug") {
+                            reportScope.launch { Diagnostics.send(helpContext, email = false) }
                         }
                         MenuDivider()
                         TweakRow(Icons.Rounded.WavingHand, FolioColors.Value.Orange, stringResource(R.string.show_welcome_again), "customization-onboarding") { onClose(); onShowWelcome() }
-                        // The testers' checklist: only on a beta build and Folio Dev.
-                        if (WhatToTest.available(SoftwareUpdate.installedVersion(helpContext), helpContext.packageName)) {
-                            MenuDivider()
-                            TweakRow(Icons.Rounded.Checklist, FolioColors.Value.Green, stringResource(R.string.what_to_test), "customization-what-to-test") { onPage(CustomizationPage.WHAT_TO_TEST) }
-                        }
-                    }
-                    CardNote(stringResource(R.string.report_a_bug_opens_github_in_your_browse), Modifier.padding(horizontal = FolioSpace.LARGE.dp))
+                                            }
                     LauncherHelp(
                         isDefaultHome = isDefaultHome,
                         onHomeSettings = onMakeDefault,

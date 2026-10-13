@@ -495,7 +495,7 @@ internal enum class CcControl(@androidx.annotation.StringRes val label: Int) {
     }
 }
 
-private fun CcControl.icon(): ImageVector = when (this) {
+internal fun CcControl.icon(): ImageVector = when (this) {
     CcControl.ROTATION -> Icons.Rounded.ScreenLockRotation
     CcControl.DND -> Icons.Rounded.DarkMode
     CcControl.FLASHLIGHT -> Icons.Rounded.FlashlightOn

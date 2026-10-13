@@ -72,6 +72,7 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
     // listed in Settings › Privacy & Permissions.
     // Onboarding C (McCal, 7 Oct 2026): welcome, starting point, a navigation page only when Android is chosen, Make Folio Your
     // Home, a quiet step only when Shizuku or a root manager is already on the phone, and the last page.
+    val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { tick++ }
     val androidStart = state?.startingPoint() == StartingPoint.ANDROID
     val optionalAccess = remember { OptionalAccess.found { pkg -> runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess } }
     val all = remember(androidStart, optionalAccess) {
@@ -86,6 +87,16 @@ internal fun Onboarding(isDefaultHome: Boolean, onMakeDefault: () -> Unit, onSha
             OnboardingPage("home", Icons.Rounded.Home, FolioColors.Value.Blue, context.getString(R.string.make_folio_your_home),
                 context.getString(R.string.onboarding_home_detail),
                 action = context.getString(R.string.choose_home_app), done = { isDefaultHome }, onAction = onMakeDefault),
+            // Bifold: the two accesses a new user notices missing first. Notification access powers the Dynamic Island,
+            // Now Playing, badges and Notification Center; location (coarse) is only for the Weather widget.
+            OnboardingPage("notify", Icons.Rounded.Home, FolioColors.Value.RedLight, context.getString(R.string.onboarding_notify_title),
+                context.getString(R.string.onboarding_notify_detail), action = context.getString(R.string.onboarding_allow),
+                done = { androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName) },
+                onAction = { open(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }),
+            OnboardingPage("location", Icons.Rounded.Home, FolioColors.Value.Blue, context.getString(R.string.onboarding_location_title),
+                context.getString(R.string.onboarding_location_detail), action = context.getString(R.string.onboarding_allow),
+                done = { context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED },
+                onAction = { askLocation.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION) }),
             OnboardingPage("adv", Icons.Rounded.Tune, FolioColors.Value.Indigo, context.getString(R.string.onboarding_adv_title), "", optional = false),
             OnboardingPage("done", Icons.Rounded.CheckCircle, FolioColors.Value.Green, context.getString(R.string.youre_all_set),
                 context.getString(R.string.a_few_things_to_try), action = context.getString(R.string.get_started), optional = false),

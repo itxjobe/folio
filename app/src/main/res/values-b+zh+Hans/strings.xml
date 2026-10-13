@@ -1976,4 +1976,11 @@
     <string name="weather_units">天气单位</string>
     <string name="fahrenheit">°F</string>
     <string name="celsius">°C</string>
+    <string name="cc_controls">控制中心控制项</string>
+    <string name="cc_controls_reset">恢复默认控制项</string>
+    <string name="onboarding_notify_title">灵动岛的通知</string>
+    <string name="onboarding_notify_detail">允许 Bifold 读取通知，以便灵动岛、正在播放、App 标记和通知中心正常工作。信息不会离开你的手机。</string>
+    <string name="onboarding_location_title">你附近的天气</string>
+    <string name="onboarding_location_detail">天气小组件使用你的大致位置显示当地天气。你可以跳过此步骤。</string>
+    <string name="onboarding_allow">允许</string>
 </resources>

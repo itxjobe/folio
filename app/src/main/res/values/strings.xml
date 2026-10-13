@@ -1199,7 +1199,7 @@
     <string name="look">Look</string>
     <string name="big_back_home_and_recents_buttons_float">Big Back, Home and Recents buttons float over other apps, for when the system\'s are too small. They press the same buttons Android does, sit above Android\'s own navigation, and hide in full-screen apps.</string>
     <string name="android_s_three_buttons_are_on_so_you_ll">Android\'s three buttons are on, so you\'ll see both sets. Bifold\'s bar sits above them; switch to gesture navigation in Android\'s Display settings to have only these.</string>
-    <string name="report_a_bug">Report a Bug</string>
+    <string name="report_a_bug">Share Diagnostics</string>
     <string name="show_welcome_again">Show Welcome Again</string>
     <string name="report_a_bug_opens_github_in_your_browse">Report a Bug opens GitHub in your browser with your Bifold version and phone filled in. Nothing is sent until you submit it.</string>
     <string name="for_sharing_your_setup_folio_shows_9_41">For sharing your setup: Bifold shows 9:41 with full battery and signal, and hides notifications, music, messages, device names, calendar events and alarms. Android\'s own status bar and apps aren\'t changed. Turns off by itself after 30 minutes.</string>
@@ -2026,4 +2026,11 @@
     <string name="weather_units">Weather Units</string>
     <string name="fahrenheit">°F</string>
     <string name="celsius">°C</string>
+    <string name="cc_controls">Control Center Controls</string>
+    <string name="cc_controls_reset">Reset to Default Controls</string>
+    <string name="onboarding_notify_title">Notifications for the Island</string>
+    <string name="onboarding_notify_detail">Let Bifold read notifications so the Dynamic Island, Now Playing, app badges and Notification Center work. Nothing leaves your phone.</string>
+    <string name="onboarding_location_title">Weather Near You</string>
+    <string name="onboarding_location_detail">The Weather widget uses your approximate location to show local weather. You can skip this.</string>
+    <string name="onboarding_allow">Allow</string>
 </resources>
