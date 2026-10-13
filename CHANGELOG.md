@@ -5,6 +5,21 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name ((MAJOR × 10000 + MINOR × 100 + PATCH) × 10 + HOTFIX), so every release sorts correctly and a fix on top of one has nine numbers of its own.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
+## [1.1.0] - 2026-10-13
+
+### Added
+- **Bifold:** Folio, renamed and set up for the Galaxy Z Fold 8, installs beside Folio as com.joshreid.bifold.
+- **Backups carry every setting:** gestures, Dynamic Island, notifications, Control Center, icons and the rest travel with the layout. Restore also reads Folio's saved preferences file, so a Folio setup moves over whole.
+- **Control Center controls in Settings:** Notifications & Control Center › Control Center Controls reorders, adds and removes controls.
+- **Setup asks for what Bifold needs:** notification access (Dynamic Island, Now Playing, badges) and approximate location (Weather), both skippable.
+
+### Changed
+- **Settings regrouped:** look, Home, panels, interaction and device settings each have their own group, with plainer names.
+- **Weather on a new phone:** when there is no recent location, Weather asks for a fresh one instead of waiting.
+
+### Removed
+- The original developer's update checks, Market, supporter codes, roadmap, testers' list and bug-report inbox. Share Diagnostics sends a report wherever you choose.
+
 ## [0.6.9] - Unreleased
 
 ### Added

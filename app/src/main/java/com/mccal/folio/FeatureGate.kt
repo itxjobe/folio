@@ -34,7 +34,7 @@ internal enum class FeatureGate(
      * [MarketFeature.RELEASED] becomes true. Every theme and tweak it hands out is already in Settings, so nobody on
      * the stable release is missing a feature while this is shut.
      */
-    MARKET("market", closedSince = "2026-09-19", opensIn = "0.7.0", { MarketFeature.RELEASED }),
+    MARKET("market", closedSince = "2026-09-19", opensIn = "99.0.0", { MarketFeature.RELEASED }),
 
     /**
      * Clearing an app's badge when you open it. Built for 0.6.7 so supporters can say whether it reads as helpful or
@@ -75,7 +75,7 @@ internal enum class FeatureGate(
      * and it goes in through the running app. Supporters and Folio Dev first, because it changes what is on Home
      * without the person tapping anything.
      */
-    MARKET_AUTO_UPDATE("marketAutoUpdate", closedSince = "2026-10-04", opensIn = "0.6.9", { OPEN_IN_0_6_9 }),
+    MARKET_AUTO_UPDATE("marketAutoUpdate", closedSince = "2026-10-04", opensIn = "99.0.0", { false }),
 
     /**
      * Nothing as a choice for the strip above the dock, beside the Search button and the page dots. It changes what
@@ -130,10 +130,10 @@ internal enum class FeatureGate(
         private const val OPEN_IN_0_6_8 = true
 
         /** The features built during 0.6.9 for supporters to try first, which open together in the 0.6.9 release. */
-        private const val OPEN_IN_0_6_9 = false
+        private const val OPEN_IN_0_6_9 = true
 
         /** The features built during 0.7.0 for supporters to try first, which open together in the 0.7.0 release. */
-        private const val OPEN_IN_0_7_0 = false
+        private const val OPEN_IN_0_7_0 = true
 
         /** Every gate still shut, for the check that says how long each has been waiting. */
         fun closed(): List<FeatureGate> = entries.filterNot { it.open }

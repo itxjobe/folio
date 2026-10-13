@@ -161,7 +161,7 @@ class BackupController(
         }
         // Every setting rides along (gestures, island, notifications, Control Center, icons…), unless it would push the
         // file past the size every import checks; then the layout alone is still a backup.
-        return caught("Backup: adding settings") { withSettings(layout, model.exportSettingsState()) }.getOrDefault(layout)
+        return caught("Backup: adding settings") { withSettings(layout, model.exportSettingsState()) }.getOrDefault(layout) // english-only
     }
 
     /** What this phone has installed from the Market, for the backup to carry. */
@@ -309,7 +309,7 @@ class BackupController(
 /** The backup [layout] with [settingsState] (the saved state JSON) attached as "settings", within the import size limit. */
 internal fun withSettings(layout: String, settingsState: String): String {
     val text = org.json.JSONObject(layout).put("settings", org.json.JSONObject(settingsState)).toString(2)
-    require(text.toByteArray(Charsets.UTF_8).size <= MAX_LAYOUT_BACKUP_BYTES) { "Settings make the backup too large" }
+    require(text.toByteArray(Charsets.UTF_8).size <= MAX_LAYOUT_BACKUP_BYTES) { "Settings make the backup too large" } // english-only
     return text
 }
 
