@@ -127,7 +127,7 @@ private suspend fun fetchWeather(context: Context): Weather? = withContext(Dispa
 }
 
 /** One fresh coarse fix (network first), or null after 15 s. Callers check the location permission first. */
-@android.annotation.SuppressLint("MissingPermission")
+@android.annotation.SuppressLint("MissingPermission") // english-only: a lint id
 private suspend fun currentLocation(lm: android.location.LocationManager): android.location.Location? {
     val provider = listOf(android.location.LocationManager.NETWORK_PROVIDER, android.location.LocationManager.FUSED_PROVIDER,
         android.location.LocationManager.GPS_PROVIDER).firstOrNull { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) } ?: return null
