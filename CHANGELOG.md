@@ -5,6 +5,13 @@ Folio is in development), and this file follows [Keep a Changelog](https://keepa
 `versionCode` is derived from the version name ((MAJOR × 10000 + MINOR × 100 + PATCH) × 10 + HOTFIX), so every release sorts correctly and a fix on top of one has nine numbers of its own.
 Folio shows the newest section on the phone after an update, and every version under Settings › What's New › Version History.
 
+## [1.2.0] - 2026-10-16
+
+- Shizuku support (optional). Settings › Advanced › Shizuku shows whether Shizuku is installed, running and allowed, with a button to allow it. Features switch on by themselves when Shizuku starts after a reboot.
+- With Shizuku, Control Center's Wi-Fi, Bluetooth, mobile data, airplane mode and hotspot buttons switch in place; rotation lock and Do Not Disturb work without their own permissions. Without it, the buttons open system settings as before.
+- Hide Samsung's status bar and navigation on Home (no Shizuku needed), or hide the gesture pill everywhere (Shizuku).
+- How to make Shizuku start on boot, in the same page.
+
 ## [1.1.0] - 2026-10-13
 
 ### Added

@@ -485,6 +485,8 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        ShizukuBridge.start(this)
+        setStatusMode(model.state.value.verticalStatus)
         if (returningFromApp) {
             returningFromApp = false
             // AndroidUiDispatcher.Main carries the frame clock Animatable needs; plain lifecycleScope has none and crashed (11:35).
@@ -870,6 +872,9 @@ class MainActivity : ComponentActivity() {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (vertical) controller.hide(WindowInsetsCompat.Type.statusBars()) else controller.show(WindowInsetsCompat.Type.statusBars())
+        // Settings › Advanced › Shizuku › Hide on Home: Samsung's bars go, Bifold's own status bar stays (no Shizuku needed).
+        if (ShizukuBridge.hideOnHome(this)) controller.hide(WindowInsetsCompat.Type.systemBars())
+        else controller.show(WindowInsetsCompat.Type.navigationBars())
     }
 
     private fun previewWallpaper() {

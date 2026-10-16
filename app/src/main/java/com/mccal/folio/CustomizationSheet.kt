@@ -91,7 +91,7 @@ internal class SettingsScroll(private var page: CustomizationPage, offset: Int) 
     }
 }
 
-internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, MARKET, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK, ISLAND_APPS, SUPPORTER, SUPPORTERS, GENERAL, SUPPORT, FOLD_TWEAK, ACCESSIBILITY, SYSTEM_BRIDGE, WHAT_TO_TEST, DEVELOPER;
+internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS, GESTURES, FOLD, BACKUP, HELP, SIDE_KEY, LOCK, CREDITS, TWEAKS, TWEAK, MARKET, ADVANCED, NOTIFICATIONS, SEARCH, TODAY, ISLAND, PERMISSIONS, FOCUS, FOCUS_MODE, THEMES, COMING_SOON, TWEAK_LIBRARY, SOFTWARE_UPDATE, LIBRARY_TWEAK, ISLAND_APPS, SUPPORTER, SUPPORTERS, GENERAL, SUPPORT, FOLD_TWEAK, ACCESSIBILITY, SYSTEM_BRIDGE, WHAT_TO_TEST, DEVELOPER, SHIZUKU;
 
     /** The page Back returns to: the nav bar button and the system Back gesture both use it. */
     val parent: CustomizationPage get() = when (this) {
@@ -106,6 +106,7 @@ internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS
         SYSTEM_BRIDGE -> DEVELOPER
         WHAT_TO_TEST -> HELP
         DEVELOPER -> ADVANCED
+        SHIZUKU -> ADVANCED
         MARKET -> TWEAKS // where tweaks come from
         THEMES -> WALLPAPER // a theme is a look: wallpaper, accent and icons together
         else -> OVERVIEW
@@ -137,6 +138,7 @@ internal enum class CustomizationPage { OVERVIEW, SETUP, WALLPAPER, HOME, STATUS
         ADVANCED -> R.string.advanced
         SYSTEM_BRIDGE -> R.string.system_bridge
         DEVELOPER -> R.string.developer
+        SHIZUKU -> R.string.shizuku_title
         NOTIFICATIONS -> R.string.notifications_control_center
         SEARCH -> R.string.search_app_library
         TODAY -> R.string.today_view
@@ -823,6 +825,9 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                         CardNote(if (SafeMode.active) stringResource(R.string.folio_is_running_in_safe_mode_optional_f)
                             else stringResource(R.string.if_folio_closes_unexpectedly_twice_right))
                     }
+                    SettingsCard(null) {
+                        IosNavRow(stringResource(R.string.shizuku_title), stringResource(shizukuStatusLabel(ShizukuBridge.status.value)), { onPage(CustomizationPage.SHIZUKU) }, "shizuku-row")
+                    }
                     CapabilitiesCard()
                     RecentActivityCard()
                     // Developer: root System Bridge, the performance log and the dev-build actions live there.
@@ -939,6 +944,7 @@ internal fun CustomizationSheet(state: LauncherState, initiallyWide: Boolean, mo
                 CustomizationPage.SOFTWARE_UPDATE -> SoftwareUpdatePage()
                 CustomizationPage.SUPPORTER -> SupporterPage()
                 CustomizationPage.SYSTEM_BRIDGE -> SystemBridgePage()
+                CustomizationPage.SHIZUKU -> ShizukuPage()
                 CustomizationPage.DEVELOPER -> {
                     SettingsCard(null) {
                         IosNavRow(stringResource(R.string.system_bridge), null, { onPage(CustomizationPage.SYSTEM_BRIDGE) }, "system-bridge-row")

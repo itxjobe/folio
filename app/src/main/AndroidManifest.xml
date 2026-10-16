@@ -22,6 +22,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <queries>
+        <package android:name="moe.shizuku.privileged.api" />
         <!-- Whether any mail app can take a bug report, so Folio can offer the share sheet instead of an empty one. It names no
              app: Android answers yes or no for this kind of intent. -->
         <intent>
@@ -305,5 +306,13 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/report_paths" />
         </provider>
 
+        <!-- Shizuku hands Bifold its binder through this (optional; see ShizukuBridge). -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 </manifest>

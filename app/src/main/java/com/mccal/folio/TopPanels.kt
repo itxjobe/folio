@@ -546,8 +546,12 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
     }
     fun run(control: CcControl) {
         when (control) {
-            CcControl.ROTATION -> if (!controls.toggleRotationLock()) open(controls.writeSettingsIntent())
-            CcControl.DND -> if (!controls.toggleDnd()) open(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+            CcControl.ROTATION -> if (!controls.toggleRotationLock()) {
+                if (ShizukuBridge.active) ShizukuBridge.setRotationLocked(!controls.rotationLocked) { ok -> if (ok) controls.start() else open(controls.writeSettingsIntent()) }
+                else open(controls.writeSettingsIntent()) }
+            CcControl.DND -> if (!controls.toggleDnd()) {
+                if (ShizukuBridge.active) ShizukuBridge.setDnd(!controls.dndOn) { ok -> if (ok) controls.start() else open(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
+                else open(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
             CcControl.FLASHLIGHT -> controls.toggleTorch()
             CcControl.CAMERA -> open(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
             CcControl.TIMER -> open(Intent(AlarmClock.ACTION_SHOW_TIMERS))
@@ -561,8 +565,9 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
             CcControl.LOCK -> { onClose(); if (!SystemShadeAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)) onSystem() }
             CcControl.WALLET -> launchFirst(CcControl.WALLETS)?.let(open)
             CcControl.NOTES -> launchFirst(CcControl.NOTE_APPS)?.let(open)
-            CcControl.HOTSPOT -> open(Intent("android.settings.TETHER_SETTINGS").takeIf { it.resolveActivity(context.packageManager) != null }
-                ?: Intent(Settings.ACTION_WIRELESS_SETTINGS))
+            CcControl.HOTSPOT -> {
+                val tether = Intent("android.settings.TETHER_SETTINGS").takeIf { it.resolveActivity(context.packageManager) != null } ?: Intent(Settings.ACTION_WIRELESS_SETTINGS) // english-only
+                if (ShizukuBridge.active) ShizukuBridge.setHotspot(true) { ok -> if (!ok) open(tether) } else open(tether) }
             CcControl.BATTERY_SAVER -> open(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
             CcControl.SETTINGS -> open(Intent(Settings.ACTION_SETTINGS))
             CcControl.SYSTEM -> { onClose(); onSystem() }
@@ -602,12 +607,31 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
             }
             // Row 1–2: connectivity (2×2, long-press to expand like iOS) and now playing (2×2)
             var connectivityOpen by remember { mutableStateOf(false) }
+            // With Shizuku the four buttons switch the radio itself (Bifold 1.2); without it they open the system panel as before.
+            val shizuku = ShizukuBridge.status.value == ShizukuBridge.Status.ACTIVE
+            val forced = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+            fun flip(key: String, now: Boolean, fallback: Intent, action: (Boolean, (Boolean) -> Unit) -> Unit) {
+                if (!shizuku) { open(fallback); return }
+                val next = !now
+                forced[key] = next
+                action(next) { ok -> if (!ok) { forced.remove(key); open(fallback) } }
+            }
+            val airplaneOn = forced["air"] ?: status.airplane // english-only
+            val dataOn = forced["data"] ?: (!status.airplane && (status.cellularLevel ?: 0) > 0) // english-only
+            val wifiOn = forced["wifi"] ?: status.wifiConnected // english-only
+            val btOn = forced["bt"] ?: controls.bluetoothOn // english-only
             val connectivity = listOf(
-                ConnectivityItem(Icons.Rounded.AirplanemodeActive, stringResource(R.string.airplane_mode_2), status.airplane, AccentOrange) { open(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)) },
-                ConnectivityItem(Icons.Rounded.SignalCellularAlt, stringResource(R.string.cellular_data), !status.airplane && (status.cellularLevel ?: 0) > 0, AccentGreen) { open(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)) },
-                ConnectivityItem(Icons.Rounded.Wifi, stringResource(R.string.wi_fi), status.wifiConnected, AccentBlue) { open(Intent(Settings.Panel.ACTION_WIFI)) },
-                ConnectivityItem(Icons.Rounded.Bluetooth, stringResource(R.string.bluetooth), controls.bluetoothOn, AccentBlue) { open(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+                ConnectivityItem(Icons.Rounded.AirplanemodeActive, stringResource(R.string.airplane_mode_2), airplaneOn, AccentOrange) {
+                    flip("air", airplaneOn, Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS), ShizukuBridge::setAirplane) }, // english-only
+                ConnectivityItem(Icons.Rounded.SignalCellularAlt, stringResource(R.string.cellular_data), dataOn, AccentGreen) {
+                    flip("data", dataOn, Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY), ShizukuBridge::setData) }, // english-only
+                ConnectivityItem(Icons.Rounded.Wifi, stringResource(R.string.wi_fi), wifiOn, AccentBlue) {
+                    flip("wifi", wifiOn, Intent(Settings.Panel.ACTION_WIFI), ShizukuBridge::setWifi) }, // english-only
+                ConnectivityItem(Icons.Rounded.Bluetooth, stringResource(R.string.bluetooth), btOn, AccentBlue) {
+                    flip("bt", btOn, Intent(Settings.ACTION_BLUETOOTH_SETTINGS), ShizukuBridge::setBluetooth) }, // english-only
             )
+            val hotspotOn = forced["hotspot"] ?: false // english-only
+            val tetherIntent = Intent("android.settings.TETHER_SETTINGS").takeIf { it.resolveActivity(context.packageManager) != null } ?: Intent(Settings.ACTION_WIRELESS_SETTINGS) // english-only
             val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             if (connectivityOpen) Module(Modifier.width(span(4)).combinedClickable(onClick = { connectivityOpen = false }, onLongClick = { connectivityOpen = false })) {
                 Column(Modifier.fillMaxWidth().padding(vertical = FolioSpace.SMALL.dp)) {
@@ -636,8 +660,8 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                         }
                         // iOS's extra mini row: hotspot, location and VPN.
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            RoundToggle(Icons.Rounded.WifiTethering, stringResource(R.string.hotspot), false, AccentGreen, cell * .34f) {
-                                open(Intent("android.settings.TETHER_SETTINGS").takeIf { it.resolveActivity(context.packageManager) != null } ?: Intent(Settings.ACTION_WIRELESS_SETTINGS)) }
+                            RoundToggle(Icons.Rounded.WifiTethering, stringResource(R.string.hotspot), hotspotOn, AccentGreen, cell * .34f) {
+                                flip("hotspot", hotspotOn, tetherIntent, ShizukuBridge::setHotspot) } // english-only
                             RoundToggle(Icons.Rounded.LocationOn, stringResource(R.string.location), false, AccentBlue, cell * .34f) { open(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
                             RoundToggle(Icons.Rounded.VpnKey, stringResource(R.string.vpn), false, AccentBlue, cell * .34f) { open(Intent(Settings.ACTION_VPN_SETTINGS)) }
                         }
@@ -673,8 +697,7 @@ private fun ControlCenter(modifier: Modifier, status: DeviceStatus, controlNames
                 RoundToggle(Icons.Rounded.ScreenShare, stringResource(R.string.screen_mirroring), true, AccentPurple, cell) { open(Intent(Settings.ACTION_CAST_SETTINGS)) }
                 RoundToggle(Icons.Rounded.QrCodeScanner, stringResource(R.string.code_scanner), true, AccentBlue, cell) {
                     open(context.packageManager.getLaunchIntentForPackage("com.google.ar.lens") ?: Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)) }
-                RoundToggle(Icons.Rounded.ScreenRotation, stringResource(R.string.rotation_lock), !controls.rotationLocked, Color.White.copy(alpha = .35f), cell) {
-                    if (!controls.toggleRotationLock()) open(controls.writeSettingsIntent()) }
+                RoundToggle(Icons.Rounded.ScreenRotation, stringResource(R.string.rotation_lock), !controls.rotationLocked, Color.White.copy(alpha = .35f), cell) { run(CcControl.ROTATION) }
             }
             // Edit mode: gallery of controls that aren't in Control Center yet
             if (edit.active) {

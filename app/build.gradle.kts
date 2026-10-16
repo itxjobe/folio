@@ -36,7 +36,7 @@ val releaseStoreFile = releaseSigningValues["FOLIO_RELEASE_STORE_FILE"]?.let { c
     }
 }
 
-val folioVersion = "1.1.0"
+val folioVersion = "1.2.0"
 
 // Bundle the changelog so Folio can show What's New after an update.
 val bundleChangelog = tasks.register<Copy>("bundleChangelog") {
@@ -226,6 +226,9 @@ dependencies {
     implementation(project(":market"))
     baselineProfile(project(":baselineprofile"))
     implementation("androidx.window:window:1.5.1")
+    // Optional elevated access (Bifold 1.2): Control Center toggles and bar hiding through Shizuku, Apache-2.0.
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     // Installs the baseline profiles that Compose and AndroidX ship, so hot paths are compiled ahead of time.
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     // Named trace sections (PRF-13). Other AndroidX libraries already bring it; declared because Folio calls it.

@@ -2033,4 +2033,27 @@
     <string name="onboarding_location_title">Weather Near You</string>
     <string name="onboarding_location_detail">The Weather widget uses your approximate location to show local weather. You can skip this.</string>
     <string name="onboarding_allow">Allow</string>
+    <string name="shizuku_title">Shizuku</string>
+    <string name="shizuku_intro">Shizuku is optional. With it, Bifold can switch Wi-Fi, Bluetooth, mobile data, airplane mode, hotspot, rotation and Do Not Disturb right from Control Center, and hide Samsung\'s bars. Without it, everything still works and those buttons open the system settings instead.</string>
+    <string name="shizuku_status">Status</string>
+    <string name="shizuku_not_installed">Not installed</string>
+    <string name="shizuku_not_running">Not running</string>
+    <string name="shizuku_permission_needed">Permission needed</string>
+    <string name="shizuku_active">Active</string>
+    <string name="shizuku_get">Get Shizuku</string>
+    <string name="shizuku_open">Open Shizuku to start it</string>
+    <string name="shizuku_request">Allow Bifold to use Shizuku</string>
+    <string name="shizuku_active_note">Extra controls are on. If Shizuku stops (after a reboot, for example), Bifold goes back to the normal buttons and turns the extras on again by itself when Shizuku starts.</string>
+    <string name="shizuku_bars">Samsung\'s bars</string>
+    <string name="shizuku_hide_home">Hide on Home</string>
+    <string name="shizuku_hide_home_note">Hides Samsung\'s status bar and navigation on the Home screen so only Bifold\'s own status bar shows. Swipe from the edge to see them for a moment. Does not need Shizuku.</string>
+    <string name="shizuku_hide_global">Hide everywhere</string>
+    <string name="shizuku_hide_global_note">Needs Shizuku. Hides the gesture pill in every app. Android 11 and later no longer let any app hide the status bar in other apps, so on One UI 8 the status bar still shows outside Bifold.</string>
+    <string name="shizuku_hide_full">Done: the bars are hidden everywhere.</string>
+    <string name="shizuku_hide_pill_only">Done: the gesture pill is hidden everywhere. One UI ignored the full-screen setting, so the status bar stays in other apps.</string>
+    <string name="shizuku_hide_failed">That did not work. Check that Shizuku is running and Bifold is allowed.</string>
+    <string name="shizuku_features">What it adds</string>
+    <string name="shizuku_features_note">Control Center: Wi-Fi, Bluetooth, mobile data and airplane mode switch on and off in place; the hotspot button turns the hotspot on and off; rotation lock and Do Not Disturb work without granting their own permissions. If a command fails, the button opens the system setting as before.</string>
+    <string name="shizuku_boot">Start Shizuku on boot</string>
+    <string name="shizuku_boot_note">Shizuku stops when the phone restarts. To have it start by itself: 1. In Settings › Developer options, turn on Wireless debugging. 2. Once, from a computer with adb, run: adb shell pm grant moe.shizuku.privileged.api android.permission.WRITE_SECURE_SETTINGS 3. In Shizuku, turn on Start on boot (wireless debugging). After a restart Shizuku starts as soon as the phone is on Wi-Fi, and Bifold picks it up on its own. With no Wi-Fi it waits until you connect.</string>
 </resources>
