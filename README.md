@@ -12,12 +12,13 @@ Bifold is released under the same MIT License as Folio (see [LICENSE](LICENSE)).
 
 ## Highlights
 
-- Installs as its own app, `com.joshreid.bifold`, so it can sit beside Folio.
+- Installs as its own app, `com.itxjobe.bifold`, so it can sit beside Folio.
 - iPhone Fold-style Home by default: 4 columns on the cover screen, 5 on the inner screen, with icons that spring between layouts when you fold.
 - Redesigned Control Center in an iOS 26 look, with controls you can reorder, add and remove.
 - iOS-style widgets for Weather, Calendar, Batteries and Now Playing in small, medium and large sizes.
 - iOS status icons (signal bars, Wi-Fi fan, battery, 5G/LTE label off Wi-Fi) and a green charging battery with a lightning bolt.
 - Optional Shizuku support (1.2.0) for real Control Center toggles and hiding Samsung's bars.
+- **1.3.0 is built on Folio's latest upstream** (merged from McCal-Codes/folio `main`), so it includes his newest fixes and features, like deleting apps, Layout Backup improvements, Big Clock colors, Focus and Safe Mode updates, and the Fold 8 cover camera fit for the Dynamic Island.
 
 ## What's different from Folio
 
@@ -85,7 +86,9 @@ After a reboot it starts once the phone is on Wi-Fi.
 
 ## Install
 
-**From releases:** grab the APK from this repo's Releases page and install it. It installs beside Folio as `com.joshreid.bifold`.
+**From releases:** grab the APK from this repo's Releases page and install it. It installs beside Folio as `com.itxjobe.bifold`.
+
+> **Upgrading from an older Bifold (1.2.0 and earlier, which used the old app ID):** 1.3.0 uses a new app ID, so it installs as a separate app instead of updating the old one. Before switching, open the old Bifold and back up your layout in Settings. Install 1.3.0, restore that backup in the new app, set it as your Home app, then uninstall the old one.
 
 **Build from source** (JDK 17 and the Android SDK):
 
@@ -116,4 +119,4 @@ Folio's own roadmap lives in the [original repo](https://github.com/McCal-Codes/
 
 - **[McCal-Codes](https://github.com/McCal-Codes)** and the Folio contributors, for Folio, the launcher Bifold is built on.
 - Third-party libraries and assets as listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-- Bifold changes by Josh Reid ([@itxjobe](https://github.com/itxjobe)).
+- Bifold changes by [@itxjobe](https://github.com/itxjobe).

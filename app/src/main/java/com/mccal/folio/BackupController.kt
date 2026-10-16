@@ -78,7 +78,7 @@ class BackupController(
     }
 
     fun startExport(fileName: String = "bifold-layout.json") {
-        val state = model.state.value
+        val state = model.stateForBackup() ?: run { errorMessage = damagedMessage(); return }
         val raw = runCatching { encodeBackup(state) }.getOrElse {
             errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_prepared); return
         }
@@ -89,7 +89,7 @@ class BackupController(
 
     /** Saves a backup straight to Download/Folio, no picker. */
     fun saveToFolioFolder(name: String? = null) {
-        val state = model.state.value
+        val state = model.stateForBackup() ?: run { errorMessage = damagedMessage(); return }
         val raw = runCatching { encodeBackup(state) }.getOrElse {
             errorMessage = it.message ?: activity.getString(R.string.layout_backup_could_not_be_prepared); return
         }
@@ -112,6 +112,7 @@ class BackupController(
         val token = generation
         activity.lifecycleScope.launch {
             val state = model.state.first { !it.loading }
+            appsNotListed()?.let { if (token == generation) { errorMessage = it; clearTransaction(clearMessages = false) }; return@launch }
             val result = runCatching { withContext(Dispatchers.Default) {
                 decodeLayoutBackup(raw, state.apps, state.profiles, scope)
             } }
@@ -163,6 +164,17 @@ class BackupController(
         // file past the size every import checks; then the layout alone is still a backup.
         return caught("Backup: adding settings") { withSettings(layout, model.exportSettingsState()) }.getOrDefault(layout) // english-only
     }
+
+    /**
+     * Why a backup can't be read over a damaged layout yet, or null when it can. The stand-in Home has no apps until a
+     * refresh lists them, and a backup read before that would leave every app out.
+     */
+    private fun appsNotListed(): String? = if (!model.layoutDamaged || model.appsListed) null
+        else activity.getString(if (model.listingApps) R.string.loading_apps else R.string.apps_could_not_be_loaded)
+
+    /** Why no backup is made while the saved layout can't be read: the Home on screen is only a stand-in. */
+    private fun damagedMessage() = listOf(R.string.layout_backup_could_not_be_prepared, R.string.saved_home_layout_could_not_be_read)
+        .joinToString(" ") { activity.getString(it) }
 
     /** What this phone has installed from the Market, for the backup to carry. */
     private fun savedPackages(): String? = caught("Backup: reading Market packages") { market.exportPackages() }.getOrNull()
@@ -233,6 +245,7 @@ class BackupController(
         val token = generation
         activity.lifecycleScope.launch {
             val state = model.state.first { !it.loading }
+            appsNotListed()?.let { if (token == generation) { errorMessage = it; clearTransaction(clearMessages = false) }; return@launch }
             // Folio's own saved state (copied off the phone) is turned into a backup with its settings attached.
             val raw = runCatching { withContext(Dispatchers.Default) { val given = stateFromPreferencesXml(given) ?: given; if (isSavedStateFile(given)) backupFromSavedState(given, state, scope) else given } }
                 .getOrDefault(given)

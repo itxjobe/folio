@@ -94,6 +94,8 @@ class MainActivity : ComponentActivity() {
     private var recreatingShadeSetup = false
     // The gestures dialog asked to show while the build page or What's New was up; it shows when they close.
     private var shadeSetupWaiting = false
+    // The gestures dialog is up (or waiting to be): the setup reminder card holds back until it's gone.
+    private val shadeSetupUp = mutableStateOf(false)
     /**
      * Whether this phone sees Clear Badges When Opened ([FeatureGate.BADGES_WHEN_OPENED]). Read once in `onCreate`,
      * since asking the gate reads preferences and a redeemed supporter code restarts Folio anyway (CMP-9).
@@ -170,16 +172,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             androidx.compose.runtime.CompositionLocalProvider(LocalSheetsOpen provides activitySheets) {
             val savedState = model.state.collectAsStateWithLifecycle().value
-            // Once, after the upgrade: switch an existing install to the iPhone Fold layout (Josh asked for it by default).
+            // Once, after the upgrade: switch an existing install to the iPhone Fold layout (@itxjobe asked for it by default).
             androidx.compose.runtime.LaunchedEffect(savedState.loading, savedState.apps.isEmpty()) { model.applyIPhoneFoldOnce() }
             // Home is fully drawn once its own apps are in; at a start they come ahead of the rest.
             androidx.activity.compose.ReportDrawnWhen { savedState.homeReady }
             val safeMode = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(SafeMode.active) }
             val solidGlass = savedState.reduceTransparency || rememberSystemHighContrast()
-            val state = FocusPages.effective(if (safeMode.value) SafeMode.effective(savedState) else savedState)
-                .let { if (solidGlass) it.withSolidGlass() else it }
+            val state = rememberDisguised(FocusPages.effective(if (safeMode.value) SafeMode.effective(savedState) else savedState)
+                .let { if (solidGlass) it.withSolidGlass() else it })
             androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(31_000); SafeMode.markStable(this@MainActivity) }
-            val safeAcknowledged = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            // Saveable: a theme or language change recreates the activity, and the answer must not be asked again.
+            val safeAcknowledged = androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
             if (safeMode.value && !safeAcknowledged.value) AlertDialog(onDismissRequest = {},
                 title = { androidx.compose.material3.Text(getString(R.string.folio_started_in_safe_mode)) },
                 text = { androidx.compose.material3.Text(stringResource(R.string.folio_closed_unexpectedly_twice_so_opt)) },
@@ -245,6 +248,9 @@ class MainActivity : ComponentActivity() {
                 MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
             val spotlightProgress by rememberSettlingProgress(if (spotlightVisible.value) 1f else 0f,
                 MotionSpeed.spring(.86f, androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            // A back swipe that closed Spotlight or a panel keeps its preview until the close ends; the next one starts clean (MO7).
+            val overlayShowing = topPanel.value != null || spotlightVisible.value
+            androidx.compose.runtime.LaunchedEffect(overlayShowing) { if (overlayShowing) OverlayBack.swipe.snapTo(0f) }
             val backdropBlurPx = with(androidx.compose.ui.platform.LocalDensity.current) { (state.panelBlur * 48).dp.toPx() }
             val backdropBlur = androidx.compose.runtime.remember(backdropBlurPx) {
                 androidx.compose.ui.graphics.BlurEffect(backdropBlurPx, backdropBlurPx, androidx.compose.ui.graphics.TileMode.Clamp)
@@ -304,7 +310,8 @@ class MainActivity : ComponentActivity() {
             // Re-read on every resume so turning Remove animations on/off applies without restarting.
             val reduceMotionState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(reduceMotionEnabled(this@MainActivity)) }
             androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { reduceMotionState.value = reduceMotionEnabled(this@MainActivity); onPauseOrDispose { } }
-            val reduceMotion = reduceMotionState.value
+            // Folio's own Reduce Motion, or Android's Remove animations: the same flag to every screen.
+            val reduceMotion = reduceMotionState.value || state.reduceMotion
             // Icon packs per theme: a separate pack for dark mode, switching live with the appearance (no pack adapts by itself).
             val iosPackInstalled = androidx.compose.runtime.remember(state.iconPackChosen) {
                 !state.iconPackChosen && runCatching { packageManager.getPackageInfo(IconPacks.IOS_ICON_PACK, 0) }.isSuccess
@@ -315,7 +322,7 @@ class MainActivity : ComponentActivity() {
             // Glass: Clear's light, colorless art in the squircle when no pack is set; with a pack, its own art in the squircle.
             val lookStyle = if (state.iconStyle == IconStyle.GLASS) (if (activePack == null) IconStyle.CLEAR else IconStyle.DEFAULT) else state.iconStyle
             val lookShape = if (state.iconStyle == IconStyle.GLASS) IconShape.SQUIRCLE else state.iconShape
-            val iconTint = if (state.iconTintFromWallpaper) wallpaperTone.primary?.let(::vividTint)?.toLong()?.and(0xFFFFFFFFL) ?: state.iconTint else state.iconTint
+            val iconTint = if (state.iconTintFromWallpaper) wallpaperIconTint(wallpaperTone)?.toLong()?.and(0xFFFFFFFFL) ?: state.iconTint else state.iconTint
             androidx.compose.runtime.CompositionLocalProvider(
                 LocalWallpaperTone provides wallpaperTone,
                 LocalGlassLook provides GlassLook(state.widgetGlass, state.glassOutline, lightBehind = wallpaperTone.isLight()),
@@ -347,6 +354,7 @@ class MainActivity : ComponentActivity() {
                 LocalAppIconStyles provides state.appIconStyles,
                 LocalIconsAreDark provides iconsAreDark,
                 LocalRecentPackages provides recentPackages,
+                LocalSwappedApps provides androidx.compose.runtime.remember(state.apps) { swappedByPackage(state.apps) },
                 LocalBadgeCounts provides badgeCounts, LocalInstallProgress provides installProgress, LocalNewApps provides newApps, LocalFolderColors provides state.folderColors) { FoldTransitionHost(FeatureScopes.on(state.featureScopes, DUET_ID, state.foldEffect,
                     screenFor(androidx.compose.ui.platform.LocalConfiguration.current.fitsRegularHomeLayout())), state.foldIntensity, state.stayAwakeOnFold,
                     // Reduce Motion: a plain shade, no frost, tilt, shrink or picture moving (DYN-11: motion becomes a fade).
@@ -393,7 +401,8 @@ class MainActivity : ComponentActivity() {
                 LockCover(lockCoverVisible.value && state.lockCover) { lockCoverVisible.value = false }
                 // Nothing draws over StandBy while it's up: the headphones card, the setup reminder and the island wait.
                 AudioDeviceCard("BLUETOOTH" !in state.islandEventsOff, blocked = overlayOpen || standByShowing.value)
-                SetupReminderCard(defaultHome.value, blocked = overlayOpen || standByShowing.value || showFirstRun.value || !defaultHome.value, onMakeDefault = ::makeDefault,
+                // One prompt at a time: the card also waits while the gestures dialog is up, and comes back when it closes.
+                SetupReminderCard(defaultHome.value, blocked = overlayOpen || standByShowing.value || showFirstRun.value || !defaultHome.value || shadeSetupUp.value, onMakeDefault = ::makeDefault,
                     onShadeSetup = ::showShadeSetup) { SettingsLink.page = CustomizationPage.PERMISSIONS; settingsRequests.intValue++ }
                 sharedTheme.value?.let { theme ->
                     AlertDialog(onDismissRequest = { sharedTheme.value = null },
@@ -426,12 +435,12 @@ class MainActivity : ComponentActivity() {
                     ?.takeUnless { state.railActivities && state.verticalStatus && !overlayOpen }, state.islandEventsOff + "BLUETOOTH") {
                     IslandListenerService.open(this@MainActivity, it)
                 }
-                TopPanels(topPanel.value, { panelProgress }, deviceStatus, onClose = { topPanel.value = null },
+                TopPanels(topPanel.value, { OverlayBack.shown(panelProgress, OverlayBack.swipe.value) }, deviceStatus, onClose = { topPanel.value = null },
                     onSystemPanel = { openAndroidShade(it) }, showClock = state.notificationClock, grouped = state.groupNotifications,
                     ccControls = state.ccControls, onCcControls = model::setCcControls,
                     ccSize = state.ccSize, ccCentered = state.ccCentered, ncSplit = state.ncSplit,
                     focusModes = state.focusModes, activeFocus = state.activeFocus, onFocus = model::setFocus)
-                SpotlightOverlay(spotlightVisible.value, { spotlightProgress }, state, onClose = { spotlightVisible.value = false },
+                SpotlightOverlay(spotlightVisible.value, { OverlayBack.shown(spotlightProgress, OverlayBack.swipe.value) }, state, onClose = { spotlightVisible.value = false },
                     onLaunch = { launchApp(it) })
                 // Last, so the corners sit above everything in Home's window.
                 if (state.roundedCorners) RoundedScreenCorners(state.cornerRadius.dp)
@@ -580,7 +589,7 @@ class MainActivity : ComponentActivity() {
         if (shadeSetupDialog?.isShowing == true) return
         ownShadeSetupExternally()
         // Two prompts at once read as one: after an install, a restored gestures dialog came up over the build page.
-        if (startupSheetUp()) { shadeSetupWaiting = true; return }
+        if (startupSheetUp()) { shadeSetupWaiting = true; shadeSetupUp.value = true; return }
         shadeSetupDialog = android.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.turn_on_folio_gestures))
             .setMessage("Android asks you to turn this on yourself:\n\n" +
@@ -607,9 +616,11 @@ class MainActivity : ComponentActivity() {
             }
             .also { dialog -> dialog.setOnDismissListener {
                 shadeSetupDialog = null
+                shadeSetupUp.value = false
                 if (!returningFromShadeSettings && !recreatingShadeSetup) releaseShadeSetupOwnership()
             } }
             .show()
+        shadeSetupUp.value = true
     }
 
     private fun finishFirstRun() {

@@ -95,6 +95,9 @@ internal fun StackPeek(size: androidx.compose.ui.unit.Dp) {
         .clip(RoundedCornerShape(size * .24f)).background(Color.White.copy(alpha = .28f)))
 }
 
+/** The fan's spring: [FolioMotion.Bounce] with the motion pass on, and the numbers it had before the pass with it off. */
+internal fun fanSpring() = FolioMotion.pick(old = .68f to 520f, new = FolioMotion.Bounce)
+
 /**
  * The fan: the stack's apps drop out of the icon in a column (above it when there's no room below), each springing in a
  * moment after the last, with its name beside it. Tap one to open it; tap anywhere else to put them back.
@@ -107,7 +110,7 @@ internal fun IconStackFan(anchor: AppEntry, apps: List<AppEntry>, onDismiss: () 
     LaunchedEffect(Unit) {
         kotlinx.coroutines.coroutineScope {
             progress.forEachIndexed { i, p ->
-                launch { kotlinx.coroutines.delay(i * 35L); p.animateTo(1f, FolioMotion.spring(FolioMotion.Bounce)) }
+                launch { kotlinx.coroutines.delay(i * 35L); p.animateTo(1f, FolioMotion.spring(fanSpring())) }
             }
         }
     }
@@ -168,6 +171,6 @@ internal fun IconStackEditor(anchor: AppEntry, apps: List<AppEntry>, chosen: Lis
                 modifier = Modifier.clip(RoundedCornerShape(FolioRadius.CONTROL.dp)).clickable(onClick = onDone).padding(FolioSpace.SMALL.dp))
         }
         AppCheckList(shown, query, { query = it }, checked = { it.id in chosen }, enabled = { it.id in chosen || chosen.size < IconStacks.MAX },
-            checkedLabel = "In stack", uncheckedLabel = "Not in stack", onToggle = { onToggle(it.id) }, modifier = Modifier.weight(1f))
+            checkedLabel = stringResource(R.string.in_stack), uncheckedLabel = stringResource(R.string.not_in_stack), onToggle = { onToggle(it.id) }, modifier = Modifier.weight(1f))
     }
 }

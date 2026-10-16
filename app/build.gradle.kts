@@ -36,7 +36,7 @@ val releaseStoreFile = releaseSigningValues["FOLIO_RELEASE_STORE_FILE"]?.let { c
     }
 }
 
-val folioVersion = "1.2.0"
+val folioVersion = "1.3.0"
 
 // Bundle the changelog so Folio can show What's New after an update.
 val bundleChangelog = tasks.register<Copy>("bundleChangelog") {
@@ -135,16 +135,16 @@ androidComponents {
             variant.sources.assets?.addGeneratedSourceDirectory(generateDevBuildInfo, DevBuildInfoTask::outputDir)
         }
         if (variant.buildType == "nonMinifiedRelease" || variant.buildType == "benchmarkRelease") {
-            variant.applicationId.set("com.joshreid.bifold.profile")
+            variant.applicationId.set("com.itxjobe.bifold.profile")
         }
     }
 }
 
 android {
     namespace = "com.mccal.folio"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
-        applicationId = "com.joshreid.bifold"
+        applicationId = "com.itxjobe.bifold"
         minSdk = 31
         targetSdk = 36
         // Semantic version; see CHANGELOG.md and docs/adr/0007-release-trains.md.
@@ -197,7 +197,7 @@ android {
         // Same app id as "fast", so one build installs over the other and Folio Dev keeps its layout and settings.
         // Only the name differs, because that is the one place you can tell them apart on the phone, and it matters:
         // a debug build is far slower, so frame numbers taken on one mean nothing next to numbers from the other.
-        // Bifold ships the debug build as com.joshreid.bifold itself, alongside an installed Folio.
+        // Bifold ships the debug build as com.itxjobe.bifold itself, alongside an installed Folio.
         getByName("debug") {
             manifestPlaceholders["appLabel"] = "Bifold"
         }
@@ -259,7 +259,7 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 

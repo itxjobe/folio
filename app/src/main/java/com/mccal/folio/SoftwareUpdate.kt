@@ -95,7 +95,7 @@ internal object SoftwareUpdate {
         scope.launch { try { block() } finally { busy.set(false) } }
     }
 
-    // Bifold: never offers upstream Folio releases (they would replace this build). Updates come from Josh's own builds.
+    // Bifold: never offers upstream Folio releases (they would replace this build). Updates come from @itxjobe's own builds.
     @Suppress("UNUSED_PARAMETER") fun supported(context: Context) = false
 
     /**

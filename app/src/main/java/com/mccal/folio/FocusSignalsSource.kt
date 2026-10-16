@@ -54,16 +54,17 @@ internal fun focusSignals(activity: Activity): Flow<FocusSignals> {
         foldStateOf(folds.isNotEmpty(), folds.any { it.state == FoldingFeature.State.HALF_OPENED }, hinge || prefs.getBoolean("sawFold", false))
     }.distinctUntilChanged()
 
-    // Plugged in counts as charging (see [startsCharging]): BatteryManager.isCharging is false on a phone held at Samsung's
-    // charge limit, and can still read false at the instant ACTION_POWER_CONNECTED arrives. The sticky battery broadcast
-    // carries the plug state and is re-sent on every change, so it is both the first reading and the updates.
+    // Charging means plugged in, as Home shows it (isCharging in DeviceStatus.kt). BatteryManager.isCharging is false while a
+    // Samsung phone holds at its charge limit, so a charging Focus didn't turn on for anyone using battery protection (#328).
     val charging = callbackFlow {
-        fun from(i: Intent?) = i != null &&
-            isCharging(i.getIntExtra(BatteryManager.EXTRA_STATUS, -1), i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0))
-        val receiver = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { trySend(from(i)) } }
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        // Registering for the sticky broadcast returns the current state at once.
-        trySend(from(ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)))
+        fun now() = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?.let { isCharging(it.getIntExtra(BatteryManager.EXTRA_STATUS, -1), it.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) } == true
+        trySend(now())
+        val receiver = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { trySend(now()) } }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED); addAction(Intent.ACTION_BATTERY_CHANGED)
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         awaitClose { context.unregisterReceiver(receiver) }
     }.distinctUntilChanged()
 

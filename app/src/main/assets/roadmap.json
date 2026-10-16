@@ -3,6 +3,19 @@
   "note": "Where Folio is headed. Plans can change with feedback, and Android doesn't allow everything iOS does.",
   "sections": [
     {
+      "release": "1.3.0",
+      "subtitle": "Built on Folio's latest",
+      "items": [
+        {
+          "icon": "dock",
+          "color": "#30D158",
+          "title": "Folio's latest upstream",
+          "detail": "Bifold now includes Folio's newest fixes and features.",
+          "status": "done"
+        }
+      ]
+    },
+    {
       "release": "1.1.0",
       "subtitle": "Bifold",
       "items": [
@@ -462,7 +475,7 @@
           "icon": "history",
           "color": "#30D158",
           "title": "What Folio can use, and what it did",
-          "detail": "Capabilities and Recent Activity in Settings › Advanced, and Copy Diagnostics.",
+          "detail": "Capabilities and Recent Activity in Settings › General › Advanced, and Copy Diagnostics.",
           "status": "building",
           "beta": true,
           "inBeta": 1
@@ -499,14 +512,45 @@
           "color": "#30D158",
           "title": "Safe Mode that recovers",
           "detail": "An install cut short is put back, and native crashes and freezes count toward Safe Mode.",
-          "status": "building"
+          "status": "building",
+          "beta": true,
+          "inBeta": 2
         },
         {
           "icon": "notifications",
           "color": "#0A84FF",
           "title": "Notices with Undo",
           "detail": "Notices that fit their text and stay clear of the camera and fold, and Undo from the update notice.",
-          "status": "building"
+          "status": "building",
+          "beta": true,
+          "inBeta": 2
+        },
+        {
+          "icon": "grid",
+          "color": "#5E5CE6",
+          "title": "Swap apps in Screenshot Mode",
+          "detail": "Chosen apps, or every app you installed, show as the phone's own apps while Screenshot Mode is on; a tap still opens the real app.",
+          "status": "building",
+          "beta": true,
+          "inBeta": 3
+        },
+        {
+          "icon": "apps",
+          "color": "#FF453A",
+          "title": "Delete apps from Folio",
+          "detail": "Remove App on Home and Delete App in the App Library, with Android's own confirmation.",
+          "status": "building",
+          "beta": true,
+          "inBeta": 3
+        },
+        {
+          "icon": "accessibility",
+          "color": "#0A84FF",
+          "title": "Reduce Motion",
+          "detail": "A setting between all motion and none: things fade in where they land instead of sliding or growing.",
+          "status": "building",
+          "beta": true,
+          "inBeta": 3
         },
         {
           "icon": "speed",
